@@ -53,7 +53,8 @@ h3 {
   font-weight: 600;
   font-variation-settings: 'opsz' 96;
   line-height: 1.08;
-  letter-spacing: -0.015em;
+  letter-spacing: -0.005em;
+  word-spacing: 0.06em;
   text-wrap: balance;
 }
 

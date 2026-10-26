@@ -1,0 +1,260 @@
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-block: 1.5rem;
+}
+
+.headerLink {
+  padding: 0.5rem 0;
+  font-weight: 600;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.3em;
+}
+
+/* Hero */
+
+.hero {
+  display: grid;
+  gap: 3.5rem;
+  padding-block: clamp(2rem, 6vw, 5rem) clamp(3rem, 8vw, 6rem);
+}
+
+.pitch {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1.25rem;
+  max-width: 36rem;
+}
+
+.pitch h1 {
+  font-size: clamp(2.5rem, 7vw, 4.5rem);
+}
+
+.lead {
+  max-width: 32rem;
+  font-size: 1.25rem;
+  line-height: 1.5;
+}
+
+.access {
+  color: var(--ink-soft);
+  font-weight: 600;
+}
+
+/* The example: commits on one side, the draft they produce on the other.
+   Each sentence carries the colour of the commit it came from. */
+
+.example {
+  min-width: 0;
+  padding: clamp(1rem, 3vw, 2rem);
+  border: 2px solid var(--ink);
+  border-radius: 0.75rem;
+  background: var(--paper-sunk);
+}
+
+.example figcaption {
+  margin-bottom: 1.25rem;
+  color: var(--ink-soft);
+  font-size: 0.9375rem;
+}
+
+.pair {
+  display: grid;
+  gap: 1.75rem;
+}
+
+.label {
+  margin-bottom: 0.75rem;
+  color: var(--ink-soft);
+  font-family: var(--font-body);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  font-variation-settings: normal;
+  letter-spacing: 0;
+}
+
+.commits {
+  display: grid;
+  gap: 0.75rem;
+  list-style: none;
+}
+
+.commits li {
+  position: relative;
+  padding: 0.5rem 0.75rem 0.5rem 2.5rem;
+  border-left: 6px solid var(--c, var(--rule));
+  background: var(--paper);
+  overflow-wrap: anywhere;
+}
+
+.commits code {
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.tag {
+  font-weight: 700;
+}
+
+.skipped {
+  color: var(--ink-soft);
+}
+
+.note {
+  display: block;
+  font-size: 0.875rem;
+}
+
+.ref {
+  position: absolute;
+  top: 0.55rem;
+  left: 0.6rem;
+  display: grid;
+  place-items: center;
+  width: 1.4rem;
+  height: 1.4rem;
+  border-radius: 50%;
+  background: var(--c);
+  color: var(--ink);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.draft {
+  font-size: 1.125rem;
+  line-height: 1.85;
+}
+
+.mark {
+  padding: 0.1em 0.15em;
+  background-image: linear-gradient(
+    color-mix(in srgb, var(--c) 45%, var(--paper-sunk)),
+    color-mix(in srgb, var(--c) 45%, var(--paper-sunk))
+  );
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+  box-shadow: inset 0 -3px 0 var(--c);
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
+.sup {
+  margin-left: 0.15em;
+  font-size: 0.7em;
+  font-weight: 700;
+}
+
+/* The one page-load animation: the highlights are drawn in, one after
+   another. Without it everything is simply already drawn. */
+@media (prefers-reduced-motion: no-preference) {
+  .mark {
+    animation: draw 700ms ease-out both;
+    animation-delay: calc(400ms + var(--i) * 500ms);
+  }
+
+  @keyframes draw {
+    from {
+      background-size: 0% 100%;
+    }
+  }
+}
+
+@media (min-width: 62rem) {
+  .hero {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    align-items: center;
+    gap: 4rem;
+  }
+}
+
+@media (min-width: 40rem) {
+  .pair {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 2rem;
+  }
+}
+
+/* How it works */
+
+.how {
+  padding-block: clamp(2.5rem, 6vw, 4.5rem);
+  border-top: 2px solid var(--ink);
+}
+
+.how h2,
+.close h2 {
+  font-size: clamp(2rem, 5vw, 3rem);
+}
+
+.steps {
+  display: grid;
+  gap: 2rem;
+  max-width: 40rem;
+  margin-top: 2.5rem;
+  list-style: none;
+}
+
+.steps li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 1.25rem;
+  align-items: start;
+}
+
+.steps h3 {
+  margin-bottom: 0.35rem;
+  font-size: 1.5rem;
+}
+
+.steps p {
+  color: var(--ink-soft);
+}
+
+.num {
+  display: grid;
+  place-items: center;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 0.5rem;
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+/* Closing line */
+
+.close {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1.5rem;
+  padding-block: clamp(2.5rem, 6vw, 4.5rem);
+  border-top: 2px solid var(--ink);
+}
+
+.close h2 {
+  max-width: 28rem;
+}
+
+/* Footer */
+
+.footer {
+  padding-block: 2rem 3rem;
+  color: var(--ink-soft);
+  font-size: 0.9375rem;
+}
+
+.bar {
+  display: flex;
+  width: 7.5rem;
+  height: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.bar span {
+  flex: 1;
+}
