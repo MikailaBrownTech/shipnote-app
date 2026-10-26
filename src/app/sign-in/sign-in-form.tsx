@@ -60,7 +60,7 @@ export function SignInForm() {
     <div className={styles.form}>
       <button
         type="button"
-        className="button"
+        className="button button-amber"
         onClick={signInWithGitHub}
         disabled={working}
       >
@@ -80,18 +80,18 @@ export function SignInForm() {
           required
           disabled={working}
         />
-        <button
-          type="submit"
-          className="button button-quiet"
-          disabled={working}
-        >
+        <button type="submit" className="button" disabled={working}>
           Email me a link
         </button>
       </form>
 
       <p
         role="status"
-        className={status === 'error' ? styles.error : styles.note}
+        className={
+          status === 'error'
+            ? `${styles.status} on-pink`
+            : `${styles.status} on-azure`
+        }
       >
         {message}
       </p>

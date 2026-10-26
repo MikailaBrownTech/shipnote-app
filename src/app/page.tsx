@@ -1,5 +1,4 @@
 import Link from 'next/link'
-import type { CSSProperties } from 'react'
 import styles from './landing.module.css'
 
 type Commit = {
@@ -7,7 +6,7 @@ type Commit = {
   hash: string
   message: string
   tagged: boolean
-  color?: string
+  tone?: string
 }
 
 // A made-up project, so nothing here is a real customer or repo.
@@ -17,21 +16,21 @@ const commits: Commit[] = [
     hash: 'a3f9c21',
     message: 'Add CSV export to the usage report',
     tagged: true,
-    color: 'var(--amber-gold)',
+    tone: 'on-amber',
   },
   {
     n: 2,
     hash: 'b81d07e',
     message: 'Cut report load time from 9s to 2s',
     tagged: true,
-    color: 'var(--azure-blue)',
+    tone: 'on-azure',
   },
   {
     n: 3,
     hash: 'c04e5aa',
     message: 'Fix timezone bug that shifted weekly totals',
     tagged: true,
-    color: 'var(--neon-pink)',
+    tone: 'on-pink',
   },
   {
     n: 0,
@@ -57,25 +56,22 @@ const steps = [
   {
     title: 'Add your project',
     body: 'Link the repo and the docs that explain what you are building.',
-    fill: 'var(--amber-gold)',
-    text: 'var(--ink)',
+    tone: 'on-orange',
   },
   {
     title: 'Tag a commit with [post]',
     body: 'Write commit messages the way you always do. Add [post] to the ones worth telling people about.',
-    fill: 'var(--blaze-orange)',
-    text: 'var(--ink)',
+    tone: 'on-amber',
   },
   {
     title: 'Edit and copy',
     body: 'Shipnote drafts the post. You change what you want, copy it, and publish it on LinkedIn yourself.',
-    fill: 'var(--blue-violet)',
-    text: 'var(--on-violet)',
+    tone: 'on-azure',
   },
 ]
 
-function colorOf(n: number) {
-  return commits.find((commit) => commit.n === n)?.color
+function toneOf(n: number) {
+  return commits.find((commit) => commit.n === n)?.tone
 }
 
 export default function Home() {
@@ -85,14 +81,14 @@ export default function Home() {
         <Link href="/" className="wordmark">
           Shipnote
         </Link>
-        <Link href="/sign-in" className={styles.headerLink}>
+        <Link href="/sign-in" className="button">
           Sign in
         </Link>
       </header>
 
       <main>
         <section className={`page ${styles.hero}`} aria-labelledby="hero-title">
-          <div className={styles.pitch}>
+          <div className={`box on-violet ${styles.title}`}>
             <h1 id="hero-title">
               What you shipped this week, as a post that sounds like you.
             </h1>
@@ -100,14 +96,17 @@ export default function Home() {
               Shipnote turns your project docs and the commits you tag into a
               LinkedIn draft. You edit it and copy it. It never posts for you.
             </p>
+          </div>
+
+          <div className={`box on-orange ${styles.side}`}>
             <p className={styles.access}>Early access, invite only.</p>
             <Link href="/sign-in" className="button">
               Sign in
             </Link>
           </div>
 
-          <figure className={styles.example}>
-            <figcaption>
+          <figure className={`box on-paper ${styles.example}`}>
+            <figcaption className={`box on-amber ${styles.caption}`}>
               An example from a made-up project called Tidepool
             </figcaption>
 
@@ -116,11 +115,7 @@ export default function Home() {
                 <h2 className={styles.label}>Commits</h2>
                 <ol className={styles.commits}>
                   {commits.map((commit) => (
-                    <li
-                      key={commit.hash}
-                      className={commit.tagged ? styles.tagged : styles.skipped}
-                      style={{ '--c': commit.color } as CSSProperties}
-                    >
+                    <li key={commit.hash} className={commit.tone ?? 'on-paper'}>
                       {commit.tagged ? (
                         <span className={styles.ref}>{commit.n}</span>
                       ) : null}
@@ -141,20 +136,17 @@ export default function Home() {
                 </ol>
               </div>
 
-              <div>
+              <div className={`box on-paper ${styles.draftBox}`}>
                 <h2 className={styles.label}>The draft</h2>
                 <p className={styles.draft}>
                   This week on Tidepool.{' '}
-                  {sentences.map((sentence) => (
+                  {sentences.map((sentence, index) => (
                     <span key={sentence.n}>
                       <span
-                        className={styles.mark}
-                        style={
-                          {
-                            '--c': colorOf(sentence.n),
-                            '--i': sentence.n - 1,
-                          } as CSSProperties
-                        }
+                        className={`${styles.mark} ${toneOf(sentence.n) ?? ''}`}
+                        style={{
+                          animationDelay: `${String(400 + index * 450)}ms`,
+                        }}
                       >
                         {sentence.text}
                         <sup className={styles.sup}>{sentence.n}</sup>
@@ -168,23 +160,20 @@ export default function Home() {
         </section>
 
         <section className={`page ${styles.how}`} aria-labelledby="how-title">
-          <h2 id="how-title">How it works</h2>
+          <h2 id="how-title" className={`box on-paper ${styles.howTitle}`}>
+            How it works
+          </h2>
           <ol className={styles.steps}>
             {steps.map((step, index) => (
-              <li key={step.title}>
-                <span
-                  className={styles.num}
-                  style={
-                    { background: step.fill, color: step.text } as CSSProperties
-                  }
-                  aria-hidden="true"
-                >
+              <li
+                key={step.title}
+                className={`box press ${step.tone} ${styles.step}`}
+              >
+                <span className={styles.num} aria-hidden="true">
                   {index + 1}
                 </span>
-                <div>
-                  <h3>{step.title}</h3>
-                  <p>{step.body}</p>
-                </div>
+                <h3>{step.title}</h3>
+                <p>{step.body}</p>
               </li>
             ))}
           </ol>
@@ -194,24 +183,28 @@ export default function Home() {
           className={`page ${styles.close}`}
           aria-labelledby="close-title"
         >
-          <h2 id="close-title">
-            Got an invite? Sign in and start with one commit.
-          </h2>
-          <Link href="/sign-in" className="button">
-            Sign in
-          </Link>
+          <div className={`box on-pink ${styles.closeBox}`}>
+            <h2 id="close-title">
+              Got an invite? Sign in and start with one commit.
+            </h2>
+            <Link href="/sign-in" className="button">
+              Sign in
+            </Link>
+          </div>
         </section>
       </main>
 
       <footer className={`page ${styles.footer}`}>
-        <div className={styles.bar} aria-hidden="true">
-          <span style={{ background: 'var(--amber-gold)' }} />
-          <span style={{ background: 'var(--blaze-orange)' }} />
-          <span style={{ background: 'var(--neon-pink)' }} />
-          <span style={{ background: 'var(--blue-violet)' }} />
-          <span style={{ background: 'var(--azure-blue)' }} />
+        <div className={styles.swatches} aria-hidden="true">
+          <span className="on-amber" />
+          <span className="on-orange" />
+          <span className="on-pink" />
+          <span className="on-violet" />
+          <span className="on-azure" />
         </div>
-        <p>Shipnote is in early access. It never posts to LinkedIn for you.</p>
+        <p className={`box on-paper ${styles.footnote}`}>
+          Shipnote is in early access. It never posts to LinkedIn for you.
+        </p>
       </footer>
     </>
   )

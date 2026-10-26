@@ -1,72 +1,105 @@
+/* A short stack of boxes that butt against each other, each a bit offset. */
+
 .main {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 1rem;
-  max-width: 34rem;
-  margin-inline: 0;
-  padding-block: 2rem 4rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  justify-items: start;
+  padding-block: 1.5rem 4rem;
 }
 
-.main h1 {
-  margin-top: 3rem;
-  font-size: clamp(2.5rem, 8vw, 3.5rem);
+.main > :global(.wordmark) {
+  margin-bottom: 2rem;
+}
+
+.titleBox {
+  width: 100%;
+  max-width: 40rem;
+  padding: clamp(1.1rem, 4vw, 2rem);
+}
+
+.titleBox h1 {
+  font-size: clamp(2.75rem, 12vw, 5.5rem);
 }
 
 .lead {
-  color: var(--ink-soft);
+  max-width: 28rem;
+  margin-top: 1.25rem;
+  font-size: 1.125rem;
+  line-height: 1.45;
+}
+
+.alert {
+  position: relative;
+  width: calc(100% - 1.5rem);
+  max-width: 34rem;
+  margin: -3px 0 0 1.5rem;
+  padding: 0.9rem 1.1rem;
+  font-weight: 700;
 }
 
 .form {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 1rem;
-  width: 100%;
-  margin-top: 1rem;
+  gap: 1.1rem;
+  width: calc(100% - 0.75rem);
+  max-width: 34rem;
+  margin: -3px 0 0 0.75rem;
+  padding: clamp(1.1rem, 4vw, 1.75rem);
+  border: var(--line);
+  box-shadow: var(--shadow);
+  background: var(--paper);
 }
 
 .form form {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 0.5rem;
+  gap: 0.6rem;
   width: 100%;
 }
 
+.or {
+  font-weight: 700;
+}
+
 .form label {
-  font-weight: 600;
+  font-weight: 800;
 }
 
 .form input {
   width: 100%;
-  min-height: 3rem;
+  min-height: 3.25rem;
   padding: 0.5rem 0.9rem;
-  border: 2px solid var(--ink);
-  border-radius: 0.5rem;
+  border: var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
   color: var(--ink);
-  background: #fff;
+  background: var(--paper);
   font: inherit;
+  font-weight: 600;
+}
+
+.form input:disabled {
+  background: var(--amber-gold);
 }
 
 .form form .button {
-  margin-top: 0.5rem;
+  margin-top: 0.6rem;
 }
 
-.or {
-  color: var(--ink-soft);
+/* Present for screen readers, drawn only when it has a message. */
+.status {
+  width: 100%;
+  padding: 0.8rem 1rem;
+  border: var(--line);
+  box-shadow: var(--shadow-sm);
+  font-weight: 700;
 }
 
-.note,
-.error {
-  min-height: 1.6em;
-}
-
-.error {
-  padding-left: 0.9rem;
-  border-left: 4px solid var(--neon-pink);
-}
-
-.note {
-  color: var(--ink-soft);
+.status:empty {
+  padding: 0;
+  border: 0;
+  box-shadow: none;
 }

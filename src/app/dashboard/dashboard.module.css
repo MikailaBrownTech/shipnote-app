@@ -1,5 +1,5 @@
 .main {
-  padding-block: 2rem 4rem;
+  padding-block: 1.5rem 4rem;
 }
 
 .header {
@@ -7,31 +7,52 @@
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  margin-bottom: 3rem;
+  margin-bottom: 2.5rem;
 }
 
-.main h1 {
-  font-size: clamp(2.5rem, 8vw, 3.5rem);
+/* Title and account box butt against each other; the empty state overlaps
+   the bottom of them. */
+
+.top {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.title {
+  padding: clamp(1.1rem, 4vw, 2rem);
+  font-size: clamp(2.5rem, 11vw, 5.5rem);
 }
 
 .who {
-  margin-top: 0.5rem;
-  color: var(--ink-soft);
+  margin: -3px 0 0 1.5rem;
+  padding: 0.8rem 1.1rem;
+  font-weight: 700;
   overflow-wrap: anywhere;
 }
 
 .empty {
-  max-width: 34rem;
-  margin-top: 3rem;
-  padding: 1.5rem 0 0 1.25rem;
-  border-left: 6px solid var(--amber-gold);
+  position: relative;
+  max-width: 40rem;
+  margin: -1.25rem 0 0 0.75rem;
+  padding: clamp(1.25rem, 4vw, 2.25rem);
 }
 
 .empty h2 {
-  margin-bottom: 0.5rem;
-  font-size: 1.75rem;
+  margin-bottom: 0.75rem;
+  font-size: clamp(1.75rem, 6vw, 2.75rem);
 }
 
-.empty p {
-  color: var(--ink-soft);
+@media (min-width: 48rem) {
+  .top {
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .who {
+    margin: 2rem 0 0 -3px;
+  }
+
+  .empty {
+    margin: -1.5rem 0 0 3rem;
+  }
 }

@@ -1,6 +1,5 @@
 import type { Metadata } from 'next'
-import '@fontsource-variable/fraunces/opsz.css'
-import '@fontsource-variable/instrument-sans'
+import '@fontsource-variable/archivo/wdth.css'
 import '@fontsource-variable/jetbrains-mono'
 import { env } from '@/lib/env'
 import './globals.css'

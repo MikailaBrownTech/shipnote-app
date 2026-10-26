@@ -1,27 +1,27 @@
 :root {
-  /* Palette. Use these for fills, bars and highlights. Text and primary
-     buttons use the dark neutral, because most of these fail contrast as
-     text on a light background. */
+  /* Palette. Each is used as a flat block. */
   --amber-gold: #ffbe0b;
   --blaze-orange: #fb5607;
   --neon-pink: #ff006e;
   --blue-violet: #8338ec;
   --azure-blue: #3a86ff;
 
-  /* Neutrals */
-  --ink: #17141f;
-  --ink-soft: #57516a;
-  --paper: #fbf8f2;
-  --paper-sunk: #f2ede3;
-  --rule: #ddd5c6;
-  --on-violet: #ffffff;
+  /* Neutrals: one dark ink for borders and text, one off-white. */
+  --ink: #14110f;
+  --paper: #fff6e5;
 
-  --font-display: 'Fraunces Variable', Georgia, 'Times New Roman', serif;
-  --font-body: 'Instrument Sans Variable', system-ui, sans-serif;
+  /* The shape of every box. */
+  --line: 3px solid var(--ink);
+  --radius: 0;
+  --shadow: 6px 6px 0 var(--ink);
+  --shadow-sm: 3px 3px 0 var(--ink);
+
+  --font-display: 'Archivo Variable', 'Arial Black', system-ui, sans-serif;
+  --font-body: 'Archivo Variable', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono Variable', ui-monospace, Consolas, monospace;
 
-  --gutter: clamp(1rem, 5vw, 3rem);
-  --page-width: 72rem;
+  --gutter: clamp(1rem, 4vw, 2.5rem);
+  --page-width: 76rem;
 
   color-scheme: light;
 }
@@ -38,11 +38,14 @@ html {
 
 body {
   min-height: 100dvh;
+  overflow-x: hidden;
   color: var(--ink);
   background: var(--paper);
   font-family: var(--font-body);
   font-size: 1.0625rem;
-  line-height: 1.6;
+  font-stretch: 100%;
+  font-weight: 450;
+  line-height: 1.55;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -50,12 +53,11 @@ h1,
 h2,
 h3 {
   font-family: var(--font-display);
-  font-weight: 600;
-  font-variation-settings: 'opsz' 96;
-  line-height: 1.08;
-  letter-spacing: -0.005em;
-  word-spacing: 0.06em;
-  text-wrap: balance;
+  font-stretch: 125%;
+  font-weight: 900;
+  line-height: 0.98;
+  letter-spacing: -0.02em;
+  overflow-wrap: break-word;
 }
 
 p {
@@ -66,47 +68,115 @@ a {
   color: inherit;
 }
 
+/* A thick ink ring. Ink has at least 3:1 against every block colour. */
 :focus-visible {
-  outline: 3px solid var(--blue-violet);
-  outline-offset: 3px;
-  border-radius: 2px;
+  outline: 4px solid var(--ink);
+  outline-offset: 4px;
 }
+
+/* Boxes */
+
+.box {
+  border: var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+/* Colour blocks. The text colour is set with the fill, chosen by measured
+   contrast: ink on amber, orange, pink, azure and the off-white; the
+   off-white on violet, where ink only reaches 3.4:1. */
+.on-amber {
+  color: var(--ink);
+  background: var(--amber-gold);
+}
+
+.on-orange {
+  color: var(--ink);
+  background: var(--blaze-orange);
+}
+
+.on-pink {
+  color: var(--ink);
+  background: var(--neon-pink);
+}
+
+.on-violet {
+  color: var(--paper);
+  background: var(--blue-violet);
+}
+
+.on-azure {
+  color: var(--ink);
+  background: var(--azure-blue);
+}
+
+.on-paper {
+  color: var(--ink);
+  background: var(--paper);
+}
+
+/* Buttons: the shadow shrinks as they are pressed down toward the page. */
 
 .button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 3rem;
-  padding: 0.65rem 1.4rem;
-  border: 2px solid var(--ink);
-  border-radius: 0.5rem;
-  color: var(--paper);
-  background: var(--ink);
+  min-height: 3.25rem;
+  padding: 0.7rem 1.4rem;
+  border: var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  color: var(--ink);
+  background: var(--paper);
   font: inherit;
-  font-weight: 600;
-  line-height: 1.2;
+  font-stretch: 112%;
+  font-weight: 800;
+  line-height: 1.15;
+  text-align: center;
   text-decoration: none;
   cursor: pointer;
-  transition: transform 120ms ease;
+  transition:
+    transform 90ms ease-out,
+    box-shadow 90ms ease-out;
 }
 
-.button:hover {
-  transform: translateY(-1px);
+.button-amber {
+  background: var(--amber-gold);
+}
+
+.button-azure {
+  background: var(--azure-blue);
+}
+
+@media (hover: hover) {
+  .button:hover:not(:disabled) {
+    transform: translate(3px, 3px);
+    box-shadow: var(--shadow-sm);
+  }
+}
+
+.button:active:not(:disabled),
+.button:disabled {
+  transform: translate(6px, 6px);
+  box-shadow: 0 0 0 var(--ink);
 }
 
 .button:disabled {
-  opacity: 0.6;
   cursor: progress;
-  transform: none;
 }
 
-.button-quiet {
-  color: var(--ink);
-  background: transparent;
+/* Boxes that react when pointed at, for the ones that are not buttons. */
+.press {
+  transition:
+    transform 90ms ease-out,
+    box-shadow 90ms ease-out;
 }
 
-.button-quiet:hover {
-  background: var(--paper-sunk);
+@media (hover: hover) {
+  .press:hover {
+    transform: translate(3px, 3px);
+    box-shadow: var(--shadow-sm);
+  }
 }
 
 .page {
@@ -117,20 +187,32 @@ a {
 }
 
 .wordmark {
+  display: inline-block;
+  padding: 0.35rem 0.8rem;
+  border: var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  color: var(--ink);
+  background: var(--amber-gold);
   font-family: var(--font-display);
   font-size: 1.5rem;
-  font-weight: 700;
-  font-variation-settings: 'opsz' 48;
+  font-stretch: 125%;
+  font-weight: 900;
   letter-spacing: -0.02em;
+  line-height: 1.1;
   text-decoration: none;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .button {
-    transition: none;
+@media (hover: hover) {
+  .wordmark:hover {
+    transform: translate(3px, 3px);
+    box-shadow: 0 0 0 var(--ink);
   }
+}
 
-  .button:hover {
-    transform: none;
+@media (prefers-reduced-motion: reduce) {
+  .button,
+  .press {
+    transition: none;
   }
 }
