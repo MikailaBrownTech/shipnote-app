@@ -1,5 +1,5 @@
 import { cookies } from 'next/headers'
-import { NextResponse, type NextRequest } from 'next/server'
+import { after, NextResponse, type NextRequest } from 'next/server'
 import { callbackErrorCode, type SignInError } from '@/lib/auth-errors'
 import { clearAuthCookies } from '@/lib/auth-cookies'
 import { env } from '@/lib/env'
@@ -7,7 +7,9 @@ import { checkGithubSignIn } from '@/lib/github-verified'
 import { NEXT_COOKIE, NEXT_COOKIE_PATH } from '@/lib/next-cookie'
 import { safeNext } from '@/lib/safe-next'
 import { createClient } from '@/lib/supabase/server'
+import { getClientIp } from '@/server/client-ip'
 import { removeUnverifiedAccount } from '@/server/remove-account'
+import { recordSignInAndAlert } from '@/server/sign-in-alert'
 
 // Built from the configured site URL, never from request headers.
 function redirectTo(path: string) {
@@ -45,6 +47,18 @@ export async function GET(request: NextRequest) {
     await clearAuthCookies()
     return fail('invite')
   }
+
+  // Record the sign-in and, for a new device, send an alert. This runs after
+  // the response, so it never slows or blocks sign-in. Everything it needs is
+  // read now, because request APIs are not available later.
+  const info = {
+    userId: data.user.id,
+    email: data.user.email ?? null,
+    method: check === 'ok' ? ('github' as const) : ('email' as const),
+    userAgent: request.headers.get('user-agent'),
+    ip: await getClientIp(),
+  }
+  after(() => recordSignInAndAlert(info))
 
   // `next` comes from the URL or from the cookie the server set before a
   // re-sign-in. Either way it goes through safeNext().
