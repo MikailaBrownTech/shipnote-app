@@ -13,13 +13,13 @@ describe('parseEnv', () => {
   })
 
   it('names every missing variable', () => {
-    expect(() => parseEnv({})).toThrowError(
+    expect(() => parseEnv({})).toThrow(
       /NEXT_PUBLIC_SITE_URL is missing[\s\S]*NEXT_PUBLIC_SUPABASE_URL is missing[\s\S]*NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY is missing/,
     )
   })
 
   it('treats an empty string as missing', () => {
-    expect(() => parseEnv({ ...valid, NEXT_PUBLIC_SITE_URL: '' })).toThrowError(
+    expect(() => parseEnv({ ...valid, NEXT_PUBLIC_SITE_URL: '' })).toThrow(
       /NEXT_PUBLIC_SITE_URL is missing/,
     )
   })
@@ -39,6 +39,6 @@ describe('parseEnv', () => {
   it('rejects a non-http URL', () => {
     expect(() =>
       parseEnv({ ...valid, NEXT_PUBLIC_SITE_URL: 'ftp://example.com' }),
-    ).toThrowError(/NEXT_PUBLIC_SITE_URL must be an http\(s\) URL/)
+    ).toThrow(/NEXT_PUBLIC_SITE_URL must be an http\(s\) URL/)
   })
 })

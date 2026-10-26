@@ -17,17 +17,17 @@ export async function updateSession(request: NextRequest) {
       cookies: {
         getAll: () => request.cookies.getAll(),
         setAll(cookiesToSet, headers) {
-          cookiesToSet.forEach(({ name, value }) =>
-            request.cookies.set(name, value),
-          )
+          cookiesToSet.forEach(({ name, value }) => {
+            request.cookies.set(name, value)
+          })
           response = NextResponse.next({ request })
-          cookiesToSet.forEach(({ name, value, options }) =>
-            response.cookies.set(name, value, options),
-          )
+          cookiesToSet.forEach(({ name, value, options }) => {
+            response.cookies.set(name, value, options)
+          })
           cacheHeaders = { ...cacheHeaders, ...headers }
-          Object.entries(cacheHeaders).forEach(([key, value]) =>
-            response.headers.set(key, value),
-          )
+          Object.entries(cacheHeaders).forEach(([key, value]) => {
+            response.headers.set(key, value)
+          })
         },
       },
     },
@@ -36,16 +36,16 @@ export async function updateSession(request: NextRequest) {
   // Verifies the signed token. Do not run code between creating the client
   // and this call, and never trust getSession() on the server.
   const { data } = await supabase.auth.getClaims()
-  const signedIn = Boolean(data?.claims?.sub)
+  const signedIn = Boolean(data?.claims.sub)
 
   if (!signedIn && request.nextUrl.pathname.startsWith('/dashboard')) {
     const redirect = NextResponse.redirect(
       new URL('/sign-in', env.NEXT_PUBLIC_SITE_URL),
     )
     response.cookies.getAll().forEach((cookie) => redirect.cookies.set(cookie))
-    Object.entries(cacheHeaders).forEach(([key, value]) =>
-      redirect.headers.set(key, value),
-    )
+    Object.entries(cacheHeaders).forEach(([key, value]) => {
+      redirect.headers.set(key, value)
+    })
     return redirect
   }
 

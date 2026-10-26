@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, type FormEvent } from 'react'
+import { useState, type SubmitEvent } from 'react'
 import { z } from 'zod'
 import { env } from '@/lib/env'
 import { createClient } from '@/lib/supabase/client'
@@ -30,12 +30,14 @@ export function SignInForm() {
     if (error) fail('We could not start the GitHub sign-in. Try again.')
   }
 
-  async function sendLink(event: FormEvent<HTMLFormElement>) {
+  async function sendLink(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault()
-    const address = email.safeParse(
-      new FormData(event.currentTarget).get('email')?.toString().trim(),
-    )
-    if (!address.success) return fail('Enter a valid email address.')
+    const raw = new FormData(event.currentTarget).get('email')
+    const address = email.safeParse(typeof raw === 'string' ? raw.trim() : '')
+    if (!address.success) {
+      fail('Enter a valid email address.')
+      return
+    }
 
     setStatus('working')
     setMessage('')
@@ -44,7 +46,8 @@ export function SignInForm() {
       options: { emailRedirectTo: callbackUrl },
     })
     if (error) {
-      return fail('We could not send the link. Wait a minute and try again.')
+      fail('We could not send the link. Wait a minute and try again.')
+      return
     }
 
     // Same message whether or not the address already has an account.
@@ -61,7 +64,7 @@ export function SignInForm() {
       <button
         type="button"
         className="button button-dark"
-        onClick={signInWithGitHub}
+        onClick={() => void signInWithGitHub()}
         disabled={working}
       >
         Sign in with GitHub
@@ -69,7 +72,7 @@ export function SignInForm() {
 
       <p className={styles.or}>or get a sign-in link by email</p>
 
-      <form onSubmit={sendLink} noValidate>
+      <form onSubmit={(event) => void sendLink(event)} noValidate>
         <label htmlFor="email">Email address</label>
         <input
           id="email"

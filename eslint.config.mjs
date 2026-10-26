@@ -6,6 +6,25 @@ import tseslint from "typescript-eslint";
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
+  ...tseslint.configs.strictTypeChecked.map((c) => ({
+    ...c,
+    files: ["**/*.{ts,tsx}"],
+  })),
+  {
+    files: ["**/*.{ts,tsx}"],
+    languageOptions: {
+      parserOptions: {
+        projectService: true,
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
+    rules: {
+      "@typescript-eslint/no-floating-promises": "error",
+      "@typescript-eslint/no-explicit-any": "error",
+      eqeqeq: ["error", "always"],
+      "no-console": ["error", { allow: ["warn", "error"] }],
+    },
+  },
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Default ignores of eslint-config-next:
