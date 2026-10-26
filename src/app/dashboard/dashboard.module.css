@@ -1,5 +1,26 @@
 .main {
+  position: relative;
+  isolation: isolate;
   padding-block: 1.5rem 4rem;
+}
+
+/* A soft wash of palette colour behind the page. */
+.main::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(
+      40rem 28rem at 90% 0%,
+      color-mix(in srgb, var(--blue-violet) 18%, transparent),
+      transparent 70%
+    ),
+    radial-gradient(
+      28rem 24rem at 0% 100%,
+      color-mix(in srgb, var(--azure-blue) 14%, transparent),
+      transparent 70%
+    );
 }
 
 .header {
@@ -10,49 +31,32 @@
   margin-bottom: 2.5rem;
 }
 
-/* Title and account box butt against each other; the empty state overlaps
-   the bottom of them. */
-
-.top {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-}
-
 .title {
-  padding: clamp(1.1rem, 4vw, 2rem);
-  font-size: clamp(2.5rem, 11vw, 5.5rem);
+  font-size: clamp(2.75rem, 10vw, 4.5rem);
 }
 
 .who {
-  margin: -3px 0 0 1.5rem;
-  padding: 0.8rem 1.1rem;
-  font-weight: 700;
+  display: inline-block;
+  margin-top: 1.25rem;
+  padding: 0.5rem 1rem;
+  border-radius: 999px;
+  color: var(--ink-soft);
+  font-weight: 600;
   overflow-wrap: anywhere;
 }
 
 .empty {
-  position: relative;
-  max-width: 40rem;
-  margin: -1.25rem 0 0 0.75rem;
-  padding: clamp(1.25rem, 4vw, 2.25rem);
+  max-width: 36rem;
+  margin-top: 2.5rem;
+  padding: clamp(1.5rem, 4vw, 2.25rem);
+  border-radius: var(--radius-lg);
 }
 
 .empty h2 {
-  margin-bottom: 0.75rem;
-  font-size: clamp(1.75rem, 6vw, 2.75rem);
+  margin-bottom: 0.6rem;
+  font-size: clamp(1.5rem, 5vw, 2rem);
 }
 
-@media (min-width: 48rem) {
-  .top {
-    grid-template-columns: auto minmax(0, 1fr);
-    align-items: start;
-  }
-
-  .who {
-    margin: 2rem 0 0 -3px;
-  }
-
-  .empty {
-    margin: -1.5rem 0 0 3rem;
-  }
+.empty p {
+  color: var(--ink-soft);
 }

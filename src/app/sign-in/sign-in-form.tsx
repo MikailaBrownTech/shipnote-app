@@ -60,7 +60,7 @@ export function SignInForm() {
     <div className={styles.form}>
       <button
         type="button"
-        className="button button-amber"
+        className="button button-dark"
         onClick={signInWithGitHub}
         disabled={working}
       >
@@ -80,7 +80,7 @@ export function SignInForm() {
           required
           disabled={working}
         />
-        <button type="submit" className="button" disabled={working}>
+        <button type="submit" className="button button-soft" disabled={working}>
           Email me a link
         </button>
       </form>

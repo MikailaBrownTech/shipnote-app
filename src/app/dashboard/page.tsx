@@ -29,25 +29,20 @@ async function Dashboard() {
           Shipnote
         </Link>
         <form action={signOut}>
-          <button type="submit" className="button">
+          <button type="submit" className="button button-soft">
             Sign out
           </button>
         </form>
       </header>
 
       <div className={styles.top}>
-        <h1 className={`box on-violet ${styles.title}`}>Dashboard</h1>
+        <h1 className={styles.title}>Dashboard</h1>
         {user.email ? (
-          <p className={`box on-paper ${styles.who}`}>
-            Signed in as {user.email}
-          </p>
+          <p className={`card ${styles.who}`}>Signed in as {user.email}</p>
         ) : null}
       </div>
 
-      <section
-        className={`box on-amber ${styles.empty}`}
-        aria-labelledby="empty-title"
-      >
+      <section className={`card ${styles.empty}`} aria-labelledby="empty-title">
         <h2 id="empty-title">Nothing here yet</h2>
         <p>
           Projects and drafts are not available in this early build. When they

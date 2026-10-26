@@ -14,7 +14,7 @@ export default function SignInPage({ searchParams }: PageProps<'/sign-in'>) {
       <Link href="/" className="wordmark">
         Shipnote
       </Link>
-      <div className={`box on-violet ${styles.titleBox}`}>
+      <div className={styles.titleBox}>
         <h1>Sign in</h1>
         <p className={styles.lead}>
           Shipnote is in early access. Use GitHub, or ask for a link by email.
@@ -42,7 +42,7 @@ async function SignInNotice({
   const { error } = await searchParams
   if (error !== 'callback') return null
   return (
-    <p role="alert" className={`box on-pink ${styles.alert}`}>
+    <p role="alert" className={`on-pink ${styles.alert}`}>
       That sign-in link did not work. It may have expired or been opened in a
       different browser. Try again.
     </p>

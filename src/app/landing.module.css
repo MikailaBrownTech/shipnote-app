@@ -1,106 +1,195 @@
-.header {
+/* Hero: a soft wash of palette colour behind the nav and the product window. */
+
+.heroWash {
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(
+      44rem 32rem at 88% 8%,
+      color-mix(in srgb, var(--blue-violet) 22%, transparent),
+      transparent 70%
+    ),
+    radial-gradient(
+      30rem 26rem at 100% 62%,
+      color-mix(in srgb, var(--neon-pink) 16%, transparent),
+      transparent 70%
+    ),
+    radial-gradient(
+      28rem 22rem at 0% 0%,
+      color-mix(in srgb, var(--azure-blue) 14%, transparent),
+      transparent 70%
+    );
+}
+
+.nav {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 1rem;
-  padding-block: 1.5rem 2rem;
+  gap: 1.5rem;
+  padding-block: 1.25rem;
 }
 
-/* Hero: a grid of boxes that butt against each other. */
+.links {
+  display: none;
+}
+
+.links a {
+  padding: 0.4rem 0;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.links a:hover {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.35em;
+}
 
 .hero {
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  padding-bottom: 3.5rem;
+  gap: 4rem;
+  padding-block: clamp(1.5rem, 5vw, 4rem) clamp(4rem, 8vw, 6rem);
 }
 
-.title {
-  padding: clamp(1.1rem, 4vw, 2.5rem);
+.pitch {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1.5rem;
+  min-width: 0;
 }
 
-.title h1 {
-  font-size: clamp(2.25rem, 9vw, 4.75rem);
+.pitch h1 {
+  font-size: clamp(2.5rem, 7.5vw, 4.25rem);
+}
+
+/* Pink is only used at heading size, where 3:1 is enough. */
+.accent {
+  color: var(--neon-pink);
 }
 
 .lead {
   max-width: 34rem;
-  margin-top: 1.5rem;
+  color: var(--ink-soft);
   font-size: 1.1875rem;
-  line-height: 1.45;
+  line-height: 1.55;
 }
 
-.side {
+.actions {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1.5rem;
-  margin: -3px 0 0 1.5rem;
-  padding: clamp(1.1rem, 3vw, 1.75rem);
+  flex-wrap: wrap;
+  gap: 0.75rem;
 }
 
-.access {
-  font-family: var(--font-display);
-  font-size: clamp(1.5rem, 4vw, 2rem);
-  font-stretch: 125%;
-  font-weight: 900;
-  line-height: 1;
-  letter-spacing: -0.02em;
+.checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
+  list-style: none;
+  color: var(--ink-soft);
+  font-size: 0.9375rem;
+  font-weight: 600;
 }
 
-/* The example: commits and the draft they produce. Each commit box and its
-   sentence share one palette colour. */
+.checks li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.checks li::before {
+  content: '';
+  width: 1.1rem;
+  height: 1.1rem;
+  border-radius: 50%;
+  background: var(--tint-azure)
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%231c1833' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4.5 8.5l2.4 2.4 4.6-5'/%3E%3C/svg%3E")
+    center / 0.8rem no-repeat;
+}
+
+/* The product window: commits in, a draft out. Each commit chip and its
+   sentence share one palette tint. */
 
 .example {
   position: relative;
-  z-index: 1;
   min-width: 0;
-  margin-top: 3.5rem;
-  padding: clamp(1.1rem, 3vw, 2rem);
+  margin-bottom: 1rem;
 }
 
-.caption {
-  display: inline-block;
-  max-width: 100%;
-  margin: calc(-1 * clamp(1.1rem, 3vw, 2rem) - 1.75rem) 0 1.5rem -0.5rem;
-  padding: 0.4rem 0.8rem;
-  box-shadow: var(--shadow-sm);
-  font-size: 0.9375rem;
-  font-weight: 700;
-  line-height: 1.3;
+.window {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-pop);
 }
 
-.pair {
-  display: grid;
-  gap: 1.75rem;
+.chrome {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.8rem 1.1rem;
+  border-bottom: 1px solid var(--line);
+  background: var(--paper);
+}
+
+.chrome span {
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 50%;
+}
+
+.chrome span:nth-child(1) {
+  background: var(--neon-pink);
+}
+
+.chrome span:nth-child(2) {
+  background: var(--amber-gold);
+}
+
+.chrome span:nth-child(3) {
+  background: var(--azure-blue);
+}
+
+.chrome b {
+  margin-left: 0.6rem;
+  color: var(--ink-soft);
+  font-size: 0.875rem;
+  font-weight: 650;
+}
+
+.windowBody {
+  padding: clamp(1rem, 3vw, 1.75rem);
 }
 
 .label {
-  margin-bottom: 0.75rem;
-  font-size: 1.25rem;
-  line-height: 1.1;
+  margin-bottom: 0.7rem;
+  font-size: 1rem;
   letter-spacing: -0.01em;
 }
 
 .commits {
+  display: grid;
+  gap: 0.5rem;
   list-style: none;
-  box-shadow: var(--shadow);
 }
 
 .commits li {
   position: relative;
-  padding: 0.6rem 0.75rem 0.6rem 2.75rem;
-  border: var(--line);
+  padding: 0.6rem 0.9rem 0.6rem 2.9rem;
+  border-radius: var(--radius-sm);
   overflow-wrap: anywhere;
 }
 
-.commits li + li {
-  margin-top: -3px;
+.commits .skipped {
+  border: 1px dashed var(--line);
+  color: var(--ink-soft);
+  background: var(--paper);
 }
 
 .commits code {
   font-family: var(--font-mono);
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
   line-height: 1.5;
 }
 
@@ -110,204 +199,329 @@
 
 .note {
   display: block;
-  margin-top: 0.15rem;
-  font-size: 0.875rem;
+  margin-top: 0.1rem;
+  font-size: 0.8125rem;
   font-weight: 600;
 }
 
 .ref {
   position: absolute;
   top: 0.6rem;
-  left: 0.65rem;
+  left: 0.8rem;
   display: grid;
   place-items: center;
-  width: 1.55rem;
-  height: 1.55rem;
-  border: 3px solid var(--ink);
-  color: var(--ink);
-  background: var(--paper);
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 50%;
+  color: #fff;
+  background: var(--ink);
   font-size: 0.8125rem;
-  font-weight: 900;
+  font-weight: 800;
   line-height: 1;
 }
 
-.draftBox {
-  padding: 1rem 1.25rem 1.25rem;
+.arrow {
+  display: block;
+  margin: 0.75rem 0 0.75rem 0.7rem;
+  color: var(--blue-violet);
 }
 
 .draft {
-  font-size: 1.125rem;
-  line-height: 1.9;
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  font-size: 1.0625rem;
+  line-height: 1.95;
 }
 
-/* Flat colour behind each sentence, matching its commit box. */
 .mark {
-  padding: 0.12em 0.2em;
+  padding: 0.12em 0.3em;
+  border-radius: 0.4em;
   -webkit-box-decoration-break: clone;
   box-decoration-break: clone;
 }
 
 .sup {
-  margin-left: 0.15em;
+  margin-left: 0.2em;
   font-size: 0.7em;
-  font-weight: 900;
+  font-weight: 800;
 }
 
-/* The one page-load animation: each sentence fills with its colour in turn.
-   Without it everything is already filled. */
+/* The one page-load animation: each sentence takes its commit's colour in
+   turn. Without it, everything is already coloured. */
 @media (prefers-reduced-motion: no-preference) {
   .mark {
-    animation: fill 500ms steps(1, end) both;
+    animation: tint 600ms ease-out both;
   }
 
-  @keyframes fill {
+  @keyframes tint {
     from {
-      background-color: var(--paper);
+      background-color: transparent;
     }
   }
 }
 
-@media (min-width: 40rem) {
-  .pair {
-    grid-template-columns: minmax(0, 6fr) minmax(0, 5fr);
-    gap: 0;
-  }
-
-  .draftBox {
-    margin-left: -3px;
-  }
-
-  .pair > :first-child {
-    padding-right: 0;
-  }
+.chip {
+  position: absolute;
+  right: 1rem;
+  bottom: -0.9rem;
+  padding: 0.45rem 1rem;
+  border-radius: 999px;
+  color: var(--ink);
+  background: var(--amber-gold);
+  box-shadow: var(--shadow-card);
+  font-size: 0.9375rem;
+  font-weight: 700;
 }
 
-@media (min-width: 62rem) {
+.caption {
+  margin-top: 2.75rem;
+  color: var(--ink-soft);
+  font-size: 0.9375rem;
+}
+
+@media (min-width: 64rem) {
+  .nav {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+  }
+
+  .nav > :last-child {
+    justify-self: end;
+  }
+
+  .links {
+    display: flex;
+    gap: 2rem;
+  }
+
   .hero {
-    grid-template-columns: repeat(12, minmax(0, 1fr));
-  }
-
-  .title {
-    grid-column: 1 / span 8;
-    grid-row: 1;
-  }
-
-  .side {
-    grid-column: 9 / -1;
-    grid-row: 1;
-    margin: 2.5rem 0 0 -3px;
-    padding-bottom: 4.5rem;
-  }
-
-  .example {
-    grid-column: 2 / -1;
-    grid-row: 2;
-    margin-top: -2rem;
-  }
-
-  .caption {
-    margin-left: -1rem;
+    grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+    align-items: center;
+    gap: 4rem;
   }
 }
 
-/* How it works: three boxes of different sizes, stepped down. */
+/* Three points, left-aligned, no cards. */
+
+.points {
+  padding-block: clamp(3rem, 6vw, 4.5rem);
+}
+
+.points ul {
+  display: grid;
+  gap: 2.5rem;
+  list-style: none;
+}
+
+.points h2 {
+  margin: 1rem 0 0.4rem;
+  font-size: 1.375rem;
+  letter-spacing: -0.015em;
+}
+
+.points p {
+  max-width: 22rem;
+  color: var(--ink-soft);
+}
+
+.icon {
+  display: grid;
+  place-items: center;
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 50%;
+}
+
+@media (min-width: 48rem) {
+  .points ul {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 3rem;
+  }
+}
+
+/* How it works */
 
 .how {
-  padding-block: 2rem 4rem;
+  padding-block: clamp(2.5rem, 6vw, 4rem);
 }
 
-.howTitle {
-  display: inline-block;
-  max-width: 100%;
-  padding: 0.6rem 1.25rem;
-  font-size: clamp(2rem, 7vw, 3.5rem);
+.how > h2 {
+  max-width: 32rem;
+  font-size: clamp(2rem, 5vw, 3rem);
 }
 
 .steps {
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  margin-top: 1.5rem;
+  gap: 2rem;
+  margin-top: 2.5rem;
   list-style: none;
 }
 
-.step {
-  padding: 1.25rem;
+.steps li {
+  position: relative;
 }
 
-.step + .step {
-  margin-top: -3px;
+.steps h3 {
+  margin: 1rem 0 0.4rem;
+  font-size: 1.25rem;
+  letter-spacing: -0.015em;
 }
 
-.step:nth-child(2) {
-  margin-left: 1.5rem;
-}
-
-.step h3 {
-  margin-top: 0.75rem;
-  font-size: clamp(1.5rem, 4vw, 2rem);
-}
-
-.step p {
-  margin-top: 0.6rem;
+.steps p {
+  max-width: 22rem;
+  color: var(--ink-soft);
 }
 
 .num {
   display: grid;
   place-items: center;
-  width: 3.25rem;
-  height: 3.25rem;
-  border: var(--line);
-  color: var(--ink);
-  background: var(--paper);
-  font-family: var(--font-display);
-  font-size: 1.75rem;
-  font-stretch: 125%;
-  font-weight: 900;
-  line-height: 1;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 50%;
+  color: #fff;
+  background: var(--blue-violet);
+  box-shadow: 0 0 0 6px var(--tint-violet);
+  font-weight: 800;
 }
 
-@media (min-width: 56rem) {
+@media (min-width: 48rem) {
   .steps {
-    grid-template-columns: 4fr 5fr 4fr;
-    align-items: start;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 3rem;
   }
 
-  .step {
-    padding: 1.5rem;
-  }
-
-  .step + .step {
-    margin-top: 0;
-    margin-left: -3px;
-  }
-
-  .step:nth-child(2) {
-    margin-top: 2.5rem;
-    margin-left: -3px;
-  }
-
-  .step:nth-child(3) {
-    margin-top: 5rem;
+  /* A line running from each number to the next. */
+  .steps li:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    top: 1.375rem;
+    left: 4rem;
+    right: -2rem;
+    height: 2px;
+    background: var(--line);
   }
 }
 
-/* Closing box */
+/* Edit and copy: a light gradient panel around a second window. */
 
-.close {
-  padding-bottom: 4rem;
+.editWrap {
+  padding-block: clamp(2rem, 5vw, 3rem);
 }
 
-.closeBox {
+.edit {
+  display: grid;
+  gap: 2.5rem;
+  padding: clamp(1.25rem, 5vw, 3.5rem);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(
+    125deg,
+    var(--tint-violet),
+    var(--tint-azure) 50%,
+    var(--tint-pink)
+  );
+}
+
+.editor {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-pop);
+}
+
+.editorBody {
+  padding: 1.25rem;
+}
+
+.editorBody > p:first-child {
+  line-height: 1.8;
+}
+
+.editorBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--line);
+  color: var(--ink-soft);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.editorBar b {
+  padding: 0.4rem 1.1rem;
+  border-radius: 999px;
+  color: #fff;
+  background: var(--blue-violet);
+}
+
+.editText {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 1.75rem;
-  max-width: 52rem;
-  padding: clamp(1.25rem, 4vw, 2.5rem);
+  justify-content: center;
+  gap: 1.25rem;
 }
 
-.closeBox h2 {
-  font-size: clamp(2rem, 6vw, 3.5rem);
+.editText h2 {
+  font-size: clamp(2rem, 5vw, 3rem);
+}
+
+.editText p {
+  max-width: 28rem;
+  font-size: 1.125rem;
+}
+
+@media (min-width: 56rem) {
+  .edit {
+    grid-template-columns: minmax(0, 6fr) minmax(0, 5fr);
+    align-items: center;
+    gap: 3.5rem;
+  }
+}
+
+/* Closing panel */
+
+.closeWrap {
+  padding-block: clamp(2rem, 5vw, 3rem) clamp(3rem, 6vw, 4rem);
+}
+
+.close {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1.25rem;
+  padding: clamp(1.5rem, 6vw, 4rem);
+  border-radius: var(--radius-lg);
+  color: #fff;
+  background:
+    radial-gradient(
+      30rem 20rem at 100% 0%,
+      color-mix(in srgb, var(--blue-violet) 70%, transparent),
+      transparent 70%
+    ),
+    radial-gradient(
+      24rem 18rem at 0% 100%,
+      color-mix(in srgb, var(--neon-pink) 40%, transparent),
+      transparent 70%
+    ),
+    var(--ink);
+}
+
+.close h2 {
+  max-width: 34rem;
+  font-size: clamp(2rem, 5.5vw, 3.25rem);
+}
+
+.close p {
+  color: color-mix(in srgb, #fff 82%, var(--ink));
+}
+
+.close :focus-visible {
+  outline-color: #fff;
 }
 
 /* Footer */
@@ -315,39 +529,10 @@
 .footer {
   display: flex;
   flex-wrap: wrap;
-  align-items: stretch;
-  padding-block: 0 3rem;
-}
-
-.swatches {
-  display: flex;
-}
-
-.swatches span {
-  display: block;
-  width: 2.25rem;
-  border: var(--line);
-}
-
-.swatches span + span {
-  margin-left: -3px;
-}
-
-.footnote {
-  margin-left: -3px;
-  padding: 0.5rem 1rem;
-  box-shadow: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem 2rem;
+  padding-block: 1rem 3rem;
+  color: var(--ink-soft);
   font-size: 0.9375rem;
-  font-weight: 600;
-}
-
-@media (max-width: 36rem) {
-  .swatches span {
-    height: 2.25rem;
-  }
-
-  .footnote {
-    margin: -3px 0 0;
-    flex: 1 1 100%;
-  }
 }

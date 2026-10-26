@@ -1,27 +1,42 @@
 :root {
-  /* Palette. Each is used as a flat block. */
+  /* Palette */
   --amber-gold: #ffbe0b;
   --blaze-orange: #fb5607;
   --neon-pink: #ff006e;
   --blue-violet: #8338ec;
   --azure-blue: #3a86ff;
 
-  /* Neutrals: one dark ink for borders and text, one off-white. */
-  --ink: #14110f;
-  --paper: #fff6e5;
+  /* Neutrals: a dark indigo ink, a softer ink for secondary text, a faintly
+     violet off-white page, and white surfaces. */
+  --ink: #1c1833;
+  --ink-soft: #4a4568;
+  --paper: #fbf9ff;
+  --surface: #ffffff;
+  --line: #e4def5;
 
-  /* The shape of every box. */
-  --line: 3px solid var(--ink);
-  --radius: 0;
-  --shadow: 6px 6px 0 var(--ink);
-  --shadow-sm: 3px 3px 0 var(--ink);
+  /* Light tints of the palette, for chips and highlights under ink text. */
+  --tint-amber: color-mix(in srgb, var(--amber-gold) 35%, white);
+  --tint-orange: color-mix(in srgb, var(--blaze-orange) 25%, white);
+  --tint-pink: color-mix(in srgb, var(--neon-pink) 20%, white);
+  --tint-violet: color-mix(in srgb, var(--blue-violet) 14%, white);
+  --tint-azure: color-mix(in srgb, var(--azure-blue) 22%, white);
 
-  --font-display: 'Archivo Variable', 'Arial Black', system-ui, sans-serif;
+  --radius-sm: 0.75rem;
+  --radius: 1.25rem;
+  --radius-lg: 2rem;
+  --shadow-card:
+    0 1px 2px color-mix(in srgb, var(--ink) 8%, transparent),
+    0 14px 32px -10px color-mix(in srgb, var(--ink) 18%, transparent);
+  --shadow-pop:
+    0 2px 4px color-mix(in srgb, var(--ink) 8%, transparent),
+    0 32px 64px -16px color-mix(in srgb, var(--blue-violet) 40%, transparent);
+
+  --font-display: 'Archivo Variable', system-ui, sans-serif;
   --font-body: 'Archivo Variable', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono Variable', ui-monospace, Consolas, monospace;
 
   --gutter: clamp(1rem, 4vw, 2.5rem);
-  --page-width: 76rem;
+  --page-width: 74rem;
 
   color-scheme: light;
 }
@@ -34,6 +49,7 @@
 
 html {
   -webkit-text-size-adjust: 100%;
+  scroll-behavior: smooth;
 }
 
 body {
@@ -44,8 +60,8 @@ body {
   font-family: var(--font-body);
   font-size: 1.0625rem;
   font-stretch: 100%;
-  font-weight: 450;
-  line-height: 1.55;
+  font-weight: 420;
+  line-height: 1.6;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -53,11 +69,12 @@ h1,
 h2,
 h3 {
   font-family: var(--font-display);
-  font-stretch: 125%;
-  font-weight: 900;
-  line-height: 0.98;
-  letter-spacing: -0.02em;
+  font-stretch: 100%;
+  font-weight: 800;
+  line-height: 1.06;
+  letter-spacing: -0.025em;
   overflow-wrap: break-word;
+  text-wrap: balance;
 }
 
 p {
@@ -68,115 +85,132 @@ a {
   color: inherit;
 }
 
-/* A thick ink ring. Ink has at least 3:1 against every block colour. */
+/* A thick violet ring, offset so it sits clear of the element. */
 :focus-visible {
-  outline: 4px solid var(--ink);
-  outline-offset: 4px;
+  outline: 3px solid var(--blue-violet);
+  outline-offset: 3px;
 }
 
-/* Boxes */
+/* Surfaces */
 
-.box {
-  border: var(--line);
+.card {
+  border: 1px solid var(--line);
   border-radius: var(--radius);
-  box-shadow: var(--shadow);
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
 }
 
-/* Colour blocks. The text colour is set with the fill, chosen by measured
-   contrast: ink on amber, orange, pink, azure and the off-white; the
-   off-white on violet, where ink only reaches 3.4:1. */
+/* Tinted blocks. Ink text on every one, chosen by measured contrast. */
 .on-amber {
   color: var(--ink);
-  background: var(--amber-gold);
+  background: var(--tint-amber);
 }
 
 .on-orange {
   color: var(--ink);
-  background: var(--blaze-orange);
+  background: var(--tint-orange);
 }
 
 .on-pink {
   color: var(--ink);
-  background: var(--neon-pink);
+  background: var(--tint-pink);
 }
 
 .on-violet {
-  color: var(--paper);
-  background: var(--blue-violet);
+  color: var(--ink);
+  background: var(--tint-violet);
 }
 
 .on-azure {
   color: var(--ink);
-  background: var(--azure-blue);
+  background: var(--tint-azure);
 }
 
-.on-paper {
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.9rem;
+  border-radius: 999px;
   color: var(--ink);
-  background: var(--paper);
+  background: var(--tint-pink);
+  font-size: 0.9375rem;
+  font-weight: 650;
+  line-height: 1.3;
 }
 
-/* Buttons: the shadow shrinks as they are pressed down toward the page. */
+/* Buttons */
 
 .button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 3.25rem;
-  padding: 0.7rem 1.4rem;
-  border: var(--line);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-  color: var(--ink);
-  background: var(--paper);
+  gap: 0.5rem;
+  min-height: 3rem;
+  padding: 0.7rem 1.5rem;
+  border: 0;
+  border-radius: 999px;
+  color: #fff;
+  background: var(--blue-violet);
+  box-shadow: 0 10px 22px -10px
+    color-mix(in srgb, var(--blue-violet) 80%, transparent);
   font: inherit;
-  font-stretch: 112%;
-  font-weight: 800;
+  font-weight: 700;
   line-height: 1.15;
   text-align: center;
   text-decoration: none;
   cursor: pointer;
   transition:
-    transform 90ms ease-out,
-    box-shadow 90ms ease-out;
+    transform 140ms ease,
+    box-shadow 140ms ease,
+    background-color 140ms ease;
+}
+
+.button-soft {
+  color: var(--ink);
+  background: var(--tint-violet);
+  box-shadow: none;
+}
+
+.button-dark {
+  background: var(--ink);
+  box-shadow: 0 10px 22px -12px var(--ink);
+}
+
+.button-light {
+  color: var(--ink);
+  background: var(--surface);
+  box-shadow: none;
 }
 
 .button-amber {
+  color: var(--ink);
   background: var(--amber-gold);
-}
-
-.button-azure {
-  background: var(--azure-blue);
+  box-shadow: none;
 }
 
 @media (hover: hover) {
   .button:hover:not(:disabled) {
-    transform: translate(3px, 3px);
-    box-shadow: var(--shadow-sm);
+    transform: translateY(-2px);
+    box-shadow: 0 14px 26px -10px
+      color-mix(in srgb, var(--blue-violet) 80%, transparent);
+  }
+
+  .button-soft:hover:not(:disabled),
+  .button-light:hover:not(:disabled),
+  .button-amber:hover:not(:disabled) {
+    box-shadow: var(--shadow-card);
   }
 }
 
-.button:active:not(:disabled),
-.button:disabled {
-  transform: translate(6px, 6px);
-  box-shadow: 0 0 0 var(--ink);
+.button:active:not(:disabled) {
+  transform: translateY(0);
 }
 
 .button:disabled {
   cursor: progress;
-}
-
-/* Boxes that react when pointed at, for the ones that are not buttons. */
-.press {
-  transition:
-    transform 90ms ease-out,
-    box-shadow 90ms ease-out;
-}
-
-@media (hover: hover) {
-  .press:hover {
-    transform: translate(3px, 3px);
-    box-shadow: var(--shadow-sm);
-  }
+  background: var(--ink-soft);
+  box-shadow: none;
 }
 
 .page {
@@ -187,32 +221,40 @@ a {
 }
 
 .wordmark {
-  display: inline-block;
-  padding: 0.35rem 0.8rem;
-  border: var(--line);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow-sm);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
   color: var(--ink);
-  background: var(--amber-gold);
   font-family: var(--font-display);
-  font-size: 1.5rem;
-  font-stretch: 125%;
-  font-weight: 900;
+  font-size: 1.3125rem;
+  font-weight: 800;
   letter-spacing: -0.02em;
-  line-height: 1.1;
   text-decoration: none;
 }
 
-@media (hover: hover) {
-  .wordmark:hover {
-    transform: translate(3px, 3px);
-    box-shadow: 0 0 0 var(--ink);
-  }
+.wordmark::before {
+  content: '';
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 0.5rem;
+  background: linear-gradient(
+    135deg,
+    var(--blue-violet),
+    var(--neon-pink) 70%,
+    var(--blaze-orange)
+  );
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .button,
-  .press {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .button {
     transition: none;
+  }
+
+  .button:hover:not(:disabled) {
+    transform: none;
   }
 }
