@@ -36,10 +36,11 @@ async function SignInNotice({
 }: {
   searchParams: PageProps<'/sign-in'>['searchParams']
 }) {
-  if (await getCurrentUser()) redirect('/dashboard')
+  const { error, reauth } = await searchParams
+  // reauth=1 lets a signed-in user through, to sign in again.
+  if (reauth !== '1' && (await getCurrentUser())) redirect('/dashboard')
 
   // Only a known code is shown. The raw parameter is never echoed back.
-  const { error } = await searchParams
   if (error !== 'callback') return null
   return (
     <p role="alert" className={`on-pink ${styles.alert}`}>

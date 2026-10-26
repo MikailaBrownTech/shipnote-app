@@ -1,5 +1,7 @@
+import { cookies } from 'next/headers'
 import { NextResponse, type NextRequest } from 'next/server'
 import { env } from '@/lib/env'
+import { NEXT_COOKIE, NEXT_COOKIE_PATH } from '@/lib/next-cookie'
 import { safeNext } from '@/lib/safe-next'
 import { createClient } from '@/lib/supabase/server'
 
@@ -25,5 +27,11 @@ export async function GET(request: NextRequest) {
   const { error } = await supabase.auth.exchangeCodeForSession(code)
   if (error) return redirectTo('/sign-in?error=callback')
 
-  return redirectTo(safeNext(searchParams.get('next')))
+  // `next` comes from the URL or from the cookie the server set before a
+  // re-sign-in. Either way it goes through safeNext().
+  const store = await cookies()
+  const next = searchParams.get('next') ?? store.get(NEXT_COOKIE)?.value
+  store.delete({ name: NEXT_COOKIE, path: NEXT_COOKIE_PATH })
+
+  return redirectTo(safeNext(next ?? null))
 }
