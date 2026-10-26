@@ -1,0 +1,37 @@
+.main {
+  padding-block: 2rem 4rem;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 3rem;
+}
+
+.main h1 {
+  font-size: clamp(2.5rem, 8vw, 3.5rem);
+}
+
+.who {
+  margin-top: 0.5rem;
+  color: var(--ink-soft);
+  overflow-wrap: anywhere;
+}
+
+.empty {
+  max-width: 34rem;
+  margin-top: 3rem;
+  padding: 1.5rem 0 0 1.25rem;
+  border-left: 6px solid var(--amber-gold);
+}
+
+.empty h2 {
+  margin-bottom: 0.5rem;
+  font-size: 1.75rem;
+}
+
+.empty p {
+  color: var(--ink-soft);
+}
