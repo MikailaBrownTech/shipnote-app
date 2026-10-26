@@ -1,8 +1,8 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { Suspense } from 'react'
-import { signOut } from '@/app/auth/actions'
 import { requireUser } from '@/lib/auth'
+import { AccountMenu } from './account-menu'
 import styles from './dashboard.module.css'
 
 export const metadata: Metadata = { title: 'Dashboard' }
@@ -28,11 +28,7 @@ async function Dashboard() {
         <Link href="/" className="wordmark">
           Shipnote
         </Link>
-        <form action={signOut}>
-          <button type="submit" className="button button-soft">
-            Sign out
-          </button>
-        </form>
+        <AccountMenu email={user.email} />
       </header>
 
       <div className={styles.top}>
