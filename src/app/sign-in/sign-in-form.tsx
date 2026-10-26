@@ -1,78 +1,57 @@
 'use client'
 
-import { useState, type SubmitEvent } from 'react'
-import { z } from 'zod'
-import { env } from '@/lib/env'
-import { createClient } from '@/lib/supabase/client'
+import { useActionState, useState, useTransition } from 'react'
+import { sendSignInLink, signInWithGitHub, type SignInState } from './actions'
 import styles from './sign-in.module.css'
 
-type Status = 'idle' | 'working' | 'sent' | 'error'
+type Status = SignInState['status']
 
-const email = z.email()
-const callbackUrl = `${env.NEXT_PUBLIC_SITE_URL}/auth/callback`
+const messages: Record<Exclude<Status, 'idle'>, string> = {
+  sent: 'If that address can sign in, a link is on its way. Open it in this browser.',
+  invalid: 'Enter a valid email address.',
+  limited: 'Too many attempts. Try again in a few minutes.',
+  invite: 'Sign-up is invite only.',
+  failed: 'Something went wrong. Try again.',
+}
+
+const initial: SignInState = { status: 'idle' }
 
 export function SignInForm() {
-  const [status, setStatus] = useState<Status>('idle')
-  const [message, setMessage] = useState('')
+  const [linkState, sendLink, sending] = useActionState(sendSignInLink, initial)
+  const [githubStatus, setGithubStatus] = useState<Status>('idle')
+  const [startingGitHub, startGitHub] = useTransition()
 
-  function fail(text: string) {
-    setStatus('error')
-    setMessage(text)
-  }
-
-  async function signInWithGitHub() {
-    setStatus('working')
-    setMessage('')
-    const { error } = await createClient().auth.signInWithOAuth({
-      provider: 'github',
-      options: { redirectTo: callbackUrl },
-    })
-    if (error) fail('We could not start the GitHub sign-in. Try again.')
-  }
-
-  async function sendLink(event: SubmitEvent<HTMLFormElement>) {
-    event.preventDefault()
-    const raw = new FormData(event.currentTarget).get('email')
-    const address = email.safeParse(typeof raw === 'string' ? raw.trim() : '')
-    if (!address.success) {
-      fail('Enter a valid email address.')
-      return
-    }
-
-    setStatus('working')
-    setMessage('')
-    const { error } = await createClient().auth.signInWithOtp({
-      email: address.data,
-      options: { emailRedirectTo: callbackUrl },
-    })
-    if (error) {
-      fail('We could not send the link. Wait a minute and try again.')
-      return
-    }
-
-    // Same message whether or not the address already has an account.
-    setStatus('sent')
-    setMessage(
-      'If that address can sign in, a link is on its way. Open it in this browser.',
-    )
-  }
-
-  const working = status === 'working'
+  const status = githubStatus === 'idle' ? linkState.status : githubStatus
+  const working = sending || startingGitHub
+  const bad = status !== 'idle' && status !== 'sent'
 
   return (
     <div className={styles.form}>
       <button
         type="button"
         className="button button-dark"
-        onClick={() => void signInWithGitHub()}
         disabled={working}
+        onClick={() => {
+          setGithubStatus('idle')
+          startGitHub(async () => {
+            // On success the action redirects, so a result means a problem.
+            const result = await signInWithGitHub()
+            setGithubStatus(result.status)
+          })
+        }}
       >
         Sign in with GitHub
       </button>
 
       <p className={styles.or}>or get a sign-in link by email</p>
 
-      <form onSubmit={(event) => void sendLink(event)} noValidate>
+      <form
+        action={sendLink}
+        noValidate
+        onSubmit={() => {
+          setGithubStatus('idle')
+        }}
+      >
         <label htmlFor="email">Email address</label>
         <input
           id="email"
@@ -90,13 +69,9 @@ export function SignInForm() {
 
       <p
         role="status"
-        className={
-          status === 'error'
-            ? `${styles.status} on-pink`
-            : `${styles.status} on-azure`
-        }
+        className={`${styles.status} ${bad ? 'on-pink' : 'on-azure'}`}
       >
-        {message}
+        {status === 'idle' ? '' : messages[status]}
       </p>
     </div>
   )
