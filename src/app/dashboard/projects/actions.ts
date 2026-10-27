@@ -66,8 +66,8 @@ function back(
 // GitHub repo"). These two hidden fields are the only extra fields it may have,
 // and they are never trusted: the repository is checked against the
 // installation's list again before anything is saved.
-export const LINK_INSTALLATION_FIELD = 'github_installation'
-export const LINK_REPO_FIELD = 'github_repo'
+const LINK_INSTALLATION_FIELD = 'github_installation'
+const LINK_REPO_FIELD = 'github_repo'
 
 type Link = { installationId: number; repoFullName: string }
 

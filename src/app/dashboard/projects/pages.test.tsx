@@ -25,6 +25,13 @@ vi.mock('@/app/dashboard/account-menu', () => ({ AccountMenu: () => null }))
 // GitHub is off in these tests, as it is by default.
 vi.mock('@/server/github-app', () => ({ githubIsEnabled: () => false }))
 vi.mock('@/server/github-projects', () => ({ listInstallations: vi.fn() }))
+vi.mock('@/server/github-import', () => ({
+  listStartRepos: vi.fn(),
+  prefillFromRepo: vi.fn(),
+  verifyRepoForLink: vi.fn(),
+  linkCreatedProject: vi.fn(),
+}))
+vi.mock('@/server/rate-limit', () => ({ rateLimit: vi.fn() }))
 vi.mock('../github/actions', () => ({
   connectGithubAction: vi.fn(),
   disconnectGithubFromDashboardAction: vi.fn(),
@@ -159,7 +166,7 @@ describe('new project', () => {
   })
 
   it('shows the form with the help text and a notes counter', async () => {
-    const { html } = await render(<NewProjectPage />)
+    const { html } = await render(<NewProjectPage {...dashboardProps} />)
     expect(html).toContain('Paste your README, spec or recent progress notes')
     expect(html).toContain('Do not paste secrets or customer data')
     expect(html).toContain('0 / 12,000')
@@ -173,7 +180,7 @@ describe('new project', () => {
       ok: true,
       value: [1, 2, 3, 4, 5].map((n) => project({ id: String(n) })),
     })
-    const { html } = await render(<NewProjectPage />)
+    const { html } = await render(<NewProjectPage {...dashboardProps} />)
     expect(html).toContain('You have reached the 5 project limit')
     expect(html).not.toContain('name="notes"')
   })
