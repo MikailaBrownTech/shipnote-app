@@ -55,6 +55,9 @@ create table public.scheduled_posts (
   -- Set to null if the draft is deleted: the schedule is a snapshot and must
   -- stay so it can still be cancelled.
   draft_id uuid,
+  -- The project the draft belonged to, so the project page can list its
+  -- schedules. Set to null if the project is deleted.
+  project_id uuid,
   -- The exact text sent to Buffer, and its hash (what the user reviewed).
   body text not null,
   body_hash text not null,
@@ -79,13 +82,20 @@ create table public.scheduled_posts (
   constraint scheduled_posts_draft_owner_fkey
     foreign key (user_id, draft_id)
     references public.drafts (user_id, id)
-    on delete set null (draft_id)
+    on delete set null (draft_id),
+  constraint scheduled_posts_project_owner_fkey
+    foreign key (user_id, project_id)
+    references public.projects (user_id, id)
+    on delete set null (project_id)
 );
 
 -- One draft has at most one active schedule, even under concurrent requests.
 create unique index scheduled_posts_one_active_per_draft
   on public.scheduled_posts (draft_id)
   where draft_id is not null and status in ('scheduling', 'scheduled');
+
+create index scheduled_posts_project_idx
+  on public.scheduled_posts (user_id, project_id, created_at desc);
 
 create index scheduled_posts_user_created_idx
   on public.scheduled_posts (user_id, created_at desc);
@@ -309,6 +319,7 @@ as $$
 declare
   v_day date := (now() at time zone 'utc')::date;
   v_today integer;
+  v_project uuid;
   v_id uuid;
 begin
   if p_user_id is null or p_draft_id is null
@@ -327,10 +338,10 @@ begin
 
   perform pg_advisory_xact_lock(hashtextextended('scheduled_posts:user:' || p_user_id::text, 0));
 
-  if not exists (
-    select 1 from public.drafts d
-    where d.id = p_draft_id and d.user_id = p_user_id
-  ) then
+  select d.project_id into v_project
+  from public.drafts d
+  where d.id = p_draft_id and d.user_id = p_user_id;
+  if not found then
     raise exception 'draft_not_found' using errcode = 'SN023';
   end if;
 
@@ -350,11 +361,11 @@ begin
   end if;
 
   insert into public.scheduled_posts (
-    user_id, draft_id, body, body_hash, channel_id, channel_label,
+    user_id, draft_id, project_id, body, body_hash, channel_id, channel_label,
     scheduled_for, status
   )
   values (
-    p_user_id, p_draft_id, p_body, p_body_hash, p_channel_id,
+    p_user_id, p_draft_id, v_project, p_body, p_body_hash, p_channel_id,
     p_channel_label, p_scheduled_for, 'scheduling'
   )
   returning id into v_id;

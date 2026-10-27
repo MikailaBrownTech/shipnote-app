@@ -173,3 +173,27 @@ export async function markDraftCopied(
   const copied: unknown = response.data
   return copied === true ? 'ok' : 'not_found'
 }
+
+// One of the user's own drafts, or 'not_found'.
+export async function getDraft(
+  userId: string,
+  draftId: string,
+): Promise<Draft | 'not_found' | 'failed'> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('drafts')
+    .select(COLUMNS)
+    .eq('id', draftId)
+    .eq('user_id', userId)
+    .maybeSingle()
+  if (error) {
+    note(error.code)
+    return 'failed'
+  }
+  if (data === null) return 'not_found'
+  const parsed = row.safeParse(data)
+  if (!parsed.success) return 'failed'
+  const shas = await shasFor([parsed.data.id])
+  if (shas === null) return 'failed'
+  return toDraft(parsed.data, shas.get(parsed.data.id) ?? [])
+}

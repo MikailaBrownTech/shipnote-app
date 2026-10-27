@@ -613,6 +613,29 @@ describe('deleting things', () => {
     })
   })
 
+  it('a schedule records its project, and keeps the schedule if the project is deleted', async () => {
+    const id = (await schedule(A, draftA)).rows[0]?.id ?? ''
+    const before = await db.query<{ project_id: string | null }>(
+      'select project_id from public.scheduled_posts where id = $1',
+      [id],
+    )
+    expect(before.rows[0]?.project_id).toBeTruthy()
+    await db.query('delete from public.projects where user_id = $1', [A])
+    const after = await db.query<{
+      project_id: string | null
+      draft_id: string | null
+      status: string
+    }>(
+      'select project_id, draft_id, status from public.scheduled_posts where id = $1',
+      [id],
+    )
+    expect(after.rows[0]).toEqual({
+      project_id: null,
+      draft_id: null,
+      status: 'scheduling',
+    })
+  })
+
   it('deleting a user removes their connection and schedules, and no one else’s', async () => {
     await connect(A)
     await connect(B, 'ciphertext-of-user-b')
