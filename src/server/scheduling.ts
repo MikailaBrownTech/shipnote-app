@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto'
 import { env } from '@/lib/env'
 import { parseScheduleTime } from '@/lib/schedule-time'
 import {
+  authorizeUrl,
   BufferError,
   createScheduledPost as createAtBuffer,
   deleteScheduledPost,
@@ -12,6 +13,7 @@ import {
   listLinkedInChannels,
   type Channel,
 } from './buffer'
+import { startState, type ReturnTo } from './buffer-state'
 import { getSchedulingEnv, schedulingEnabled } from './env'
 import { getDraft } from './drafts'
 import {
@@ -53,6 +55,23 @@ export function bodyHash(body: string): string {
 }
 
 // ---- Connecting ----
+
+// Sets the signed state cookie and returns Buffer's authorization URL for the
+// person to be sent to, or null while scheduling is off.
+export async function beginConnect(
+  userId: string,
+  returnTo: ReturnTo,
+): Promise<string | null> {
+  const settings = getSchedulingEnv()
+  if (!settings) return null
+  const { state, challenge } = await startState(userId, returnTo)
+  return authorizeUrl({
+    clientId: settings.clientId,
+    redirectUri: callbackUrl(),
+    state,
+    challenge,
+  })
+}
 
 export type ConnectResult =
   | 'connected'

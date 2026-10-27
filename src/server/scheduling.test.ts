@@ -43,6 +43,7 @@ vi.mock('./buffer', () => ({
   listLinkedInChannels,
 }))
 vi.mock('./env', () => ({ getSchedulingEnv, schedulingEnabled }))
+vi.mock('./buffer-state', () => ({ startState: vi.fn() }))
 vi.mock('./drafts', () => ({ getDraft }))
 vi.mock('./scheduled-posts', () => ({
   getConnectionStatus,
