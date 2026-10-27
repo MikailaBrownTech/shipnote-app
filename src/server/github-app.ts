@@ -1,7 +1,6 @@
 import 'server-only'
 import { getGithubEnv, githubEnabled } from './env'
 import {
-  removeGithubInstallation,
   saveGithubInstallation,
   type SaveInstallationResult,
 } from './supabase-admin'
@@ -31,11 +30,4 @@ export function saveVerifiedInstallation(input: {
   accountId: number
 }): Promise<SaveInstallationResult> {
   return saveGithubInstallation(input)
-}
-
-export function disconnectInstallation(
-  userId: string,
-  installationId: number,
-): Promise<boolean> {
-  return removeGithubInstallation(userId, installationId)
 }

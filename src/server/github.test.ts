@@ -226,6 +226,13 @@ describe('github client', () => {
       },
     )
 
+    it('a 422 means the repository is no longer on the installation', async () => {
+      outboundFetch.mockResolvedValue(reply(422))
+      expect(await kindOf(createInstallationToken(42, 'octo/hello'))).toBe(
+        'not_found',
+      )
+    })
+
     it('a rate limit is not mistaken for a missing installation', async () => {
       outboundFetch.mockResolvedValue(
         reply(403, {}, { 'x-ratelimit-remaining': '0' }),

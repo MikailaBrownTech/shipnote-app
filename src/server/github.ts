@@ -16,6 +16,7 @@ export type GithubFailure =
   | 'not_found' // the repository is gone or not visible to the installation
   | 'rate_limited'
   | 'unavailable' // GitHub is down, slow or unreachable
+  | 'unprocessable' // 422: for a token request, the repository is not on the installation
   | 'failed'
 
 export class GithubError extends Error {
@@ -48,6 +49,7 @@ function failureFor(response: Response): GithubFailure {
   if (status === 404) return 'not_found'
   if (status === 401) return 'denied'
   if (status === 429) return 'rate_limited'
+  if (status === 422) return 'unprocessable'
   if (status === 403) {
     // Primary limit: remaining is 0. Secondary limit: retry-after is set.
     return headers.get('x-ratelimit-remaining') === '0' ||
@@ -249,6 +251,8 @@ export async function createInstallationToken(
       if (error.kind === 'not_found' || error.kind === 'denied') {
         throw new GithubError('not_installed')
       }
+      // 422: the repository is no longer on this installation.
+      if (error.kind === 'unprocessable') throw new GithubError('not_found')
     }
     throw error
   }
