@@ -10,6 +10,7 @@
     "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
     "check:env": "node scripts/check-env.mjs",
+    "draft:compare": "node scripts/draft-compare.ts",
     "format": "prettier --write ."
   },
   "dependencies": {
