@@ -3,6 +3,7 @@ import { requireUser } from '@/lib/auth'
 import { withFlash, type GithubFlash } from '@/lib/github-flash'
 import { env } from '@/lib/env'
 import { safeNext } from '@/lib/safe-next'
+import { getProject } from '@/server/projects'
 import { githubIsEnabled, saveVerifiedInstallation } from '@/server/github-app'
 import { verifyInstallation, type VerifyFailure } from '@/server/github-connect'
 import { consumeState } from '@/server/github-state'
@@ -29,7 +30,8 @@ const failureFlash: Record<VerifyFailure, GithubFlash> = {
 }
 
 // Built from the configured site URL, never from request headers. The path
-// goes through safeNext().
+// goes through safeNext(). Failures always land on the dashboard; success on
+// the dashboard or the project the person started from.
 function back(path: string, flash: GithubFlash) {
   const target = safeNext(path, '/dashboard')
   const response = NextResponse.redirect(
@@ -59,28 +61,34 @@ export async function GET(request: NextRequest) {
     returnedState: searchParams.get('state'),
   })
   if (!state.ok) return back('/dashboard', 'expired')
-  const next = state.next
 
   const code = searchParams.get('code')
-  if (!code || !CODE.test(code)) return back(next, 'invalid')
+  if (!code || !CODE.test(code)) return back('/dashboard', 'invalid')
 
   const claimed = searchParams.get('installation_id')
   if (claimed !== null && !INSTALLATION_ID.test(claimed)) {
-    return back(next, 'invalid')
+    return back('/dashboard', 'invalid')
   }
 
   const verified = await verifyInstallation({
     code,
     claimedInstallationId: claimed === null ? null : Number(claimed),
   })
-  if (!verified.ok) return back(next, failureFlash[verified.reason])
+  if (!verified.ok) return back('/dashboard', failureFlash[verified.reason])
 
   // The user id is the signed-in user's, from the session.
   const saved = await saveVerifiedInstallation({
     userId: user.id,
     ...verified.installation,
   })
-  if (saved === 'taken') return back(next, 'taken')
-  if (saved === 'failed') return back(next, 'failed')
-  return back(next, 'connected')
+  if (saved === 'taken') return back('/dashboard', 'taken')
+  if (saved === 'failed') return back('/dashboard', 'failed')
+
+  // Success goes back to the project the person started from, if there was one
+  // and it is still theirs. The cookie held only an id; the path is built here.
+  if (state.projectId) {
+    const own = await getProject(user.id, state.projectId)
+    if (own.ok) return back(`/dashboard/projects/${own.value.id}`, 'connected')
+  }
+  return back('/dashboard', 'connected')
 }
