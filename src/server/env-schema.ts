@@ -141,3 +141,52 @@ export function serverConfigWarnings(
 
   return warnings
 }
+
+// The GitHub App. Off unless GITHUB_ENABLED=true; when on, every variable is
+// required and a missing or malformed one is named in the error (never its
+// value). The private key is the PEM file, base64-encoded so it fits on one
+// line in a host's environment settings.
+export function decodePrivateKey(value: string): string | null {
+  const pem = Buffer.from(value, 'base64').toString('utf8')
+  return /-----BEGIN (?:RSA )?PRIVATE KEY-----/.test(pem) &&
+    /-----END (?:RSA )?PRIVATE KEY-----/.test(pem)
+    ? pem
+    : null
+}
+
+const githubSchema = z.object({
+  GITHUB_APP_ID: z.string().regex(/^\d{1,20}$/),
+  // The slug in https://github.com/apps/<slug>. Used to build the install URL.
+  GITHUB_APP_SLUG: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9-]{0,99}$/),
+  GITHUB_APP_CLIENT_ID: z.string().regex(/^[A-Za-z0-9._-]{4,100}$/),
+  GITHUB_APP_CLIENT_SECRET: z.string().min(8).max(200),
+  GITHUB_APP_PRIVATE_KEY: z
+    .string()
+    .min(100)
+    .refine((value) => decodePrivateKey(value) !== null),
+})
+
+export function isGithubEnabled(source: Source): boolean {
+  return source.GITHUB_ENABLED?.trim().toLowerCase() === 'true'
+}
+
+// null while GITHUB_ENABLED is off. Throws, naming the variables, when it is on
+// and something is missing or malformed.
+export function parseGithubEnv(source: Source) {
+  const flag = source.GITHUB_ENABLED?.trim().toLowerCase()
+  if (flag === undefined || flag === '' || flag === 'false') return null
+  if (flag !== 'true') {
+    throw new Error(
+      'Invalid server environment:\n- GITHUB_ENABLED must be true or false',
+    )
+  }
+  const parsed = parseGroup(githubSchema, source)
+  return {
+    appId: parsed.GITHUB_APP_ID,
+    slug: parsed.GITHUB_APP_SLUG,
+    clientId: parsed.GITHUB_APP_CLIENT_ID,
+    clientSecret: parsed.GITHUB_APP_CLIENT_SECRET,
+    // refine() above guarantees this decodes.
+    privateKeyPem: decodePrivateKey(parsed.GITHUB_APP_PRIVATE_KEY) ?? '',
+  }
+}

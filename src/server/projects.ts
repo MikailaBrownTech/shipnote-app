@@ -19,6 +19,10 @@ export type Project = {
   notes: string
   createdAt: string
   updatedAt: string
+  // The linked GitHub repository, if any. A repository with no installation id
+  // means the link needs to be reconnected.
+  repoFullName: string | null
+  installationId: number | null
 }
 
 export type ProjectsResult<T> =
@@ -32,7 +36,8 @@ const notFound = { ok: false, reason: 'not_found' } as const
 // SQLSTATE raised by the database trigger that caps projects per user.
 export const PROJECT_LIMIT_SQLSTATE = 'SN001'
 
-const COLUMNS = 'id, name, summary, stage, notes, created_at, updated_at'
+const COLUMNS =
+  'id, name, summary, stage, notes, created_at, updated_at, installation_id, repo_full_name'
 
 const row = z.object({
   id: z.string(),
@@ -42,6 +47,8 @@ const row = z.object({
   notes: z.string(),
   created_at: z.string(),
   updated_at: z.string(),
+  installation_id: z.number().nullable().optional(),
+  repo_full_name: z.string().nullable().optional(),
 })
 
 function toProject(data: unknown): Project | null {
@@ -56,6 +63,8 @@ function toProject(data: unknown): Project | null {
     notes: r.notes,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
+    repoFullName: r.repo_full_name ?? null,
+    installationId: r.installation_id ?? null,
   }
 }
 

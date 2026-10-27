@@ -477,3 +477,136 @@
     grid-row: span 2;
   }
 }
+
+/* GitHub card on a project page */
+
+.github {
+  display: grid;
+  gap: 0.9rem;
+  padding: clamp(1.1rem, 3vw, 1.5rem);
+  border-radius: var(--radius-lg);
+}
+
+.githubTitle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1.25rem;
+}
+
+.githubActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 0.6rem;
+}
+
+.githubCheck {
+  display: grid;
+  gap: 0.75rem;
+  justify-items: start;
+}
+
+.githubCheck > div {
+  width: 100%;
+}
+
+.commits {
+  display: grid;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  list-style: none;
+}
+
+.commits li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 0.25rem 0.75rem;
+  padding: 0.6rem 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  font-size: 0.9375rem;
+}
+
+.commits a {
+  color: var(--blue-violet);
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+/* A commit title is untrusted text: it wraps and never overflows. */
+.commitTitle {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.commits time {
+  color: var(--ink-soft);
+  font-size: 0.8125rem;
+  white-space: nowrap;
+}
+
+@media (max-width: 39.99rem) {
+  .commits li {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Repository picker */
+
+.repoGroup {
+  display: grid;
+  gap: 0.5rem;
+  min-width: 0;
+  margin: 0 0 1rem;
+  padding: 0;
+  border: 0;
+}
+
+.repoGroup legend {
+  padding: 0;
+  font-weight: 700;
+}
+
+.repoList {
+  display: grid;
+  gap: 0.4rem;
+  max-height: 22rem;
+  padding: 0.25rem;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.repoItem {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-height: 2.75rem;
+  padding: 0.4rem 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+
+.repoItem:has(input:checked) {
+  border-color: var(--blue-violet);
+  background: var(--tint-violet);
+  box-shadow: 0 0 0 1px var(--blue-violet);
+}
+
+.repoItem:has(input:focus-visible) {
+  outline: 3px solid var(--blue-violet);
+  outline-offset: 3px;
+}
+
+.repoItem input {
+  flex: none;
+  width: 1.1rem;
+  height: 1.1rem;
+  accent-color: var(--blue-violet);
+}

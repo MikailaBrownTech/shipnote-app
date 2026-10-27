@@ -20,18 +20,34 @@ const OPTIONAL = [
   'UPSTASH_REDIS_REST_URL', // rate limiting is off without both
   'UPSTASH_REDIS_REST_TOKEN',
   'ALERTS_ENABLED', // defaults to false
+  'GITHUB_ENABLED', // defaults to false
 ]
 // Required only while ALERTS_ENABLED=true.
 const WHEN_ALERTS = ['RESEND_API_KEY', 'EMAIL_FROM', 'DEVICE_HASH_SALT']
+// Required only while GITHUB_ENABLED=true.
+const WHEN_GITHUB = [
+  'GITHUB_APP_ID',
+  'GITHUB_APP_SLUG',
+  'GITHUB_APP_CLIENT_ID',
+  'GITHUB_APP_CLIENT_SECRET',
+  'GITHUB_APP_PRIVATE_KEY',
+]
 
 const isSet = (name) => Boolean(process.env[name]?.trim())
 const alertsOn = process.env.ALERTS_ENABLED?.trim().toLowerCase() === 'true'
+const githubOn = process.env.GITHUB_ENABLED?.trim().toLowerCase() === 'true'
 
 const exampleNames = readFileSync(exampleFile, 'utf8')
   .split(/\r?\n/)
   .map((line) => /^([A-Z][A-Z0-9_]*)=/.exec(line)?.[1])
   .filter(Boolean)
-const known = new Set([...PUBLIC, ...REQUIRED, ...OPTIONAL, ...WHEN_ALERTS])
+const known = new Set([
+  ...PUBLIC,
+  ...REQUIRED,
+  ...OPTIONAL,
+  ...WHEN_ALERTS,
+  ...WHEN_GITHUB,
+])
 
 let failed = false
 function section(title, names, { required }) {
@@ -52,6 +68,11 @@ section(
   `Server-only, required only when ALERTS_ENABLED=true (currently ${alertsOn ? 'on' : 'off'})`,
   WHEN_ALERTS,
   { required: alertsOn },
+)
+section(
+  `Server-only, required only when GITHUB_ENABLED=true (currently ${githubOn ? 'on' : 'off'})`,
+  WHEN_GITHUB,
+  { required: githubOn },
 )
 
 const upstash = ['UPSTASH_REDIS_REST_URL', 'UPSTASH_REDIS_REST_TOKEN']
@@ -80,7 +101,9 @@ if (drift.length > 0) {
 const leaked = Object.keys(process.env).filter(
   (name) =>
     name.startsWith('NEXT_PUBLIC_') &&
-    /SERVICE_ROLE|SECRET|TOKEN|SALT|RESEND|UPSTASH/.test(name),
+    /SERVICE_ROLE|SECRET|TOKEN|SALT|RESEND|UPSTASH|PRIVATE_KEY|GITHUB_APP/.test(
+      name,
+    ),
 )
 if (leaked.length > 0) {
   console.log(
