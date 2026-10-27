@@ -1,64 +1,21 @@
 .main {
-  position: relative;
-  isolation: isolate;
-  padding-block: 1.5rem 4rem;
+  max-width: 78rem;
+  margin-inline: auto;
 }
 
-/* A soft wash of palette colour behind the page. */
-.main::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  background:
-    radial-gradient(
-      40rem 28rem at 90% 0%,
-      color-mix(in srgb, var(--blue-violet) 18%, transparent),
-      transparent 70%
-    ),
-    radial-gradient(
-      28rem 24rem at 0% 100%,
-      color-mix(in srgb, var(--azure-blue) 14%, transparent),
-      transparent 70%
-    );
-}
-
+/* A back link above a page title, on pages below the dashboard. */
 .header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  margin-bottom: 2.5rem;
+  margin-bottom: 1.5rem;
 }
 
 .title {
-  font-size: clamp(2.75rem, 10vw, 4.5rem);
-}
-
-.who {
-  display: inline-block;
-  margin-top: 1.25rem;
-  padding: 0.5rem 1rem;
-  border-radius: 999px;
-  color: var(--ink-soft);
-  font-weight: 600;
+  margin-bottom: 1.25rem;
+  font-size: clamp(2rem, 6vw, 2.75rem);
   overflow-wrap: anywhere;
-}
-
-.empty {
-  max-width: 36rem;
-  margin-top: 2.5rem;
-  padding: clamp(1.5rem, 4vw, 2.25rem);
-  border-radius: var(--radius-lg);
-}
-
-.empty h2 {
-  margin-bottom: 0.6rem;
-  font-size: clamp(1.5rem, 5vw, 2rem);
-}
-
-.empty p {
-  color: var(--ink-soft);
 }
 
 .menu {
@@ -170,4 +127,10 @@
   padding: 0.8rem 1rem;
   border-radius: var(--radius-sm);
   font-weight: 600;
+}
+
+.menuButton {
+  gap: 0.6rem;
+  padding-block: 0.4rem;
+  box-shadow: var(--shadow-card);
 }

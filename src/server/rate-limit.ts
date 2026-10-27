@@ -11,6 +11,8 @@ const LIMITS = {
   emailLinkEmail: { tokens: 3, window: '15 m' },
   signInStartIp: { tokens: 20, window: '15 m' },
   deleteAccount: { tokens: 5, window: '15 m' },
+  projectCreate: { tokens: 10, window: '15 m' },
+  projectUpdate: { tokens: 60, window: '15 m' },
 } as const
 
 export type LimitName = keyof typeof LIMITS

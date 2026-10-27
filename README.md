@@ -2,7 +2,7 @@
 
 Shipnote turns a developer's project docs and `[post]`-tagged commits into LinkedIn post drafts. The user edits a draft and copies it. Shipnote never posts for them.
 
-So far this repo has the landing page, invite-only sign-in (GitHub and email link), account controls and an empty dashboard. There are no projects, uploads, webhooks, queues or AI calls yet.
+So far this repo has the landing page, invite-only sign-in (GitHub and email link), account controls and projects (a private notes record per project, up to 5 per user). There are no GitHub connections, uploads, webhooks, queues or AI calls yet.
 
 ## Run it
 
@@ -81,7 +81,7 @@ vercel env pull .env.vercel && node --env-file=.env.vercel scripts/check-env.mjs
 
 Nothing below can be set from this repo. Until you do, invite-only sign-up is **not enforced end to end** (see "Not verified").
 
-1. **Apply the migrations** in `supabase/migrations/` in order (`supabase db push`, or paste each file into the SQL editor). They create `public.invites`, `public.sign_in_events`, the hook function, `record_sign_in()` and the session checks (`session_is_active()`, `active_session_count()`). The third migration replaces the hook function, so apply it even if you applied the first two earlier.
+1. **Apply the migrations** in `supabase/migrations/` in order (`supabase db push`, or paste each file into the SQL editor). They create `public.invites`, `public.sign_in_events`, the hook function, `record_sign_in()` and the session checks (`session_is_active()`, `active_session_count()`). The third migration replaces the hook function, so apply it even if you applied the first two earlier. The fourth, `20261027000100_projects.sql`, adds the projects table (see "Projects").
 2. **Authentication > Hooks > Before User Created**: enable it, choose "Postgres function" and pick `public.hook_before_user_created`. The migration already grants execute to `supabase_auth_admin` only.
 3. **Authentication > Providers > GitHub**: enable it with the client ID and secret from a GitHub OAuth app. In that GitHub app, set the callback URL to the one Supabase shows (`https://<project-ref>.supabase.co/auth/v1/callback`).
 4. **Authentication > Providers > Email**: enable it. Check the email template: the link must be a plain sign-in link that is opened in the same browser that asked for it (PKCE).
@@ -173,6 +173,37 @@ Deleting an account calls the Supabase admin `deleteUser(id, true)`. The Supabas
 - [ ] Every table that holds user data must reference `auth.users (id) on delete cascade`, so the purge job removes that data when it hard-deletes an account. `sign_in_events` already does. Add this check to every future migration review.
 - [ ] Every table that holds user data must also be hidden from, or excluded for, users whose `auth.users.deleted_at` is set, because the data stays after a soft delete.
 
+## Projects
+
+A signed-in user can create, view, edit and delete their own projects at `/dashboard`, `/dashboard/projects/new`, `/dashboard/projects/<id>` and `/dashboard/projects/<id>/edit`. A project holds the notes that later sprints turn into LinkedIn drafts. There is no GitHub code, AI call, draft, upload or webhook yet.
+
+**The table** (`supabase/migrations/20261027000100_projects.sql`): `public.projects` with `id`, `user_id` (references `auth.users` on delete cascade), `name` (1 to 80 characters), `summary` (optional, up to 300), `stage` (`idea`, `in_progress` or `shipped`), `notes` (up to 12,000 characters) and `created_at` / `updated_at` (a trigger keeps `updated_at` current).
+
+- **5 projects per user.** A trigger refuses the 6th insert with its own error code (`SN001`, message `project_limit_reached`), so no code path can skip it. The app shows "You have reached the 5 project limit." An advisory lock makes two simultaneous inserts take turns, so a race cannot slip a 6th in. The limit also binds the service role.
+- **12,000 characters of notes.** It keeps later AI calls small and cheap, and keeps a pasted README from becoming a dump of everything. It is a check constraint, counted in characters (not bytes, not UTF-16 units). The app's limits (`src/lib/project-schema.ts`) mirror the database ones, count line breaks as one character (a browser sends two), and refuse a NUL character, which Postgres cannot store.
+- **Row-level security is enabled and forced.** Select, insert, update and delete policies for `authenticated` only match `user_id = auth.uid()`; insert and update also check it in `with check`, so nobody can assign a project to someone else. `anon` has no privileges at all. A signed-in user cannot change `id`, `user_id` or the timestamps (column-level grants).
+- **Soft-deleted accounts see and change nothing.** Every policy also requires `public.is_active_account()`, a security-definer function that is true only when the caller's `auth.users.deleted_at` is null. `session_is_active()` was not reused because it needs a session id and is deliberately callable only by the service role; a policy cannot call it, and a function callable by users that took any user id would let them probe other people. The new function takes no arguments and looks only at `auth.uid()`.
+- **Not found, never forbidden.** A project that is missing, malformed or someone else's gives the same not-found page. Next.js sends a real 404 status only when `notFound()` runs before streaming starts; these pages must read the session inside `<Suspense>`, so the response is `200` with the not-found page and a `noindex` tag (documented behaviour, and what the dev server did here).
+- **Data access** goes through the Supabase server client with the signed-in user's session (`src/server/projects.ts`), so row-level security applies to every query. The service role key is not used for projects, and there is no raw SQL in app code. Every page and action also calls `requireUser()` itself and filters by the user's id, so row-level security is the backstop, not the only check.
+- **Private data.** Project text is never logged, never put in errors, and never in the page title. The only thing logged on a failed query is a Postgres error code. Notes and names are rendered as plain text (a test fails if `dangerouslySetInnerHTML` appears anywhere in `src/`). Create and update are rate limited with the existing Upstash limiter (10 creates and 60 updates per 15 minutes per user; same fail-open behaviour).
+
+### Migration to run before merging
+
+Run `supabase/migrations/20261027000100_projects.sql` once in the Supabase **SQL Editor** for the shared project, right before merging. It is additive: it creates `public.projects`, three functions (`is_active_account`, `projects_set_updated_at`, `enforce_project_limit`), two triggers, an index and four policies. It changes nothing that `main` uses, so applying it early is harmless to the code on `main`. Apply the earlier migrations first if you have not; this one does not depend on them, but it assumes the Supabase `auth` schema and `auth.uid()`.
+
+To confirm afterwards, in the SQL Editor: `select relrowsecurity, relforcerowsecurity from pg_class where oid = 'public.projects'::regclass;` should show `t` and `t`, and `select policyname from pg_policies where tablename = 'projects';` should list four policies.
+
+## Rules for every later table
+
+Any table that holds user data follows these. Check them in every migration review.
+
+1. **References `auth.users (id) on delete cascade`**, so the purge job removes the data when it hard-deletes an account. `sign_in_events` and `projects` do.
+2. **Row-level security enabled and forced**, with policies that match `user_id = auth.uid()` for every operation that clients may do. Revoke everything from `anon` and `authenticated` first, then grant only what is needed.
+3. **Excludes soft-deleted accounts.** Soft delete keeps the data, so every policy must also require `public.is_active_account()`.
+4. **Additive migrations only** while production and previews share one Supabase project: new tables, functions and policies; nothing dropped or altered in a way the code on `main` would break on.
+
+Soft-deleted users' projects are retained until the purge job (see "TODO when adding tables") hard-deletes the account, which cascades to them.
+
 ## SQL tests
 
 `supabase/tests/` runs the migrations in [PGlite](https://pglite.dev) (real Postgres compiled to WASM, in-process) from `pnpm test`. It needs no Docker or Postgres install.
@@ -183,10 +214,11 @@ Deleting an account calls the Supabase admin `deleteUser(id, true)`. The Supabas
 
 - `src/proxy.ts`: refreshes the session on each request and redirects `/dashboard` to `/sign-in` without one. Skips static files, `/api/webhooks` and `/api/queue`.
 - `src/lib/auth.ts`: `getCurrentUser()` and `requireUser()`, server-only, verified with `getClaims()` (never `getSession()`). Every page and action that needs a user calls one itself.
-- `src/lib/supabase/`: browser, server and proxy clients.
+- `src/lib/supabase/`: server and proxy clients (there is no browser client).
 - `src/lib/safe-next.ts`: only lets same-origin paths through for post-sign-in redirects.
 - `src/app/auth/callback/route.ts`: exchanges the one-time code for a session, runs the GitHub backstop, and schedules the sign-in record.
 - `src/app/sign-in/actions.ts`: rate-limited sign-in server actions.
+- `src/server/projects.ts`: project reads and writes through the signed-in user's Supabase client (no service role). `src/lib/project-schema.ts` holds the Zod schemas that mirror the database limits. `src/app/dashboard/projects/`: the screens and server actions.
 - `src/server/`: everything that uses a secret (service role, Redis, email). Pages and actions call `delete-account.ts`, `sign-in-limits.ts` and `sign-in-alert.ts`, not the lower-level modules.
 - `supabase/migrations/`, `supabase/snippets/`, `supabase/tests/`: schema, helper SQL and SQL tests.
 
@@ -201,6 +233,10 @@ This project uses a recent Next.js with `cacheComponents` on. Anything reading c
 - That the session check really ends another browser's access: I have not seen it run. It rests on Supabase's documented rule that a token's `session_id` matches a row in `auth.sessions`, and on the `auth.sessions` columns I query (`id`, `user_id`, `not_after`) and `auth.users.deleted_at` existing as I assume.
 - Why "sign out everywhere" did not end your second browser. I could not read your `auth.sessions` or `auth.refresh_tokens`, so I do not know whether the rows were removed. See the diagnosis queries below.
 - What soft delete really does. The Supabase docs do not say; the list above comes from the Auth server source and has not been run.
+- That the projects migration applies cleanly in the real SQL Editor, and that the policies behave as the PGlite tests show. The tests use stubbed roles and a stub `auth.users`; I have not run the migration against a Supabase project.
+- That `auth.users.deleted_at` is set by the Admin API soft delete in your project, which `is_active_account()` and the policies rely on (see "What soft delete does").
+- That PostgREST returns the trigger's SQLSTATE `SN001` in `error.code`, which the app uses to show the 5-project message. If it did not, the user would see the generic "could not save" message instead; the cap would still hold.
+- That the create, edit and delete forms work end to end in a browser, including keeping what was typed after a validation error. The pages were rendered in tests and in a dev server with the session and data mocked; the forms were not submitted.
 - That the live Supabase project writes its cookies with the flags above. The tests run the real `@supabase/ssr` client against a fake cookie store and a stubbed network, not your project, and I have not looked at the production site's cookies in dev tools.
 - That `signOut({ scope: 'global' })` works from a server client the way the docs describe.
 - Dashboard setting names and defaults listed in the checklist.
