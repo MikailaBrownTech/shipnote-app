@@ -2,9 +2,12 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { Suspense } from 'react'
 import { requireUser } from '@/lib/auth'
+import { parseGithubFlash } from '@/lib/github-flash'
 import { PROJECT_LIMITS, type Stage } from '@/lib/project-schema'
+import { githubIsEnabled } from '@/server/github-app'
 import { listProjects } from '@/server/projects'
 import { AccountMenu } from './account-menu'
+import { GithubDashboardPanel } from './github/dashboard-panel'
 import styles from './dashboard.module.css'
 import { Icon, type IconName } from './icons'
 import { PageIntro } from './page-intro'
@@ -26,20 +29,30 @@ const stageTones: Record<Stage, string> = {
   shipped: projectStyles.shipped,
 }
 
-export default function DashboardPage() {
+export default function DashboardPage({
+  searchParams,
+}: PageProps<'/dashboard'>) {
   return (
     <main className={styles.main}>
       {/* Reads the session, so it sits behind Suspense. */}
       <Suspense fallback={<p aria-live="polite">Loading your dashboard</p>}>
-        <Dashboard />
+        <Dashboard searchParams={searchParams} />
       </Suspense>
     </main>
   )
 }
 
 // The proxy also redirects, but this page checks the user itself.
-async function Dashboard() {
+async function Dashboard({
+  searchParams,
+}: {
+  searchParams: PageProps<'/dashboard'>['searchParams']
+}) {
   const user = await requireUser()
+  // Only a known code is shown, as fixed text; the raw value is never echoed.
+  const flash = githubIsEnabled()
+    ? parseGithubFlash((await searchParams).github)
+    : null
   const result = await listProjects(user.id)
   const projects = result.ok ? result.value : []
   const inStage = (stage: Stage) =>
@@ -184,6 +197,7 @@ async function Dashboard() {
         </section>
 
         <div className={shell.rail}>
+          <GithubDashboardPanel userId={user.id} flash={flash} />
           <section
             className={`card ${shell.panel}`}
             aria-labelledby="how-title"

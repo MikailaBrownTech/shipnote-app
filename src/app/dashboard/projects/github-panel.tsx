@@ -5,8 +5,9 @@ import { listInstallations } from '@/server/github-projects'
 import type { Project } from '@/server/projects'
 import { connectGithubAction } from '../github/actions'
 import { Icon } from '../icons'
-import { CheckCommits, DisconnectGithub } from './github-controls'
-import { unlinkRepoAction } from './github-actions'
+import { DisconnectGithub } from '../github/disconnect-github'
+import { CheckCommits } from './github-controls'
+import { disconnectGithubAction, unlinkRepoAction } from './github-actions'
 import styles from './projects.module.css'
 
 // The GitHub card on a project page. It renders nothing while the feature is
@@ -26,15 +27,15 @@ export function FlashNotice({ flash }: { flash: GithubFlash | null }) {
 }
 
 function ConnectButton({
-  next,
+  project,
   label,
 }: {
-  next: string
+  project: string
   label: 'Connect GitHub' | 'Reconnect GitHub'
 }) {
   return (
     <form action={connectGithubAction}>
-      <input type="hidden" name="next" value={next} />
+      <input type="hidden" name="project" value={project} />
       <button type="submit" className="button">
         <Icon name="arrowRight" size={18} />
         {label}
@@ -83,7 +84,7 @@ export async function GithubPanel({
           </p>
           <div className={styles.githubActions}>
             <ConnectButton
-              next={path}
+              project={project.id}
               label={repo ? 'Reconnect GitHub' : 'Connect GitHub'}
             />
             {repo ? (
@@ -102,7 +103,7 @@ export async function GithubPanel({
             for it was removed.
           </p>
           <div className={styles.githubActions}>
-            <ConnectButton next={path} label="Reconnect GitHub" />
+            <ConnectButton project={project.id} label="Reconnect GitHub" />
             <form action={unlinkRepoAction.bind(null, project.id)}>
               <button type="submit" className="button button-soft">
                 Unlink repository
@@ -127,7 +128,7 @@ export async function GithubPanel({
             </form>
             {project.installationId !== null ? (
               <DisconnectGithub
-                projectId={project.id}
+                action={disconnectGithubAction.bind(null, project.id)}
                 installationId={project.installationId}
               />
             ) : null}
@@ -145,7 +146,7 @@ export async function GithubPanel({
             </Link>
             {installations[0] ? (
               <DisconnectGithub
-                projectId={project.id}
+                action={disconnectGithubAction.bind(null, project.id)}
                 installationId={installations[0].installationId}
               />
             ) : null}

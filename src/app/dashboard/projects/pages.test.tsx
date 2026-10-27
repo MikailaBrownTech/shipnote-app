@@ -25,7 +25,10 @@ vi.mock('@/app/dashboard/account-menu', () => ({ AccountMenu: () => null }))
 // GitHub is off in these tests, as it is by default.
 vi.mock('@/server/github-app', () => ({ githubIsEnabled: () => false }))
 vi.mock('@/server/github-projects', () => ({ listInstallations: vi.fn() }))
-vi.mock('../github/actions', () => ({ connectGithubAction: vi.fn() }))
+vi.mock('../github/actions', () => ({
+  connectGithubAction: vi.fn(),
+  disconnectGithubFromDashboardAction: vi.fn(),
+}))
 vi.mock('./github-actions', () => ({
   linkRepoAction: vi.fn(),
   unlinkRepoAction: vi.fn(),
@@ -71,6 +74,11 @@ async function render(element: ReactElement) {
 }
 
 // The page props Next passes, reduced to what these pages read.
+const dashboardProps = {
+  params: Promise.resolve({}),
+  searchParams: Promise.resolve({}),
+}
+
 const idParams = (id: string) => ({
   params: Promise.resolve({ id }),
   searchParams: Promise.resolve({}),
@@ -84,7 +92,7 @@ describe('dashboard', () => {
 
   it('shows the empty state with a New project button', async () => {
     listProjects.mockResolvedValue({ ok: true, value: [] })
-    const { html } = await render(<DashboardPage />)
+    const { html } = await render(<DashboardPage {...dashboardProps} />)
     expect(html).toContain('No projects yet')
     expect(html).toContain('href="/dashboard/projects/new"')
   })
@@ -97,7 +105,7 @@ describe('dashboard', () => {
         project({ id: 'x', name: 'Second', stage: 'shipped' }),
       ],
     })
-    const { html } = await render(<DashboardPage />)
+    const { html } = await render(<DashboardPage {...dashboardProps} />)
     expect(html).toContain('Shipnote')
     expect(html).toContain('Second')
     expect(html).toContain('In progress')
@@ -114,14 +122,14 @@ describe('dashboard', () => {
         project({ id: `0000000${String(n)}-2222-4333-8444-555555555555` }),
       ),
     })
-    const { html } = await render(<DashboardPage />)
+    const { html } = await render(<DashboardPage {...dashboardProps} />)
     expect(html).toContain('You have reached the 5 project limit')
     expect(html).not.toContain('href="/dashboard/projects/new"')
   })
 
   it('says so, without detail, when projects cannot be loaded', async () => {
     listProjects.mockResolvedValue({ ok: false, reason: 'failed' })
-    const { html } = await render(<DashboardPage />)
+    const { html } = await render(<DashboardPage {...dashboardProps} />)
     expect(html).toContain('We could not load your projects')
   })
 
@@ -130,14 +138,14 @@ describe('dashboard', () => {
       ok: true,
       value: [project({ name: '<img src=x onerror=alert(1)>' })],
     })
-    const { html } = await render(<DashboardPage />)
+    const { html } = await render(<DashboardPage {...dashboardProps} />)
     expect(html).not.toContain('<img src=x')
     expect(html).toContain('&lt;img src=x onerror=alert(1)&gt;')
   })
 
   it('redirects a signed-out visitor to sign-in instead of reading projects', async () => {
     requireUser.mockRejectedValue(new Error('redirect:/sign-in'))
-    const { errors } = await render(<DashboardPage />)
+    const { errors } = await render(<DashboardPage {...dashboardProps} />)
     expect(listProjects).not.toHaveBeenCalled()
     expect(String(errors[0])).toContain('redirect:/sign-in')
   })

@@ -32,6 +32,7 @@ const {
 
 const USER = '6f1c3a9e-1b2d-4c3e-8f4a-5b6c7d8e9f01'
 const OTHER = '11111111-2222-4333-8444-555555555555'
+const PROJECT = '22222222-3333-4444-8555-666666666666'
 const SECRET = 'client-secret-value'
 const NOW = 1_800_000_000_000
 
@@ -39,7 +40,7 @@ describe('verifyState', () => {
   const fresh = () =>
     createState({
       userId: USER,
-      next: '/dashboard/projects/x',
+      projectId: PROJECT,
       secret: SECRET,
       nowMs: NOW,
     })
@@ -53,7 +54,41 @@ describe('verifyState', () => {
         secret: SECRET,
         nowMs: NOW + 1000,
       }),
-    ).toEqual({ ok: true, next: '/dashboard/projects/x' })
+    ).toEqual({ ok: true, projectId: PROJECT })
+  })
+
+  it('carries no project when the person started from the dashboard', () => {
+    const { cookieValue } = createState({
+      userId: USER,
+      projectId: null,
+      secret: SECRET,
+      nowMs: NOW,
+    })
+    expect(
+      verifyState({ cookieValue, userId: USER, secret: SECRET, nowMs: NOW }),
+    ).toEqual({ ok: true, projectId: null })
+  })
+
+  it.each([
+    '/dashboard',
+    'https://evil.test/',
+    '//evil.test',
+    '../../x',
+    'not-a-uuid',
+    PROJECT + 'x',
+    '<script>',
+  ])('refuses a signed cookie whose project is not an id (%s)', (projectId) => {
+    // Even correctly signed, only a project id or nothing is accepted: the
+    // cookie can never carry a path or text.
+    const { cookieValue } = createState({
+      userId: USER,
+      projectId,
+      secret: SECRET,
+      nowMs: NOW,
+    })
+    expect(
+      verifyState({ cookieValue, userId: USER, secret: SECRET, nowMs: NOW }).ok,
+    ).toBe(false)
   })
 
   it('refuses a different signed-in user', () => {
@@ -105,7 +140,7 @@ describe('verifyState', () => {
         n: 'x',
         e: NOW + 999_999_999,
         u: USER,
-        x: '/dashboard',
+        x: '',
       }),
     ).toString('base64url')
     for (const bad of [
@@ -164,7 +199,7 @@ describe('the cookie', () => {
 
   it('is set HttpOnly, Lax, scoped to the callback path, and for 10 minutes', async () => {
     vi.stubEnv('NODE_ENV', 'production')
-    await startState(USER, '/dashboard')
+    await startState(USER, null)
     vi.unstubAllEnvs()
     expect(set).toHaveBeenCalledExactlyOnceWith(
       GITHUB_STATE_COOKIE,
@@ -180,11 +215,11 @@ describe('the cookie', () => {
   })
 
   it('is single use: consuming it clears it', async () => {
-    const nonce = await startState(USER, '/dashboard/projects/x')
+    const nonce = await startState(USER, PROJECT)
     expect(typeof nonce).toBe('string')
     expect(await consumeState({ userId: USER, returnedState: null })).toEqual({
       ok: true,
-      next: '/dashboard/projects/x',
+      projectId: PROJECT,
     })
     expect(jar.has(GITHUB_STATE_COOKIE)).toBe(false)
     expect(await consumeState({ userId: USER, returnedState: null })).toEqual({
@@ -199,7 +234,7 @@ describe('the cookie', () => {
   })
 
   it('is cleared even when the check fails', async () => {
-    await startState(USER, '/dashboard')
+    await startState(USER, null)
     expect(await consumeState({ userId: OTHER, returnedState: null })).toEqual({
       ok: false,
     })
@@ -208,7 +243,7 @@ describe('the cookie', () => {
 
   it('refuses everything while the feature is off', async () => {
     getGithubEnv.mockReturnValue(null)
-    await expect(startState(USER, '/dashboard')).rejects.toThrow('not enabled')
+    await expect(startState(USER, null)).rejects.toThrow('not enabled')
     expect(await consumeState({ userId: USER, returnedState: null })).toEqual({
       ok: false,
     })

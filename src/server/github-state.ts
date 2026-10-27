@@ -9,6 +9,11 @@ import { getGithubEnv } from './env'
 // to their user id, and expires in 10 minutes. The callback accepts only a
 // request that arrives with that cookie.
 //
+// The only thing it carries besides that is the id of the project the person
+// started from, if any, so they can be sent back to it. It holds no path and no
+// text: the callback builds the redirect itself and re-checks that the project
+// is the user's.
+//
 // GitHub's docs say the `state` parameter is not returned when the OAuth step
 // happens during installation, so the cookie is the check. If a state value
 // does come back it must match too.
@@ -18,7 +23,10 @@ export const GITHUB_STATE_COOKIE = 'sn_gh_state'
 export const GITHUB_STATE_PATH = '/dashboard/github'
 export const STATE_TTL_MS = 10 * 60 * 1000
 
+// x is a project id, or '' when the person started from the dashboard.
 type Payload = { n: string; e: number; u: string; x: string }
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 const b64 = (value: Buffer | string) => Buffer.from(value).toString('base64url')
 
@@ -30,7 +38,7 @@ function sign(payload: string, secret: string) {
 
 export function createState(input: {
   userId: string
-  next: string
+  projectId: string | null
   secret: string
   nowMs?: number
 }): { nonce: string; cookieValue: string } {
@@ -39,7 +47,7 @@ export function createState(input: {
     n: nonce,
     e: (input.nowMs ?? Date.now()) + STATE_TTL_MS,
     u: input.userId,
-    x: input.next,
+    x: input.projectId ?? '',
   }
   const payload = b64(JSON.stringify(body))
   return {
@@ -48,7 +56,7 @@ export function createState(input: {
   }
 }
 
-export type StateCheck = { ok: true; next: string } | { ok: false }
+export type StateCheck = { ok: true; projectId: string | null } | { ok: false }
 
 function equal(a: Buffer, b: Buffer) {
   return a.length === b.length && timingSafeEqual(a, b)
@@ -92,6 +100,7 @@ export function verifyState(input: {
   ) {
     return bad
   }
+  if (parsed.x !== '' && !UUID.test(parsed.x)) return bad
   if (parsed.u !== input.userId) return bad
   if ((input.nowMs ?? Date.now()) > parsed.e) return bad
 
@@ -100,7 +109,7 @@ export function verifyState(input: {
       return bad
     }
   }
-  return { ok: true, next: parsed.x }
+  return { ok: true, projectId: parsed.x === '' ? null : parsed.x }
 }
 
 function cookieOptions() {
@@ -110,13 +119,13 @@ function cookieOptions() {
 // Sets the state cookie and returns the nonce to put on the install URL.
 export async function startState(
   userId: string,
-  next: string,
+  projectId: string | null,
 ): Promise<string> {
   const settings = getGithubEnv()
   if (!settings) throw new Error('GitHub is not enabled')
   const { nonce, cookieValue } = createState({
     userId,
-    next,
+    projectId,
     secret: settings.clientSecret,
   })
   const store = await cookies()

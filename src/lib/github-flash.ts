@@ -27,7 +27,7 @@ export const GITHUB_FLASH_MESSAGES: Record<
   GithubFlash,
   { tone: 'good' | 'bad'; text: string }
 > = {
-  connected: { tone: 'good', text: 'GitHub is connected.' },
+  connected: { tone: 'good', text: 'GitHub connected' },
   expired: {
     tone: 'bad',
     text: 'That connection attempt expired. Start again from the project page.',

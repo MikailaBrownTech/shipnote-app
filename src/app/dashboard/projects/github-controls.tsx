@@ -1,12 +1,8 @@
 'use client'
 
-import { useActionState, useState } from 'react'
+import { useActionState } from 'react'
 import { Icon } from '../icons'
-import {
-  checkCommitsAction,
-  disconnectGithubAction,
-  type CommitState,
-} from './github-actions'
+import { checkCommitsAction, type CommitState } from './github-actions'
 import styles from './projects.module.css'
 
 const idle: CommitState = { status: 'idle' }
@@ -93,58 +89,6 @@ export function CheckCommits({ projectId }: { projectId: string }) {
             {notices[state.status]}
           </p>
         ) : null}
-      </div>
-    </form>
-  )
-}
-
-// Disconnect asks first. It removes the connection in Shipnote only; it does
-// not uninstall the App on GitHub.
-export function DisconnectGithub({
-  projectId,
-  installationId,
-}: {
-  projectId: string
-  installationId: number
-}) {
-  const [confirming, setConfirming] = useState(false)
-  const disconnect = disconnectGithubAction.bind(null, projectId)
-
-  if (!confirming) {
-    return (
-      <button
-        type="button"
-        className="button button-soft"
-        onClick={() => {
-          setConfirming(true)
-        }}
-      >
-        Disconnect GitHub
-      </button>
-    )
-  }
-
-  return (
-    <form action={disconnect} className={`on-pink ${styles.confirm}`}>
-      <p>
-        Disconnect GitHub from Shipnote? This removes the connection here, for
-        all your projects. It does not uninstall the app on GitHub; you can do
-        that at github.com/settings/installations.
-      </p>
-      <input type="hidden" name="installation" value={String(installationId)} />
-      <div className={styles.confirmActions}>
-        <button type="submit" className="button button-dark">
-          Yes, disconnect
-        </button>
-        <button
-          type="button"
-          className="button button-light"
-          onClick={() => {
-            setConfirming(false)
-          }}
-        >
-          Cancel
-        </button>
       </div>
     </form>
   )
