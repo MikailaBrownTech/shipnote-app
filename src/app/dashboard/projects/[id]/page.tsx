@@ -17,7 +17,7 @@ export default function ProjectPage({
   params,
 }: PageProps<'/dashboard/projects/[id]'>) {
   return (
-    <main className={`page ${styles.main}`}>
+    <main className={styles.main}>
       {/* Reads the session and the id, so it sits behind Suspense. */}
       <Suspense fallback={<p aria-live="polite">Loading your project</p>}>
         <Project params={params} />

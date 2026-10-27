@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useActionState, useState } from 'react'
 import { signOut, signOutEverywhere } from '@/app/auth/actions'
 import styles from './dashboard.module.css'
+import shell from './shell.module.css'
 
 export function AccountMenu({ email }: { email: string | null }) {
   const [confirming, setConfirming] = useState(false)
@@ -13,7 +14,12 @@ export function AccountMenu({ email }: { email: string | null }) {
 
   return (
     <details className={styles.menu}>
-      <summary className="button button-soft">Account</summary>
+      <summary className={`button button-light ${styles.menuButton}`}>
+        <span className={shell.avatar} aria-hidden="true">
+          {(email?.[0] ?? '?').toUpperCase()}
+        </span>
+        Account
+      </summary>
       <div className={`card ${styles.menuPanel}`}>
         {email ? <p className={styles.menuEmail}>{email}</p> : null}
 

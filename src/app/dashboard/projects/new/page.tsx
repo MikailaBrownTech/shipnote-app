@@ -13,7 +13,7 @@ export const metadata: Metadata = { title: 'New project' }
 
 export default function NewProjectPage() {
   return (
-    <main className={`page ${styles.main}`}>
+    <main className={styles.main}>
       {/* Reads the session, so it sits behind Suspense. */}
       <Suspense fallback={<p aria-live="polite">Loading</p>}>
         <NewProject />
