@@ -9,7 +9,7 @@ import {
   type RepoInfo,
 } from './github'
 import { linkedRepos, listInstallations } from './github-projects'
-import { removeGithubInstallation } from './supabase-admin'
+import { linkProjectRepo, removeGithubInstallation } from './supabase-admin'
 
 // "Start from a GitHub repo": which repositories can be offered, and the values
 // the new-project form is filled with when one is picked.
@@ -202,4 +202,16 @@ export async function prefillFromRepo(input: {
     }
     return { status: errorKind(error) }
   }
+}
+
+// Links a project that was just created to the repository that was verified for
+// it. false if the database refused (for example, the repository was linked by
+// another request in the meantime).
+export function linkCreatedProject(input: {
+  userId: string
+  projectId: string
+  installationId: number
+  repoFullName: string
+}): Promise<boolean> {
+  return linkProjectRepo(input)
 }

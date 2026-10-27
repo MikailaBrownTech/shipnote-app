@@ -18,6 +18,11 @@ vi.mock('next/cache', () => ({ revalidatePath }))
 vi.mock('next/navigation', () => ({ redirect, notFound }))
 vi.mock('@/lib/auth', () => ({ requireUser }))
 vi.mock('@/server/rate-limit', () => ({ rateLimit }))
+vi.mock('@/server/github-app', () => ({ githubIsEnabled: () => false }))
+vi.mock('@/server/github-import', () => ({
+  verifyRepoForLink: vi.fn(),
+  linkCreatedProject: vi.fn(),
+}))
 vi.mock('@/server/projects', () => ({
   createProject,
   updateProject,

@@ -10,6 +10,8 @@ export const GITHUB_FLASH = [
   'taken', // that installation is connected to another Shipnote account
   'limited',
   'repo', // the chosen repository is not available through the connection
+  'repotaken', // another of the user's projects already uses that repository
+  'linkfailed', // the project was created but the repository could not be linked
   'unavailable', // GitHub is down or slow
   'failed',
   'linked',
@@ -55,6 +57,14 @@ export const GITHUB_FLASH_MESSAGES: Record<
   repo: {
     tone: 'bad',
     text: 'That repository is not available through your GitHub connection. Nothing was saved.',
+  },
+  repotaken: {
+    tone: 'bad',
+    text: 'That repository is already linked to another of your projects.',
+  },
+  linkfailed: {
+    tone: 'bad',
+    text: 'The project was created, but the repository could not be linked. You can link it from here.',
   },
   unavailable: {
     tone: 'bad',
