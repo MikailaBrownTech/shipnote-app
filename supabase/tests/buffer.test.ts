@@ -539,8 +539,8 @@ describe('status changes', () => {
       ),
     )
     const after = (await row(id)).rows[0]
-    expect(after?.status).toBe('canceled')
-    expect(after?.canceled_at).not.toBeNull()
+    expect(after.status).toBe('canceled')
+    expect(after.canceled_at).not.toBeNull()
     for (const next of ['published', 'failed', 'canceled']) {
       const again = await service(() =>
         db.query<{ ok: boolean }>(
