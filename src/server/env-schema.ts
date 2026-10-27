@@ -316,3 +316,75 @@ export function parseSchedulingEnv(source: Source) {
     keys,
   }
 }
+
+// Automatic drafts from [post] commits. Off unless AUTO_DRAFTS_ENABLED=true;
+// this is the kill switch. When on, GitHub (the webhook secret) and QStash (the
+// queue token and the two signing keys) are required, and so are the settings
+// the pipeline already needs: GITHUB_ENABLED and AI_ENABLED must be on too. A
+// missing or malformed variable is named in the error, never its value.
+//
+// QSTASH_URL is optional: Upstash gives each account a regional address, and
+// only these known ones are accepted (and allowed by the outbound module).
+export const QSTASH_URLS = [
+  'https://qstash.upstash.io',
+  'https://qstash-us-east-1.upstash.io',
+  'https://qstash-eu-central-1.upstash.io',
+] as const
+
+const secretText = (min: number, max: number) =>
+  z
+    .string()
+    .min(min)
+    .max(max)
+    .regex(/^[\x21-\x7e]+$/)
+
+const autoDraftsSchema = z.object({
+  GITHUB_WEBHOOK_SECRET: secretText(16, 200),
+  QSTASH_TOKEN: secretText(10, 2000),
+  QSTASH_CURRENT_SIGNING_KEY: secretText(10, 500),
+  QSTASH_NEXT_SIGNING_KEY: secretText(10, 500),
+  QSTASH_URL: z.enum(QSTASH_URLS),
+})
+
+export function isAutoDraftsEnabled(source: Source): boolean {
+  return source.AUTO_DRAFTS_ENABLED?.trim().toLowerCase() === 'true'
+}
+
+// null while AUTO_DRAFTS_ENABLED is off. Throws, naming the variable, when it
+// is on and something is missing or malformed.
+export function parseAutoDraftsEnv(source: Source) {
+  const flag = source.AUTO_DRAFTS_ENABLED?.trim().toLowerCase()
+  if (flag === undefined || flag === '' || flag === 'false') return null
+  if (flag !== 'true') {
+    throw new Error(
+      'Invalid server environment:\n- AUTO_DRAFTS_ENABLED must be true or false',
+    )
+  }
+  const needs = [
+    ['GITHUB_ENABLED', isGithubEnabled(source)],
+    ['AI_ENABLED', isAiEnabled(source)],
+  ] as const
+  const off = needs.filter(([, on]) => !on).map(([name]) => name)
+  if (off.length > 0) {
+    throw new Error(
+      `Invalid server environment:\n- AUTO_DRAFTS_ENABLED needs ${off.join(' and ')} to be true`,
+    )
+  }
+  const parsed = parseGroup(autoDraftsSchema, {
+    GITHUB_WEBHOOK_SECRET: source.GITHUB_WEBHOOK_SECRET?.trim(),
+    QSTASH_TOKEN: source.QSTASH_TOKEN?.trim(),
+    QSTASH_CURRENT_SIGNING_KEY: source.QSTASH_CURRENT_SIGNING_KEY?.trim(),
+    QSTASH_NEXT_SIGNING_KEY: source.QSTASH_NEXT_SIGNING_KEY?.trim(),
+    QSTASH_URL: source.QSTASH_URL?.trim().replace(/\/+$/, '') || QSTASH_URLS[0],
+  })
+  return {
+    webhookSecret: parsed.GITHUB_WEBHOOK_SECRET,
+    qstashToken: parsed.QSTASH_TOKEN,
+    // Tried in this order when a callback's signature is checked.
+    signingKeys: [
+      parsed.QSTASH_CURRENT_SIGNING_KEY,
+      parsed.QSTASH_NEXT_SIGNING_KEY,
+    ],
+    qstashUrl: parsed.QSTASH_URL,
+  }
+}

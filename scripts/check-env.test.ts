@@ -173,4 +173,75 @@ describe('check-env script', () => {
     expect(code).toBe(1)
     expect(out).toMatch(/NEXT_PUBLIC_BUFFER_CLIENT_SECRET/)
   })
+
+  it('requires the webhook and queue settings only when AUTO_DRAFTS_ENABLED=true', () => {
+    const base = { ...publicVars, SUPABASE_SERVICE_ROLE_KEY: 'k' }
+    expect(run(base).code).toBe(0)
+    const on = run({
+      ...base,
+      AUTO_DRAFTS_ENABLED: 'true',
+      GITHUB_ENABLED: 'true',
+      AI_ENABLED: 'true',
+    })
+    expect(on.code).toBe(1)
+    for (const name of [
+      'GITHUB_WEBHOOK_SECRET',
+      'QSTASH_TOKEN',
+      'QSTASH_CURRENT_SIGNING_KEY',
+      'QSTASH_NEXT_SIGNING_KEY',
+    ]) {
+      expect(on.out).toMatch(new RegExp(`MISSING ${name}`))
+    }
+  })
+
+  it('says automatic drafts need GitHub and AI to be on as well', () => {
+    const { code, out } = run({
+      ...publicVars,
+      SUPABASE_SERVICE_ROLE_KEY: 'k',
+      AUTO_DRAFTS_ENABLED: 'true',
+      GITHUB_WEBHOOK_SECRET: 'x',
+      QSTASH_TOKEN: 'x',
+      QSTASH_CURRENT_SIGNING_KEY: 'x',
+      QSTASH_NEXT_SIGNING_KEY: 'x',
+    })
+    expect(code).toBe(1)
+    expect(out).toMatch(/needs GITHUB_ENABLED and AI_ENABLED/)
+  })
+
+  it('never prints a webhook or queue value', () => {
+    const { out } = run({
+      ...publicVars,
+      SUPABASE_SERVICE_ROLE_KEY: 'k',
+      AUTO_DRAFTS_ENABLED: 'true',
+      GITHUB_WEBHOOK_SECRET: 'value-webhook',
+      QSTASH_TOKEN: 'value-token',
+      QSTASH_CURRENT_SIGNING_KEY: 'value-current',
+      QSTASH_NEXT_SIGNING_KEY: 'value-next',
+      QSTASH_URL: 'value-url',
+    })
+    for (const value of [
+      'value-webhook',
+      'value-token',
+      'value-current',
+      'value-next',
+      'value-url',
+    ]) {
+      expect(out).not.toContain(value)
+    }
+  })
+
+  it('flags a webhook or queue secret named with NEXT_PUBLIC_', () => {
+    for (const name of [
+      'NEXT_PUBLIC_QSTASH_TOKEN',
+      'NEXT_PUBLIC_GITHUB_WEBHOOK_SECRET',
+    ]) {
+      const { code, out } = run({
+        ...publicVars,
+        SUPABASE_SERVICE_ROLE_KEY: 'k',
+        [name]: 'x',
+      })
+      expect(code).toBe(1)
+      expect(out).toContain(name)
+    }
+  })
 })

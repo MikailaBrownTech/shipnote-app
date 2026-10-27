@@ -14,6 +14,9 @@ describe('isAllowedUrl', () => {
     'https://api.anthropic.com/v1/messages',
     'https://api.buffer.com/',
     'https://auth.buffer.com/token',
+    'https://qstash.upstash.io/v2/publish/https://app.example/api/queue/draft',
+    'https://qstash-us-east-1.upstash.io/v2/publish/https://app.example/api/queue/draft',
+    'https://qstash-eu-central-1.upstash.io/v2/publish/https://app.example/api/queue/draft',
   ])('allows %s', (url) => {
     expect(isAllowedUrl(url)).toBe(true)
   })
@@ -63,6 +66,30 @@ describe('isAllowedUrl', () => {
     ['another Buffer host', 'https://buffer.com/'],
     ['Buffer over http', 'http://api.buffer.com/'],
     ['a Buffer lookalike', 'https://api.buffer.com.evil.test/'],
+    ['the QStash root', 'https://qstash.upstash.io/'],
+    ['another QStash path', 'https://qstash.upstash.io/v2/messages'],
+    ['QStash schedules', 'https://qstash.upstash.io/v2/schedules'],
+    [
+      'a path that only looks like publish',
+      'https://qstash.upstash.io/v2/publishx/a',
+    ],
+    [
+      'a dot-dot escape from the publish path',
+      'https://qstash.upstash.io/v2/publish/../keys',
+    ],
+    [
+      'an encoded dot-dot escape',
+      'https://qstash.upstash.io/v2/publish/%2e%2e/keys',
+    ],
+    ['QStash over http', 'http://qstash.upstash.io/v2/publish/https://a.test'],
+    [
+      'an unknown QStash region',
+      'https://qstash-mars-1.upstash.io/v2/publish/https://a.test',
+    ],
+    [
+      'a QStash lookalike',
+      'https://qstash.upstash.io.evil.test/v2/publish/https://a.test',
+    ],
     ['another Anthropic host', 'https://console.anthropic.com/v1/messages'],
     ['a constructor host', 'https://constructor/'],
   ])('refuses %s', (_label, url) => {

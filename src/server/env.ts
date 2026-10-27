@@ -1,11 +1,13 @@
 import 'server-only'
 import {
   isAiEnabled,
+  isAutoDraftsEnabled,
   isSchedulingEnabled,
   isGithubEnabled,
   parseAiEnv,
   parseAdminEnv,
   parseAlertsEnv,
+  parseAutoDraftsEnv,
   parseGithubEnv,
   parseRateLimitEnv,
   parseSchedulingEnv,
@@ -90,5 +92,29 @@ export function getSchedulingEnv() {
     BUFFER_TOKEN_KEY_VERSION: process.env.BUFFER_TOKEN_KEY_VERSION,
     BUFFER_TOKEN_ENCRYPTION_KEY_PREVIOUS:
       process.env.BUFFER_TOKEN_ENCRYPTION_KEY_PREVIOUS,
+  })
+}
+
+// Whether automatic drafts are on (the kill switch). Only reads the flag, so
+// pages can hide the switch without touching any secret.
+export function autoDraftsEnabled() {
+  return isAutoDraftsEnabled({
+    AUTO_DRAFTS_ENABLED: process.env.AUTO_DRAFTS_ENABLED,
+  })
+}
+
+// null while AUTO_DRAFTS_ENABLED is off. Throws, naming the variable, when it is
+// on and something is missing or malformed (GITHUB_ENABLED and AI_ENABLED must
+// be on as well).
+export function getAutoDraftsEnv() {
+  return parseAutoDraftsEnv({
+    AUTO_DRAFTS_ENABLED: process.env.AUTO_DRAFTS_ENABLED,
+    GITHUB_ENABLED: process.env.GITHUB_ENABLED,
+    AI_ENABLED: process.env.AI_ENABLED,
+    GITHUB_WEBHOOK_SECRET: process.env.GITHUB_WEBHOOK_SECRET,
+    QSTASH_TOKEN: process.env.QSTASH_TOKEN,
+    QSTASH_CURRENT_SIGNING_KEY: process.env.QSTASH_CURRENT_SIGNING_KEY,
+    QSTASH_NEXT_SIGNING_KEY: process.env.QSTASH_NEXT_SIGNING_KEY,
+    QSTASH_URL: process.env.QSTASH_URL,
   })
 }

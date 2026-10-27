@@ -5,7 +5,11 @@ import 'server-only'
 // URL) cannot make the server call somewhere else.
 //
 // To allow a new host, add it to RULES and nowhere else.
-const RULES: Record<string, { paths?: readonly string[] }> = {
+// `paths` are exact. `prefixes` match a path that starts with one of them.
+const RULES: Record<
+  string,
+  { paths?: readonly string[]; prefixes?: readonly string[] }
+> = {
   // Sign-in alert emails.
   'api.resend.com': {},
   // The GitHub REST API.
@@ -17,6 +21,12 @@ const RULES: Record<string, { paths?: readonly string[] }> = {
   // authorization page is a browser redirect, not a server call.
   'api.buffer.com': { paths: ['/'] },
   'auth.buffer.com': { paths: ['/token'] },
+  // Automatic drafts: publishing a job to QStash. Only the publish endpoint
+  // (the destination address is part of its path), on the account's regional
+  // host; see QSTASH_URLS in env-schema.ts.
+  'qstash.upstash.io': { prefixes: ['/v2/publish/'] },
+  'qstash-us-east-1.upstash.io': { prefixes: ['/v2/publish/'] },
+  'qstash-eu-central-1.upstash.io': { prefixes: ['/v2/publish/'] },
   // GitHub's OAuth token exchange lives on github.com, not api.github.com.
   // Only that one path is allowed there.
   'github.com': { paths: ['/login/oauth/access_token'] },
@@ -42,8 +52,12 @@ export function isAllowedUrl(input: string): boolean {
   if (url.protocol !== 'https:') return false
   if (url.username || url.password || url.port) return false
   if (!Object.hasOwn(RULES, url.hostname)) return false
-  const { paths } = RULES[url.hostname] ?? {}
-  return paths === undefined || paths.includes(url.pathname)
+  const { paths, prefixes } = RULES[url.hostname] ?? {}
+  if (paths === undefined && prefixes === undefined) return true
+  return (
+    (paths?.includes(url.pathname) ?? false) ||
+    (prefixes?.some((prefix) => url.pathname.startsWith(prefix)) ?? false)
+  )
 }
 
 export function outboundFetch(
