@@ -1,12 +1,14 @@
 import 'server-only'
 import {
   isAiEnabled,
+  isSchedulingEnabled,
   isGithubEnabled,
   parseAiEnv,
   parseAdminEnv,
   parseAlertsEnv,
   parseGithubEnv,
   parseRateLimitEnv,
+  parseSchedulingEnv,
 } from './env-schema'
 
 export function getAdminEnv() {
@@ -66,5 +68,27 @@ export function getAiEnv() {
     ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
     ANTHROPIC_MODEL: process.env.ANTHROPIC_MODEL,
     AI_MONTHLY_CAP_USD: process.env.AI_MONTHLY_CAP_USD,
+  })
+}
+
+// Whether scheduling through Buffer is on (the kill switch). Only reads the
+// flag, so pages can hide the feature without touching any secret.
+export function schedulingEnabled() {
+  return isSchedulingEnabled({
+    SCHEDULING_ENABLED: process.env.SCHEDULING_ENABLED,
+  })
+}
+
+// null while SCHEDULING_ENABLED is off. Throws, naming the variable, when it is
+// on and something is missing or malformed.
+export function getSchedulingEnv() {
+  return parseSchedulingEnv({
+    SCHEDULING_ENABLED: process.env.SCHEDULING_ENABLED,
+    BUFFER_CLIENT_ID: process.env.BUFFER_CLIENT_ID,
+    BUFFER_CLIENT_SECRET: process.env.BUFFER_CLIENT_SECRET,
+    BUFFER_TOKEN_ENCRYPTION_KEY: process.env.BUFFER_TOKEN_ENCRYPTION_KEY,
+    BUFFER_TOKEN_KEY_VERSION: process.env.BUFFER_TOKEN_KEY_VERSION,
+    BUFFER_TOKEN_ENCRYPTION_KEY_PREVIOUS:
+      process.env.BUFFER_TOKEN_ENCRYPTION_KEY_PREVIOUS,
   })
 }

@@ -12,6 +12,11 @@ const RULES: Record<string, { paths?: readonly string[] }> = {
   'api.github.com': {},
   // Draft generation. Only the Messages endpoint.
   'api.anthropic.com': { paths: ['/v1/messages'] },
+  // Scheduling through the user's own Buffer account: the GraphQL API (one
+  // endpoint) and the OAuth token endpoint (code exchange and refresh). The
+  // authorization page is a browser redirect, not a server call.
+  'api.buffer.com': { paths: ['/'] },
+  'auth.buffer.com': { paths: ['/token'] },
   // GitHub's OAuth token exchange lives on github.com, not api.github.com.
   // Only that one path is allowed there.
   'github.com': { paths: ['/login/oauth/access_token'] },
