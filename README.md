@@ -2,7 +2,7 @@
 
 Shipnote turns a developer's project docs and `[post]`-tagged commits into LinkedIn post drafts. The user edits a draft and copies it. Shipnote never posts for them.
 
-So far this repo has the landing page, invite-only sign-in (GitHub and email link), account controls and projects (a private notes record per project, up to 5 per user). There are no GitHub connections, uploads, webhooks, queues or AI calls yet.
+So far this repo has the landing page, invite-only sign-in (GitHub and email link), account controls and projects (a private notes record per project, up to 5 per user). There is an optional GitHub connection (off by default; read-only, no webhook). There are no uploads, queues or AI calls yet.
 
 ## Run it
 
@@ -42,31 +42,39 @@ Names only. Put values in `.env.local` (gitignored). Never commit them.
 - `SUPABASE_SERVICE_ROLE_KEY`: used in exactly one module, `src/server/supabase-admin.ts`. Needed for account deletion and for recording sign-in events.
 - `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`: rate limiting. If both are unset, rate limiting is off (fine for local development). Setting only one is an error.
 - `ALERTS_ENABLED`: `true` turns on new-device sign-in alert emails. Default off. While it is off nothing is recorded and nothing is sent.
+- `GITHUB_ENABLED`: `true` turns on the GitHub connection. Default off; while it is off the GitHub buttons are hidden and nothing else is read.
+- `GITHUB_APP_ID`, `GITHUB_APP_SLUG`, `GITHUB_APP_CLIENT_ID`, `GITHUB_APP_CLIENT_SECRET`, `GITHUB_APP_PRIVATE_KEY`: required when `GITHUB_ENABLED=true`. The private key is the App's PEM file, base64-encoded onto one line. If one is missing or malformed the server refuses to start and the error names it. See "GitHub connection".
 - `RESEND_API_KEY`, `EMAIL_FROM`, `DEVICE_HASH_SALT`: required when `ALERTS_ENABLED=true`. If one is missing the server refuses to start and the error names it. `EMAIL_FROM` is read from the environment, never hardcoded (`alerts@your-domain` or `Shipnote <alerts@your-domain>`). `DEVICE_HASH_SALT` must be at least 16 random characters.
 
 ## Deploying to Vercel
 
 Add the variables in **Project Settings > Environment Variables**, for the Production environment (and Preview if you use it). Then **redeploy**: changed variables only apply to new deployments, and `NEXT_PUBLIC_*` values are baked in at build time, so the old build keeps the old (or missing) values.
 
-| Variable                               | Public or server-only | Required                        | Where to find the value                                           |
-| -------------------------------------- | --------------------- | ------------------------------- | ----------------------------------------------------------------- |
-| `NEXT_PUBLIC_SITE_URL`                 | Public                | Required                        | Your production URL, e.g. `https://shipnote.example`              |
-| `NEXT_PUBLIC_SUPABASE_URL`             | Public                | Required                        | Supabase project > Project Settings > API (Project URL)           |
-| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Public                | Required                        | Supabase project > Project Settings > API (publishable key)       |
-| `SUPABASE_SERVICE_ROLE_KEY`            | Server-only           | Required                        | Supabase project > Project Settings > API (secret / service_role) |
-| `UPSTASH_REDIS_REST_URL`               | Server-only           | Optional, set both or neither   | Upstash console > your database > REST API                        |
-| `UPSTASH_REDIS_REST_TOKEN`             | Server-only           | Optional, set both or neither   | Upstash console > your database > REST API                        |
-| `ALERTS_ENABLED`                       | Server-only           | Optional (default `false`)      | You choose: `true` or `false`                                     |
-| `RESEND_API_KEY`                       | Server-only           | Only when `ALERTS_ENABLED=true` | Resend dashboard > API Keys                                       |
-| `EMAIL_FROM`                           | Server-only           | Only when `ALERTS_ENABLED=true` | An address on a domain verified in the Resend dashboard           |
-| `DEVICE_HASH_SALT`                     | Server-only           | Only when `ALERTS_ENABLED=true` | Generate it: `openssl rand -hex 32`                               |
+| Variable                               | Public or server-only | Required                        | Where to find the value                                                                  |
+| -------------------------------------- | --------------------- | ------------------------------- | ---------------------------------------------------------------------------------------- |
+| `NEXT_PUBLIC_SITE_URL`                 | Public                | Required                        | Your production URL, e.g. `https://shipnote.example`                                     |
+| `NEXT_PUBLIC_SUPABASE_URL`             | Public                | Required                        | Supabase project > Project Settings > API (Project URL)                                  |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Public                | Required                        | Supabase project > Project Settings > API (publishable key)                              |
+| `SUPABASE_SERVICE_ROLE_KEY`            | Server-only           | Required                        | Supabase project > Project Settings > API (secret / service_role)                        |
+| `UPSTASH_REDIS_REST_URL`               | Server-only           | Optional, set both or neither   | Upstash console > your database > REST API                                               |
+| `UPSTASH_REDIS_REST_TOKEN`             | Server-only           | Optional, set both or neither   | Upstash console > your database > REST API                                               |
+| `ALERTS_ENABLED`                       | Server-only           | Optional (default `false`)      | You choose: `true` or `false`                                                            |
+| `RESEND_API_KEY`                       | Server-only           | Only when `ALERTS_ENABLED=true` | Resend dashboard > API Keys                                                              |
+| `EMAIL_FROM`                           | Server-only           | Only when `ALERTS_ENABLED=true` | An address on a domain verified in the Resend dashboard                                  |
+| `DEVICE_HASH_SALT`                     | Server-only           | Only when `ALERTS_ENABLED=true` | Generate it: `openssl rand -hex 32`                                                      |
+| `GITHUB_ENABLED`                       | Server-only           | Optional (default `false`)      | You choose: `true` or `false`                                                            |
+| `GITHUB_APP_ID`                        | Server-only           | Only when `GITHUB_ENABLED=true` | GitHub App settings page, "App ID"                                                       |
+| `GITHUB_APP_SLUG`                      | Server-only           | Only when `GITHUB_ENABLED=true` | The last part of the App's URL, github.com/apps/<slug>                                   |
+| `GITHUB_APP_CLIENT_ID`                 | Server-only           | Only when `GITHUB_ENABLED=true` | GitHub App settings page, "Client ID"                                                    |
+| `GITHUB_APP_CLIENT_SECRET`             | Server-only           | Only when `GITHUB_ENABLED=true` | GitHub App settings page, "Generate a new client secret"                                 |
+| `GITHUB_APP_PRIVATE_KEY`               | Server-only           | Only when `GITHUB_ENABLED=true` | GitHub App settings page, "Generate a private key", then base64 the `.pem` onto one line |
 
 Rules:
 
 - `NEXT_PUBLIC_SITE_URL` must be the production **https** URL with **no trailing slash** (`https://shipnote.example`, not `https://shipnote.example/`). A trailing slash is stripped, but a `localhost` or `http` value on a production deployment makes sign-in redirects and cookies point at the wrong origin; the server logs a warning at startup if it sees that.
 - Server-only variables must **never** start with `NEXT_PUBLIC_`. Anything with that prefix is sent to every visitor's browser. `pnpm check:env` flags a secret-looking name that has the prefix.
 - **Upstash is optional but you want it in production.** Without it sign-in rate limiting is off, and the server logs one warning at startup (names only) saying so. Setting only one of the two is the same as setting neither.
-- With `ALERTS_ENABLED=true`, a missing email variable stops the server from starting and the error names it.
+- With `ALERTS_ENABLED=true`, a missing email variable stops the server from starting and the error names it. The same goes for the GitHub variables when `GITHUB_ENABLED=true`.
 - A missing **public** variable fails the build, naming the variable (never the value). A missing server variable does not break the build or unrelated pages such as the landing page; it is checked where it is first used.
 
 Check a configuration without printing any value:
@@ -81,7 +89,7 @@ vercel env pull .env.vercel && node --env-file=.env.vercel scripts/check-env.mjs
 
 Nothing below can be set from this repo. Until you do, invite-only sign-up is **not enforced end to end** (see "Not verified").
 
-1. **Apply the migrations** in `supabase/migrations/` in order (`supabase db push`, or paste each file into the SQL editor). They create `public.invites`, `public.sign_in_events`, the hook function, `record_sign_in()` and the session checks (`session_is_active()`, `active_session_count()`). The third migration replaces the hook function, so apply it even if you applied the first two earlier. The fourth, `20261027000100_projects.sql`, adds the projects table (see "Projects").
+1. **Apply the migrations** in `supabase/migrations/` in order (`supabase db push`, or paste each file into the SQL editor). They create `public.invites`, `public.sign_in_events`, the hook function, `record_sign_in()` and the session checks (`session_is_active()`, `active_session_count()`). The third migration replaces the hook function, so apply it even if you applied the first two earlier. The fourth, `20261027000100_projects.sql`, adds the projects table (see "Projects"). The fifth, `20261028000100_github_installations.sql`, adds the GitHub tables and columns (see "GitHub connection").
 2. **Authentication > Hooks > Before User Created**: enable it, choose "Postgres function" and pick `public.hook_before_user_created`. The migration already grants execute to `supabase_auth_admin` only.
 3. **Authentication > Providers > GitHub**: enable it with the client ID and secret from a GitHub OAuth app. In that GitHub app, set the callback URL to the one Supabase shows (`https://<project-ref>.supabase.co/auth/v1/callback`).
 4. **Authentication > Providers > Email**: enable it. Check the email template: the link must be a plain sign-in link that is opened in the same browser that asked for it (PKCE).
@@ -204,6 +212,96 @@ Any table that holds user data follows these. Check them in every migration revi
 
 Soft-deleted users' projects are retained until the purge job (see "TODO when adding tables") hard-deletes the account, which cascades to them.
 
+## GitHub connection
+
+A signed-in user can connect GitHub, link one of their repositories to a project, and see their recent commits tagged `[post]`. Sprint 4 will turn selected commits into drafts. There is no webhook, queue, AI call or draft yet, and Shipnote never reads source files or diffs.
+
+The whole feature is **off unless `GITHUB_ENABLED=true`**. With it unset the app builds and runs as before, the GitHub card and buttons are hidden, and the callback route answers 404.
+
+### What it does
+
+1. **Connect GitHub** (project page): sets a signed, short-lived cookie, then sends the person to the App's install page on github.com. After they install, GitHub returns them to `/dashboard/github/callback`, where the server verifies they own the installation (see "How ownership is verified") and stores one row in `public.github_installations`.
+2. **Choose a repository** (`/dashboard/projects/<id>/repo`): lists the repositories the installation can see, taken from GitHub. The chosen one is saved only if it is on that list.
+3. **Check for [post] commits**: mints a read-only token for that one repository, fetches the commits of the last 30 days (up to 100), keeps those whose message contains `[post]` (any case), and shows at most 20 with a short sha, the first line of the message, the date and a link to the commit on GitHub.
+4. **Unlink repository** and **Disconnect GitHub**: unlink clears the project's repository. Disconnect removes the user's installation row in Shipnote; it does **not** uninstall the App on GitHub (the page says so, and where to do it: github.com/settings/installations). Projects that used it keep their repository name and show **Reconnect GitHub**.
+
+If the App is uninstalled or suspended on GitHub, the next check or picker visit forgets the installation and the project shows **Reconnect GitHub**. A repository that disappeared is reported separately ("choose another repository, or unlink it").
+
+### Creating the GitHub App (by hand)
+
+Nothing here can be done from this repo. Use a **GitHub App**, not an OAuth app and not a personal access token. Create it at github.com/settings/apps/new (or under an organization you own) with:
+
+| Setting                                                | Value                                                                                                                                                                 |
+| ------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GitHub App name                                        | Anything unique, e.g. `Shipnote (dev)`. The slug in its URL is `GITHUB_APP_SLUG`.                                                                                     |
+| Homepage URL                                           | Your site, `NEXT_PUBLIC_SITE_URL`                                                                                                                                     |
+| Callback URL                                           | `<NEXT_PUBLIC_SITE_URL>/dashboard/github/callback` (for local development, `http://localhost:3000/dashboard/github/callback`)                                         |
+| Request user authorization (OAuth) during installation | **On.** GitHub then disables the Setup URL and redirects to the Callback URL after installation, which is the one route this feature uses. Leave **Setup URL** empty. |
+| Expire user authorization tokens                       | On (the default). The user token is revoked right after use anyway.                                                                                                   |
+| Webhook > Active                                       | **Off.** There is no webhook yet.                                                                                                                                     |
+| Repository permissions                                 | **Contents: Read-only** and **Metadata: Read-only** (Metadata is implied). Nothing else; no account or organization permissions.                                      |
+| Where can this GitHub App be installed?                | **Any account**                                                                                                                                                       |
+
+Then:
+
+1. On the App's settings page, copy **App ID** (`GITHUB_APP_ID`) and **Client ID** (`GITHUB_APP_CLIENT_ID`), and generate a **Client secret** (`GITHUB_APP_CLIENT_SECRET`).
+2. **Generate a private key.** GitHub downloads a `.pem` file. Base64-encode it onto one line, so it survives a host's single-line variables, and put that value in `GITHUB_APP_PRIVATE_KEY`:
+   - macOS or Linux: `base64 -w0 your-app.private-key.pem` (on macOS: `base64 -i your-app.private-key.pem | tr -d '\n'`)
+   - Windows PowerShell: `[Convert]::ToBase64String([IO.File]::ReadAllBytes("your-app.private-key.pem"))`
+
+   Delete the `.pem` file from your machine when it is stored in your host's settings. Never commit it.
+
+3. Set `GITHUB_ENABLED=true` and the five variables (see the table under "Deploying to Vercel"), redeploy, and run `pnpm check:env` to see that none is missing.
+
+`GITHUB_APP_PRIVATE_KEY` and `GITHUB_APP_CLIENT_SECRET` are server-only and must never start with `NEXT_PUBLIC_`. With `GITHUB_ENABLED=true`, a missing or malformed variable stops the server from starting and the error names it (never its value).
+
+### How ownership is verified
+
+GitHub's docs warn that the `installation_id` in a redirect "can be spoofed" and must not be trusted on its own. So the callback does not trust it:
+
+1. The request must carry the signed cookie set when this user pressed Connect (HMAC, bound to their user id, expires in 10 minutes, single use). GitHub's docs say the `state` parameter is **not** returned when the OAuth step happens during installation, so the cookie is the check; if `state` does come back it must match too.
+2. The one-time `code` is exchanged for a **user token** (`POST https://github.com/login/oauth/access_token`).
+3. With that token the server asks GitHub who the person is (`GET /user`) and which installations of this App they can access (`GET /user/installations`).
+4. If the URL carried an `installation_id`, it must be on that list. If it did not, the server uses the one personal installation of that GitHub user. Anything else is refused and nothing is stored.
+5. Only **personal-account** installations of the person's own account are accepted. Organization installations get a clear "not supported yet" message and nothing is stored.
+6. The user token is **revoked** (`DELETE /applications/{client_id}/token`) and dropped, whatever the outcome. It is never stored.
+7. The row is written by one narrow service-role function, for the **signed-in user's id** (from the session, never from the URL). An installation already connected to a different Shipnote account is refused.
+
+### What is and is not stored
+
+| Stored (`public.github_installations`)                                                          | Not stored anywhere                                                                                                                                        |
+| ----------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Which Shipnote user owns the installation, the installation id, the GitHub account login and id | Commits, commit messages, diffs, file contents or file lists                                                                                               |
+| On `public.projects`: the linked `repo_full_name` and `installation_id`                         | Any GitHub token: the user token is revoked at once; installation tokens (read-only, limited to one repository, 1 hour) are minted per request and dropped |
+|                                                                                                 | The App's private key (it lives only in the environment)                                                                                                   |
+
+Commits are fetched on demand and returned as `sha`, first line of the message (capped at 200 characters), date and a link built by this app from the validated repository name and sha. They are shown as plain text and never logged.
+
+### Network and permissions
+
+All calls go through one outbound module, `src/server/outbound.ts`, which refuses any host that is not on its allowlist: `api.github.com`, `api.resend.com`, and `github.com` for the single path `/login/oauth/access_token` (GitHub's token exchange lives there, not on `api.github.com`). It also refuses `http`, credentials in the URL, ports and redirects. The App authenticates with a short-lived RS256 JWT built with Node's `crypto` (no JWT library, so the key never leaves this process and requests cannot bypass the allowlist), as GitHub's docs describe.
+
+### Limits for now
+
+Organization installations and the webhook come later. Only the default branch's recent commits are listed (the first 100 of the last 30 days). A user can have up to 5 installations shown in the picker.
+
+### Migration
+
+Run `supabase/migrations/20261028000100_github_installations.sql` in the SQL Editor before merging. It is additive: a new table plus two nullable columns, two constraints and a composite foreign key on `public.projects`. The code on `main` does not use the new columns.
+
+## Threat model: the GitHub boundary
+
+| Threat                                                                     | What stops it                                                                                                                                                                                                                                                                                                   |
+| -------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Someone links an installation they do not own by forging `installation_id` | The id is never trusted. Ownership comes from GitHub with a user token: the id must be on `GET /user/installations`, the account must be the person's own, and the row is written for the session user. The database also refuses a project that points at another user's installation (composite foreign key). |
+| A forged or replayed callback (login CSRF)                                 | A signed, user-bound, 10-minute, single-use cookie must arrive with the callback; the one-time `code` is useless without the matching GitHub login.                                                                                                                                                             |
+| Linking a repository the user cannot see                                   | The server re-fetches the installation's repository list and requires an exact match before saving. Users cannot write the link columns directly (no grant); only a narrow service-role function does.                                                                                                          |
+| A leaked token                                                             | The user token lives for two read calls and is revoked. Installation tokens are read-only, limited to one repository, last an hour, and are never stored or logged. Errors carry only a fixed kind.                                                                                                             |
+| Server-side request forgery through a URL                                  | One outbound module with a host allowlist, no redirects, https only. Repository names and ids are validated before they enter a URL.                                                                                                                                                                            |
+| A hostile commit message                                                   | Treated as untrusted. Only the first line, capped and stripped of control characters, is shown, as plain text. The link is built from our own validated values, never from GitHub's `html_url`.                                                                                                                 |
+| Reading code                                                               | The App has Contents read-only because commits need it, but the code never requests file contents, diffs or file lists, and stores none.                                                                                                                                                                        |
+| A soft-deleted account                                                     | Row-level security hides its installations and links, and `requireUser()` refuses it.                                                                                                                                                                                                                           |
+
 ## SQL tests
 
 `supabase/tests/` runs the migrations in [PGlite](https://pglite.dev) (real Postgres compiled to WASM, in-process) from `pnpm test`. It needs no Docker or Postgres install.
@@ -219,6 +317,7 @@ Soft-deleted users' projects are retained until the purge job (see "TODO when ad
 - `src/app/auth/callback/route.ts`: exchanges the one-time code for a session, runs the GitHub backstop, and schedules the sign-in record.
 - `src/app/sign-in/actions.ts`: rate-limited sign-in server actions.
 - `src/server/projects.ts`: project reads and writes through the signed-in user's Supabase client (no service role). `src/lib/project-schema.ts` holds the Zod schemas that mirror the database limits. `src/app/dashboard/projects/`: the screens and server actions.
+- `src/server/outbound.ts`: the one place server code makes an outbound HTTP request, with a host allowlist. `src/server/github.ts` is the only module that talks to GitHub; `github-connect.ts` (ownership check), `github-state.ts` (signed cookie), `github-projects.ts` (picker, link, commit check) and `github-app.ts` (what pages call) sit on top of it. `src/app/dashboard/github/` holds the connect action and the callback route.
 - `src/server/`: everything that uses a secret (service role, Redis, email). Pages and actions call `delete-account.ts`, `sign-in-limits.ts` and `sign-in-alert.ts`, not the lower-level modules.
 - `supabase/migrations/`, `supabase/snippets/`, `supabase/tests/`: schema, helper SQL and SQL tests.
 
@@ -237,6 +336,10 @@ This project uses a recent Next.js with `cacheComponents` on. Anything reading c
 - That `auth.users.deleted_at` is set by the Admin API soft delete in your project, which `is_active_account()` and the policies rely on (see "What soft delete does").
 - That PostgREST returns the trigger's SQLSTATE `SN001` in `error.code`, which the app uses to show the 5-project message. If it did not, the user would see the generic "could not save" message instead; the cap would still hold.
 - That the create, edit and delete forms work end to end in a browser, including keeping what was typed after a validation error. The pages were rendered in tests and in a dev server with the session and data mocked; the forms were not submitted.
+- **Everything about real GitHub behaviour.** No GitHub App existed while this was built, so every GitHub response in the tests is mocked. In particular: what the Callback URL actually receives with "Request user authorization during installation" on (GitHub's current docs list only `code`; whether `installation_id` is present is undocumented, which is why it is only a hint and the code works without it); that `state` is not returned (an older GitHub doc says so; the signed cookie is the check either way); that `GET /user/installations` lists the new installation straight away; that the `DELETE /applications/{client_id}/token` revoke call works for these tokens; that an uninstalled App gives a 404 when minting an installation token; that a repository removed from the installation gives a 422 (treated as "repository gone"); and that an empty repository gives a 409 on the commits list.
+- That the base64-encoded PEM works with `crypto.createSign` for the key GitHub issues (it should: PKCS#1 and PKCS#8 are both accepted), and that GitHub accepts the JWT (`iss` is the App ID; GitHub also allows the client ID).
+- That the GitHub migration applies cleanly in the real SQL Editor. `ON DELETE SET NULL (installation_id)` needs Postgres 15 or newer, which current Supabase projects use; PGlite (Postgres 17) ran it in the tests.
+- That the GitHub flow works end to end in a browser: the redirect to github.com, the callback, the picker and the commit list were rendered in tests but never run against GitHub.
 - That the live Supabase project writes its cookies with the flags above. The tests run the real `@supabase/ssr` client against a fake cookie store and a stubbed network, not your project, and I have not looked at the production site's cookies in dev tools.
 - That `signOut({ scope: 'global' })` works from a server client the way the docs describe.
 - Dashboard setting names and defaults listed in the checklist.
