@@ -1,0 +1,470 @@
+/* The project page: header, tabs, status cards, progress, notes and a right
+   column. Reuses the global card, pill and button classes. */
+
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem 1.25rem;
+  margin-bottom: 1.25rem;
+}
+
+.headerIcon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 4.5rem;
+  height: 4.5rem;
+  border-radius: 1.25rem;
+  color: var(--blue-violet);
+  background: var(--tint-violet);
+}
+
+.headerText {
+  flex: 1 1 14rem;
+  min-width: 0;
+}
+
+.headerText h1 {
+  font-size: clamp(1.75rem, 5vw, 2.5rem);
+  overflow-wrap: anywhere;
+}
+
+.headerMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.9rem;
+  margin-top: 0.5rem;
+  color: var(--ink-soft);
+  font-size: 0.9375rem;
+}
+
+/* Tabs: plain links to the sections below. */
+
+.tabs {
+  display: flex;
+  gap: 0.25rem;
+  margin-bottom: 1.25rem;
+  border-bottom: 1px solid var(--line);
+  overflow-x: auto;
+}
+
+.tabs a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  padding: 0.5rem 1rem;
+  border-bottom: 3px solid transparent;
+  color: var(--ink-soft);
+  font-weight: 650;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+@media (hover: hover) {
+  .tabs a:hover {
+    color: var(--ink);
+  }
+}
+
+.tabs .tabActive {
+  border-bottom-color: var(--blue-violet);
+  color: var(--blue-violet);
+}
+
+/* Sections the tabs jump to. */
+.notesCard,
+:global(#github) {
+  scroll-margin-top: 1rem;
+}
+
+/* Status cards */
+
+.statusRow {
+  display: grid;
+  gap: 1.25rem;
+}
+
+@media (min-width: 52rem) {
+  .statusRow {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .statusOne {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.statusCard {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 1.25rem;
+  border-radius: var(--radius-lg);
+}
+
+.statusIcon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 3.25rem;
+  height: 3.25rem;
+  border-radius: 1rem;
+  color: var(--blue-violet);
+  background: var(--tint-violet);
+}
+
+.statusBody {
+  flex: 1 1 10rem;
+  min-width: 0;
+}
+
+.statusBody h2 {
+  font-size: 1.0625rem;
+}
+
+.statusBody > p {
+  margin-top: 0.35rem;
+}
+
+.statusText {
+  color: var(--ink-soft);
+  font-size: 0.9375rem;
+  overflow-wrap: anywhere;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0.8rem;
+  border-radius: 999px;
+  font-size: 0.875rem;
+  font-weight: 650;
+}
+
+.pill::before {
+  content: '';
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.pillGood {
+  color: #0b7c6c;
+  background: color-mix(in srgb, #2dd4bf 22%, white);
+}
+
+.pillWarn {
+  color: #8a5a00;
+  background: var(--tint-amber);
+}
+
+.pillIdle {
+  color: var(--ink-soft);
+  background: var(--tint-violet);
+}
+
+/* Progress panel */
+
+.progress {
+  padding: clamp(1.1rem, 3vw, 1.5rem);
+  border-radius: var(--radius-lg);
+}
+
+.progressHead {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.progressIcon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 3rem;
+  height: 3rem;
+  color: var(--blue-violet);
+}
+
+.progressHead h2 {
+  font-size: 1.25rem;
+}
+
+.progressHead p {
+  margin-top: 0.25rem;
+  color: var(--ink-soft);
+  font-size: 0.9375rem;
+}
+
+.steps {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1.25rem;
+  list-style: none;
+}
+
+@media (min-width: 52rem) {
+  .steps {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.steps li {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.stepNumber {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 50%;
+  color: var(--blue-violet);
+  background: var(--tint-violet);
+  font-weight: 800;
+}
+
+.steps strong {
+  display: block;
+  font-size: 0.9375rem;
+}
+
+.steps li > div > span {
+  display: block;
+  color: var(--ink-soft);
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
+.stepArrow {
+  display: none;
+  align-self: center;
+  margin-left: auto;
+  color: var(--ink-soft);
+}
+
+@media (min-width: 52rem) {
+  .stepArrow {
+    display: block;
+  }
+}
+
+/* Notes */
+
+.notesCard {
+  padding: clamp(1.1rem, 3vw, 1.5rem);
+  border-radius: var(--radius-lg);
+}
+
+.notesCard h2,
+.sideTitle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1.25rem;
+}
+
+/* Plain text only: line breaks kept, never interpreted as markup. */
+.notes {
+  margin-top: 0.9rem;
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--paper);
+  font-family: var(--font-mono);
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.notesCard .statusText {
+  margin-top: 0.75rem;
+}
+
+/* Right column */
+
+.sideCard {
+  padding: 1.25rem;
+  border-radius: var(--radius-lg);
+}
+
+.sideHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.sideHead h2 {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1.125rem;
+}
+
+.sideTitle {
+  font-size: 1.125rem;
+}
+
+.smallButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 2.25rem;
+  padding: 0.3rem 0.8rem;
+  border-radius: 999px;
+  color: var(--blue-violet);
+  background: var(--tint-violet);
+  font-size: 0.875rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.details {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.details > div {
+  display: grid;
+  grid-template-columns: 6.5rem minmax(0, 1fr);
+  gap: 0.75rem;
+  font-size: 0.9375rem;
+}
+
+.details dt {
+  color: var(--ink-soft);
+}
+
+.details dd {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.actions {
+  display: grid;
+  gap: 0.6rem;
+  margin-top: 0.9rem;
+}
+
+.action,
+.deleteRow {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: var(--radius-sm);
+  background: var(--paper);
+  color: var(--ink);
+  text-decoration: none;
+}
+
+@media (hover: hover) {
+  .action:hover {
+    box-shadow: var(--shadow-card);
+  }
+}
+
+.actionIcon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 0.85rem;
+}
+
+.toneViolet {
+  color: var(--blue-violet);
+  background: var(--tint-violet);
+}
+
+.toneTeal {
+  color: #0b7c6c;
+  background: color-mix(in srgb, #2dd4bf 22%, white);
+}
+
+.toneInk {
+  color: var(--ink);
+  background: var(--tint-azure);
+}
+
+.toneRose {
+  color: var(--neon-pink);
+  background: var(--tint-pink);
+}
+
+.actionText {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+}
+
+.actionText strong {
+  font-size: 0.9375rem;
+}
+
+.actionText span {
+  color: var(--ink-soft);
+  font-size: 0.8125rem;
+}
+
+.deleteRow {
+  flex-wrap: wrap;
+}
+
+.tips {
+  padding: 1.25rem;
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, #2dd4bf 12%, white);
+}
+
+.tips ul {
+  display: grid;
+  gap: 0.6rem;
+  margin-top: 0.9rem;
+  list-style: none;
+}
+
+.tips li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  font-size: 0.9375rem;
+  line-height: 1.4;
+}
+
+.tick {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 1.4rem;
+  height: 1.4rem;
+  margin-top: 0.05rem;
+  border-radius: 50%;
+  color: #fff;
+  background: #1fb59f;
+}
+
+.rail {
+  display: grid;
+  gap: 1.25rem;
+  min-width: 0;
+}
+
+.back {
+  margin-bottom: 1rem;
+}

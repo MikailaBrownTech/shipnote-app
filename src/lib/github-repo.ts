@@ -22,3 +22,9 @@ export function commitUrl(fullName: string, sha: string): string {
   const { owner, repo } = splitRepo(fullName)
   return `https://github.com/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/commit/${encodeURIComponent(sha)}`
 }
+
+// The repository's page on github.com, built from the validated name.
+export function repoUrl(fullName: string): string {
+  const { owner, repo } = splitRepo(fullName)
+  return `https://github.com/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`
+}

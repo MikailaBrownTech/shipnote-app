@@ -3,16 +3,25 @@ import Link from 'next/link'
 import { Suspense } from 'react'
 import { requireUser } from '@/lib/auth'
 import { parseGithubFlash } from '@/lib/github-flash'
+import { githubIsEnabled } from '@/server/github-app'
 import styles from '../../dashboard.module.css'
 import { Icon } from '../../icons'
 import { PageIntro } from '../../page-intro'
-import { DetailRail } from '../../rail'
 import shell from '../../shell.module.css'
-import { DeleteProject } from '../delete-project'
-import { GithubPanel } from '../github-panel'
+import { FlashNotice, GithubPanel } from '../github-panel'
 import { loadOwnProject } from '../load-project'
 import projectStyles from '../projects.module.css'
-import { StageBadge, Updated } from '../stage-badge'
+import pageStyles from '../project-page.module.css'
+import {
+  DetailsCard,
+  NotesCard,
+  ProgressPanel,
+  ProjectHeader,
+  ProjectTabs,
+  QuickActions,
+  StatusCards,
+  TipsCard,
+} from '../project-view'
 
 // Static on purpose: the project's name is private data and stays out of the
 // page title.
@@ -42,8 +51,9 @@ async function Project({
 }) {
   const user = await requireUser()
   const project = await loadOwnProject(user.id, params)
+  const githubOn = githubIsEnabled()
   // Only a known code is shown, as fixed text; the raw value is never echoed.
-  const flash = parseGithubFlash((await searchParams).github)
+  const flash = githubOn ? parseGithubFlash((await searchParams).github) : null
 
   if (!project) {
     return (
@@ -58,48 +68,33 @@ async function Project({
 
   return (
     <>
-      {/* The title is the person's own text, so it is not styled as a phrase. */}
-      <PageIntro
-        title={project.name}
-        accent={false}
-        subtitle={
-          <span className={projectStyles.meta}>
-            <StageBadge stage={project.stage} />
-            <Updated iso={project.updatedAt} />
-          </span>
-        }
-        backHref="/dashboard"
-      />
+      <Link
+        href="/dashboard#projects-title"
+        className={`${shell.back} ${pageStyles.back}`}
+      >
+        <Icon name="arrowLeft" size={16} />
+        Back to projects
+      </Link>
+
+      <ProjectHeader project={project} />
+      <ProjectTabs githubOn={githubOn} />
+      <FlashNotice flash={flash} />
 
       <div className={shell.twoCol}>
-        <div className={shell.stack}>
-          {/* Everything below is rendered as plain text. */}
-          <article className={`card ${projectStyles.detail}`}>
-            {project.summary ? (
-              <p className={projectStyles.summary}>{project.summary}</p>
-            ) : null}
-
-            <h2 className={projectStyles.notesTitle}>Notes</h2>
-            {project.notes ? (
-              <div className={projectStyles.notes}>{project.notes}</div>
-            ) : (
-              <p className={projectStyles.notesEmpty}>No notes yet.</p>
-            )}
-
-            <div className={projectStyles.detailActions}>
-              <Link
-                href={`/dashboard/projects/${project.id}/edit`}
-                className="button"
-              >
-                <Icon name="edit" size={18} />
-                Edit project
-              </Link>
-              <DeleteProject id={project.id} />
-            </div>
-          </article>
-          <GithubPanel userId={user.id} project={project} flash={flash} />
+        <div id="overview" className={shell.stack}>
+          <StatusCards project={project} githubOn={githubOn} />
+          <ProgressPanel />
+          <GithubPanel userId={user.id} project={project} flash={null} />
+          <NotesCard project={project} />
         </div>
-        <DetailRail />
+        <aside
+          className={pageStyles.rail}
+          aria-label="Project summary and actions"
+        >
+          <DetailsCard project={project} />
+          <QuickActions project={project} githubOn={githubOn} />
+          <TipsCard />
+        </aside>
       </div>
     </>
   )

@@ -61,9 +61,13 @@ export async function GithubPanel({
   const connected = project.installationId !== null
 
   return (
-    <section className={`card ${styles.github}`} aria-labelledby="github-title">
+    <section
+      id="github"
+      className={`card ${styles.github}`}
+      aria-labelledby="github-title"
+    >
       <h2 id="github-title" className={styles.githubTitle}>
-        <Icon name="gear" size={20} />
+        <Icon name="github" size={20} />
         GitHub
       </h2>
       <FlashNotice flash={flash} />
