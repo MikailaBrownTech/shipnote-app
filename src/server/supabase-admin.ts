@@ -469,3 +469,173 @@ export async function finishScheduledPost(input: {
   const ok: unknown = response.data
   return !response.error && ok === true
 }
+
+// ---- Automatic drafts ----
+//
+// Narrow wrappers over the service-role functions in
+// supabase/migrations/20261101000100_auto_drafts.sql. They hold identifiers and
+// fixed codes only: no commit text, payload, signature or token passes through.
+
+export type DeliveryState = 'new' | 'duplicate' | 'retry'
+
+// Records a GitHub delivery id. 'duplicate' means it was fully handled before.
+// Returns null on any failure, which callers treat as "do not work".
+export async function recordWebhookDelivery(
+  deliveryId: string,
+  installationId: number,
+): Promise<DeliveryState | null> {
+  const response = await admin().rpc('record_webhook_delivery', {
+    p_delivery_id: deliveryId,
+    p_installation_id: installationId,
+  })
+  const state: unknown = response.data
+  if (response.error) return null
+  return state === 'new' || state === 'duplicate' || state === 'retry'
+    ? state
+    : null
+}
+
+export async function finishWebhookDelivery(
+  deliveryId: string,
+): Promise<boolean> {
+  const response = await admin().rpc('finish_webhook_delivery', {
+    p_delivery_id: deliveryId,
+  })
+  const ok: unknown = response.data
+  return !response.error && ok === true
+}
+
+export type AutoTarget = { userId: string; projectId: string }
+
+// The user and project a push belongs to, found from the installation id and
+// the repository name. null when there is no eligible project.
+export async function resolveAutoDraftTarget(
+  installationId: number,
+  repoFullName: string,
+): Promise<AutoTarget | null | 'failed'> {
+  const response = await admin().rpc('resolve_auto_draft_target', {
+    p_installation_id: installationId,
+    p_repo_full_name: repoFullName,
+  })
+  if (response.error) return 'failed'
+  const rows: unknown = response.data
+  if (!Array.isArray(rows) || rows.length === 0) return null
+  const row = rows[0] as { user_id?: unknown; project_id?: unknown }
+  return typeof row.user_id === 'string' && typeof row.project_id === 'string'
+    ? { userId: row.user_id, projectId: row.project_id }
+    : 'failed'
+}
+
+// A new job's id, or ok with a null id when the commit already has a job (or is
+// not eligible). ok is false if the database could not be reached.
+export type JobLookup = { ok: true; id: string | null } | { ok: false }
+
+export async function createAutoDraftJob(input: {
+  userId: string
+  projectId: string
+  commitSha: string
+  deliveryId: string
+}): Promise<JobLookup> {
+  const response = await admin().rpc('create_auto_draft_job', {
+    p_user_id: input.userId,
+    p_project_id: input.projectId,
+    p_commit_sha: input.commitSha,
+    p_delivery_id: input.deliveryId,
+  })
+  if (response.error) return { ok: false }
+  const id: unknown = response.data
+  return { ok: true, id: typeof id === 'string' ? id : null }
+}
+
+// The job's id if this call claimed it (queued to running), otherwise null: it
+// was already claimed or finished, or does not exist.
+export async function claimAutoDraftJob(input: {
+  userId: string
+  projectId: string
+  commitSha: string
+}): Promise<JobLookup> {
+  const response = await admin().rpc('claim_auto_draft_job', {
+    p_user_id: input.userId,
+    p_project_id: input.projectId,
+    p_commit_sha: input.commitSha,
+  })
+  if (response.error) return { ok: false }
+  const id: unknown = response.data
+  return { ok: true, id: typeof id === 'string' ? id : null }
+}
+
+export async function releaseAutoDraftJob(
+  jobId: string,
+  userId: string,
+): Promise<boolean> {
+  const response = await admin().rpc('release_auto_draft_job', {
+    p_job_id: jobId,
+    p_user_id: userId,
+  })
+  const ok: unknown = response.data
+  return !response.error && ok === true
+}
+
+export async function finishAutoDraftJob(input: {
+  jobId: string
+  userId: string
+  status: 'done' | 'skipped' | 'failed'
+  // A short fixed code, never text from a commit or a response.
+  reason: string | null
+  draftId: string | null
+}): Promise<boolean> {
+  const response = await admin().rpc('finish_auto_draft_job', {
+    p_job_id: input.jobId,
+    p_user_id: input.userId,
+    p_status: input.status,
+    p_reason: input.reason,
+    p_draft_id: input.draftId,
+  })
+  const ok: unknown = response.data
+  return !response.error && ok === true
+}
+
+export type AutoProject = {
+  name: string
+  summary: string | null
+  stage: string
+  notes: string | null
+  repoFullName: string
+  installationId: number
+}
+
+// The fields needed to write a draft for a project, but only while it still
+// belongs to the user with the switch on and a linked repository, and the
+// account is not deleted. null otherwise, or 'failed' if it could not be read.
+export async function readProjectForAutoDraft(
+  userId: string,
+  projectId: string,
+): Promise<AutoProject | null | 'failed'> {
+  const response = await admin().rpc('read_project_for_auto_draft', {
+    p_user_id: userId,
+    p_project_id: projectId,
+  })
+  if (response.error) return 'failed'
+  const rows: unknown = response.data
+  if (!Array.isArray(rows) || rows.length === 0) return null
+  const row = rows[0] as Record<string, unknown>
+  const installation = Number(row.installation_id)
+  if (
+    typeof row.name !== 'string' ||
+    typeof row.stage !== 'string' ||
+    typeof row.repo_full_name !== 'string' ||
+    !Number.isSafeInteger(installation) ||
+    installation <= 0
+  ) {
+    return 'failed'
+  }
+  const text = (value: unknown) => (typeof value === 'string' ? value : null)
+  return {
+    name: row.name,
+    summary: text(row.summary),
+    stage: row.stage,
+    notes: text(row.notes),
+    repoFullName: row.repo_full_name,
+    installationId: installation,
+  }
+}

@@ -427,3 +427,49 @@ export async function listRecentCommits(
     date: item.commit.author?.date ?? null,
   }))
 }
+
+const oneCommitSchema = z.object({
+  sha: z.string(),
+  commit: z.object({ message: z.string() }),
+  parents: z.array(z.object({ sha: z.string() })),
+})
+
+export type OneCommit = { sha: string; message: string; parentCount: number }
+
+// One commit by its full sha, for the repository the token is limited to. Only
+// the sha, the message and how many parents it has are kept (a merge commit has
+// more than one): no diff, no file list, nothing else from the response.
+export async function getCommit(
+  installationToken: string,
+  fullName: string,
+  sha: string,
+): Promise<OneCommit> {
+  if (!isRepoFullName(fullName) || !/^[0-9a-f]{40}$/.test(sha)) {
+    throw new GithubError('not_found')
+  }
+  const { owner, repo } = splitRepo(fullName)
+  let response: Response
+  try {
+    response = await send(
+      `${API}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/commits/${sha}`,
+      {
+        headers: {
+          ...apiHeaders,
+          Authorization: `Bearer ${installationToken}`,
+        },
+      },
+    )
+  } catch (error) {
+    // 422 is what GitHub answers for a sha it does not know.
+    if (error instanceof GithubError && error.kind === 'unprocessable') {
+      throw new GithubError('not_found')
+    }
+    throw error
+  }
+  const body = await json(response, oneCommitSchema)
+  return {
+    sha: body.sha.toLowerCase(),
+    message: body.commit.message,
+    parentCount: body.parents.length,
+  }
+}

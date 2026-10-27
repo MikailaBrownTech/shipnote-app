@@ -22,6 +22,8 @@ const complete = vi.fn()
 const getProject = vi.fn()
 const createInstallationToken = vi.fn()
 const listRecentCommits = vi.fn()
+const getCommit = vi.fn()
+const readProjectForAutoDraft = vi.fn()
 const reserveGeneration = vi.fn()
 const completeGeneration = vi.fn()
 const recordUnusableGeneration = vi.fn()
@@ -35,6 +37,7 @@ vi.mock('./projects', () => ({ getProject }))
 vi.mock('./github', () => ({
   createInstallationToken,
   listRecentCommits,
+  getCommit,
   GithubError,
 }))
 vi.mock('./supabase-admin', () => ({
@@ -43,9 +46,10 @@ vi.mock('./supabase-admin', () => ({
   recordUnusableGeneration,
   releaseGeneration,
   generationsUsedToday,
+  readProjectForAutoDraft,
 }))
 
-const { DAILY_LIMIT, draftsLeftToday, generateDraft } =
+const { DAILY_LIMIT, draftsLeftToday, generateAutoDraft, generateDraft } =
   await import('./draft-generation')
 
 const USER = '6f1c3a9e-1b2d-4c3e-8f4a-5b6c7d8e9f01'
@@ -645,5 +649,248 @@ describe('logs', () => {
     )
     await generateDraft(request())
     expect(spies.flatMap((spy) => spy.mock.calls)).toEqual([])
+  })
+})
+
+describe('generateAutoDraft', () => {
+  const autoProject = (over: Record<string, unknown> = {}) => ({
+    name: 'Proposal Generator',
+    summary: 'An internal tool',
+    stage: 'in_progress',
+    notes: 'Turns discovery notes into reports. PRIVATE NOTES do-not-log',
+    repoFullName: 'octo/hello',
+    installationId: 42,
+    ...over,
+  })
+  const job = () => ({ userId: USER, projectId: PROJECT, commitSha: SHA(1) })
+  const commit = (over: Record<string, unknown> = {}) => ({
+    sha: SHA(1),
+    message: 'Add CSV export [post]\n\nBody PRIVATE COMMIT do-not-log',
+    parentCount: 1,
+    ...over,
+  })
+
+  beforeEach(() => {
+    readProjectForAutoDraft.mockResolvedValue(autoProject())
+    getCommit.mockResolvedValue(commit())
+  })
+
+  it('writes a draft through the same pipeline, with the same limits', async () => {
+    expect(await generateAutoDraft(job())).toEqual({
+      ok: true,
+      draftId: 'draft-1',
+    })
+    expect(reserveGeneration).toHaveBeenCalledExactlyOnceWith({
+      userId: USER,
+      estimatedMicrousd: expect.any(Number) as number,
+      dailyLimit: 10,
+      monthlyCapMicrousd: 10_000_000,
+    })
+    expect(complete).toHaveBeenCalledOnce()
+    expect(completeGeneration).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: USER,
+        projectId: PROJECT,
+        body: DRAFT,
+        commitShas: [SHA(1)],
+        costMicrousd: 3900,
+      }),
+    )
+  })
+
+  it('reads the project as the job’s user and the commit by its full sha with a one-repository token', async () => {
+    await generateAutoDraft(job())
+    expect(readProjectForAutoDraft).toHaveBeenCalledExactlyOnceWith(
+      USER,
+      PROJECT,
+    )
+    expect(createInstallationToken).toHaveBeenCalledExactlyOnceWith(
+      42,
+      'octo/hello',
+    )
+    expect(getCommit).toHaveBeenCalledExactlyOnceWith(
+      'ghs_TOKEN',
+      'octo/hello',
+      SHA(1),
+    )
+    expect(listRecentCommits).not.toHaveBeenCalled()
+    // The project the installation belongs to is the one read for this user:
+    // nothing from another user's project is used.
+    expect(getProject).not.toHaveBeenCalled()
+  })
+
+  it('sends the re-fetched commit text, not anything from the job', async () => {
+    await generateAutoDraft(job())
+    const [call] = complete.mock.calls[0] as [{ user: string }]
+    expect(call.user).toContain('Add CSV export [post]')
+    expect(call.user).toContain('PRIVATE COMMIT')
+  })
+
+  it('uses no note and no GitHub calls beyond the one commit', async () => {
+    await generateAutoDraft(job())
+    const [call] = complete.mock.calls[0] as [{ user: string }]
+    expect(call.user).not.toContain('NOTE FOR THIS POST')
+  })
+
+  it('a project that is gone, switched off, unlinked or deleted stops everything', async () => {
+    readProjectForAutoDraft.mockResolvedValue(null)
+    expect(await generateAutoDraft(job())).toEqual({
+      ok: false,
+      reason: 'project_gone',
+    })
+    expect(createInstallationToken).not.toHaveBeenCalled()
+    expect(reserveGeneration).not.toHaveBeenCalled()
+    expect(complete).not.toHaveBeenCalled()
+  })
+
+  it('a database failure reading the project is retryable', async () => {
+    readProjectForAutoDraft.mockResolvedValue('failed')
+    expect(await generateAutoDraft(job())).toEqual({
+      ok: false,
+      reason: 'github_retry',
+    })
+    expect(reserveGeneration).not.toHaveBeenCalled()
+  })
+
+  it('an unknown stage fails safely', async () => {
+    readProjectForAutoDraft.mockResolvedValue(autoProject({ stage: 'weird' }))
+    expect(await generateAutoDraft(job())).toEqual({
+      ok: false,
+      reason: 'failed',
+    })
+    expect(reserveGeneration).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['not_installed', 'github_gone'],
+    ['denied', 'github_gone'],
+    ['not_found', 'commit_not_found'],
+    ['rate_limited', 'github_retry'],
+    ['unavailable', 'github_retry'],
+    ['failed', 'github_retry'],
+  ])('a GitHub %s becomes %s and spends nothing', async (kind, reason) => {
+    getCommit.mockRejectedValue(new GithubError(kind))
+    expect(await generateAutoDraft(job())).toEqual({ ok: false, reason })
+    expect(reserveGeneration).not.toHaveBeenCalled()
+  })
+
+  it('an installation that is gone is reported while minting the token too', async () => {
+    createInstallationToken.mockRejectedValue(new GithubError('not_installed'))
+    expect(await generateAutoDraft(job())).toEqual({
+      ok: false,
+      reason: 'github_gone',
+    })
+    expect(getCommit).not.toHaveBeenCalled()
+  })
+
+  it('an unexpected error while fetching is retryable', async () => {
+    getCommit.mockRejectedValue(new Error('boom'))
+    expect(await generateAutoDraft(job())).toEqual({
+      ok: false,
+      reason: 'github_retry',
+    })
+  })
+
+  it('a commit that is not the sha asked for is not found', async () => {
+    getCommit.mockResolvedValue(commit({ sha: SHA(2) }))
+    expect(await generateAutoDraft(job())).toEqual({
+      ok: false,
+      reason: 'commit_not_found',
+    })
+    expect(reserveGeneration).not.toHaveBeenCalled()
+  })
+
+  it('a commit that no longer says [post] is skipped', async () => {
+    getCommit.mockResolvedValue(commit({ message: 'chore: bump deps' }))
+    expect(await generateAutoDraft(job())).toEqual({
+      ok: false,
+      reason: 'no_tag',
+    })
+    expect(reserveGeneration).not.toHaveBeenCalled()
+  })
+
+  it('a merge commit is skipped, a normal or root commit is not', async () => {
+    getCommit.mockResolvedValue(commit({ parentCount: 2 }))
+    expect(await generateAutoDraft(job())).toEqual({
+      ok: false,
+      reason: 'merge_commit',
+    })
+    expect(reserveGeneration).not.toHaveBeenCalled()
+    getCommit.mockResolvedValue(commit({ parentCount: 0 }))
+    expect((await generateAutoDraft(job())).ok).toBe(true)
+  })
+
+  it('refuses a commit that carries a secret, sending nothing', async () => {
+    const secret = ['gh', 'p', '_', 'aB3xY9'.repeat(6)].join('')
+    getCommit.mockResolvedValue(
+      commit({ message: `[post] set token ${secret}` }),
+    )
+    const result = await generateAutoDraft(job())
+    expect(result).toEqual({ ok: false, reason: 'secret' })
+    expect(JSON.stringify(result)).not.toContain(secret)
+    expect(reserveGeneration).not.toHaveBeenCalled()
+    expect(complete).not.toHaveBeenCalled()
+  })
+
+  it.each(['daily_limit', 'monthly_cap'])(
+    'a reached %s limit stops before Claude is called',
+    async (reason) => {
+      reserveGeneration.mockResolvedValue({ ok: false, reason })
+      expect(await generateAutoDraft(job())).toEqual({ ok: false, reason })
+      expect(complete).not.toHaveBeenCalled()
+      expect(releaseGeneration).not.toHaveBeenCalled()
+    },
+  )
+
+  it('a reservation that cannot be made means no call', async () => {
+    reserveGeneration.mockResolvedValue({ ok: false, reason: 'failed' })
+    expect(await generateAutoDraft(job())).toEqual({
+      ok: false,
+      reason: 'failed',
+    })
+    expect(complete).not.toHaveBeenCalled()
+  })
+
+  it('a provider error releases the slot and is retryable', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    complete.mockRejectedValue(new AnthropicError('overloaded', 529))
+    expect(await generateAutoDraft(job())).toEqual({
+      ok: false,
+      reason: 'provider',
+    })
+    expect(releaseGeneration).toHaveBeenCalledExactlyOnceWith('usage-1', USER)
+    expect(complete).toHaveBeenCalledOnce()
+  })
+
+  it('an unusable answer counts and is not worth retrying', async () => {
+    complete.mockResolvedValue(completion('# markdown'))
+    expect(await generateAutoDraft(job())).toEqual({
+      ok: false,
+      reason: 'invalid_output',
+    })
+    expect(recordUnusableGeneration).toHaveBeenCalledOnce()
+    expect(completeGeneration).not.toHaveBeenCalled()
+  })
+
+  it('is refused while AI is off', async () => {
+    getAiEnv.mockReturnValue(null)
+    expect(await generateAutoDraft(job())).toEqual({
+      ok: false,
+      reason: 'disabled',
+    })
+    expect(readProjectForAutoDraft).not.toHaveBeenCalled()
+  })
+
+  it('logs nothing that holds a prompt, a draft, commit text, notes or the key', async () => {
+    const spies = (['error', 'warn', 'info', 'log'] as const).map((method) =>
+      vi.spyOn(console, method).mockImplementation(() => undefined),
+    )
+    await generateAutoDraft(job())
+    complete.mockRejectedValue(new AnthropicError('overloaded', 529))
+    await generateAutoDraft(job())
+    const logged = JSON.stringify(spies.map((spy) => spy.mock.calls))
+    for (const secret of ['do-not-log', 'PRIVATE', KEY, 'ghs_TOKEN']) {
+      expect(logged).not.toContain(secret)
+    }
   })
 })
