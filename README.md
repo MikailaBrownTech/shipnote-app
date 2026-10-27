@@ -114,6 +114,37 @@ An invite works once. After someone uses it, the row stays (with `used_at` set) 
 - **Client IP** comes from `x-vercel-forwarded-for`, which Vercel sets itself and overwrites if a client sends it. No other header is trusted, so off Vercel (including local development) everyone shares one "unknown" bucket. Source: the Vercel request headers docs.
 - **Sign-in alerts** (off by default): after a successful sign-in the callback records an event (IPv4 /24 or IPv6 /48 only, a browser family from a fixed list, a salted hash of the two) and, if the device is new, emails the user. The first sign-in never alerts, and only one alert goes out per user per hour (enforced in the database). It runs in Next's `after()`, so it never slows or blocks sign-in, and a failure is logged without personal data. The email has no token and no sign-in link; its one link is to `NEXT_PUBLIC_SITE_URL/dashboard`.
 
+## Session cookies
+
+Every auth cookie the app writes has explicit flags, set in one place (`src/lib/cookie-options.ts`):
+
+| Flag       | Value                                       | Why                                                                                                        |
+| ---------- | ------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `HttpOnly` | `true`                                      | Page scripts cannot read the session, so an injected script cannot steal it.                               |
+| `Secure`   | `true` in production, `false` in `next dev` | Browsers refuse Secure cookies on plain http, so development over `http://localhost` needs it off.         |
+| `SameSite` | `Lax`                                       | Sent on the redirect back from GitHub or the email link, not on cross-site sub-requests.                   |
+| `Path`     | `/`                                         | The session is sent to every route. The "where next" cookie `sn_next` is the exception: path `/auth` only. |
+
+"Production" means `NODE_ENV=production`, which is what `next build` and `next start` set, and what Vercel uses. A local `pnpm start` over http therefore sets Secure cookies; Chrome and Firefox accept those on `localhost`, Safari does not, so use `pnpm dev` there.
+
+How the flags get onto every cookie:
+
+- The Supabase server client is created with `cookieOptions`, the documented way to pass options in `@supabase/ssr`. The library merges them into every cookie it writes: the session, each numbered chunk of a large session (`sb-<ref>-auth-token.0`, `.1`, ...), the PKCE code verifier (`...-code-verifier`) and removals. Its own default is `HttpOnly=false`, which is why they are set explicitly.
+- The `setAll` hook in the server client and in the proxy also applies the same flags on top of whatever the library passes, so they cannot be dropped.
+- `clearAuthCookies()` (sign out, sign out everywhere, delete account, the callback's refusal path) expires each `sb-*` cookie with the same flags. The callback expires `sn_next` with the same flags it was set with.
+
+There is no browser Supabase client. `src/lib/supabase/client.ts` was removed because nothing imported it: sign-in starts in a Server Action, the PKCE verifier is written and read on the server, and the callback exchanges the code on the server. If you ever add a browser client that reads the session, it cannot work with `HttpOnly` cookies; read the user from a server component or route instead, and do not turn `HttpOnly` off.
+
+Sessions that exist from before this change keep the old flags (`HttpOnly=false`) until they are refreshed or signed out. A refresh rewrites them, so an active user moves over once their access token expires and is refreshed (about 15 minutes with the JWT expiry from the checklist). To force it, sign out and in again.
+
+### Check the flags in the browser
+
+1. Open the production site, sign in, and open dev tools (F12).
+2. **Chrome or Edge:** Application > Storage > Cookies > your site. **Firefox:** Storage > Cookies. **Safari:** Storage > Cookies.
+3. Find the cookies starting with `sb-` and ending `-auth-token` (and `-auth-token.0`, `.1` when the session is large). The table has `HttpOnly`, `Secure` and `SameSite` columns: expect a tick in the first two and `Lax` in the third. Path is `/`.
+4. Prove HttpOnly: in the Console run `document.cookie`. No `sb-` cookie should be listed.
+5. During sign-in the `...-code-verifier` cookie should show the same flags. It is removed after the callback.
+
 ## Signing out and deleting an account
 
 - **Signed-in checks verify the session, not just the token.** `requireUser()` (and so every protected page and action) runs `getClaims()`, which verifies the token's signature and expiry locally, **and then** checks that the token's `session_id` still exists in `auth.sessions` and that the account is not deleted. That second check is the one Supabase documents for revoked sessions (`public.session_is_active`, service role only, fails closed). Without it a signed-out or deleted session would keep working until its access token expired. It costs one round trip per protected page or action. The proxy keeps the cheap `getClaims()` check and only refreshes cookies.
@@ -170,6 +201,7 @@ This project uses a recent Next.js with `cacheComponents` on. Anything reading c
 - That the session check really ends another browser's access: I have not seen it run. It rests on Supabase's documented rule that a token's `session_id` matches a row in `auth.sessions`, and on the `auth.sessions` columns I query (`id`, `user_id`, `not_after`) and `auth.users.deleted_at` existing as I assume.
 - Why "sign out everywhere" did not end your second browser. I could not read your `auth.sessions` or `auth.refresh_tokens`, so I do not know whether the rows were removed. See the diagnosis queries below.
 - What soft delete really does. The Supabase docs do not say; the list above comes from the Auth server source and has not been run.
+- That the live Supabase project writes its cookies with the flags above. The tests run the real `@supabase/ssr` client against a fake cookie store and a stubbed network, not your project, and I have not looked at the production site's cookies in dev tools.
 - That `signOut({ scope: 'global' })` works from a server client the way the docs describe.
 - Dashboard setting names and defaults listed in the checklist.
 - That Resend accepts `EMAIL_FROM` until a domain is verified.
