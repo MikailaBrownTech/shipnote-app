@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { commitUrl, isRepoFullName, splitRepo } from './github-repo'
+import { commitUrl, isRepoFullName, repoUrl, splitRepo } from './github-repo'
 import {
   commitTitle,
   MAX_COMMITS,
@@ -171,6 +171,11 @@ describe('repository names', () => {
     for (const value of [null, undefined, 1, {}, ['a/b']]) {
       expect(isRepoFullName(value)).toBe(false)
     }
+  })
+
+  it('builds the repository page URL from validated parts', () => {
+    expect(repoUrl('octo/hello')).toBe('https://github.com/octo/hello')
+    expect(repoUrl('octo/.github')).toBe('https://github.com/octo/.github')
   })
 
   it('splits and builds a commit URL from validated parts', () => {
