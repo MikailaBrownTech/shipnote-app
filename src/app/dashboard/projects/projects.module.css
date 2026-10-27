@@ -175,54 +175,122 @@
 /* Form */
 
 .formWrap {
-  max-width: 44rem;
-  margin-top: 1.5rem;
-  padding: clamp(1.25rem, 4vw, 2rem);
+  padding: clamp(1.1rem, 3vw, 1.75rem);
+  border-radius: var(--radius-lg);
 }
 
 .form {
   display: flex;
   flex-direction: column;
-  gap: 1.4rem;
+  gap: 1.5rem;
 }
 
-.field {
+/* A row: a coloured icon tile on the left, the field on the right. */
+.fieldRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.75rem;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+@media (min-width: 40rem) {
+  .fieldRow {
+    grid-template-columns: 3.25rem minmax(0, 1fr);
+    gap: 1rem;
+  }
+}
+
+.fieldIcon {
+  display: none;
+  place-items: center;
+  width: 3.25rem;
+  height: 3.25rem;
+  border-radius: 1rem;
+}
+
+@media (min-width: 40rem) {
+  .fieldIcon {
+    display: grid;
+  }
+}
+
+.tonePurple {
+  color: var(--blue-violet);
+  background: var(--tint-violet);
+}
+
+.tonePink {
+  color: var(--neon-pink);
+  background: var(--tint-pink);
+}
+
+.toneTeal {
+  color: #0b7c6c;
+  background: color-mix(in srgb, #2dd4bf 24%, white);
+}
+
+.toneBlue {
+  color: var(--azure-blue);
+  background: var(--tint-azure);
+}
+
+.fieldBody {
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
   min-width: 0;
-  border: 0;
 }
 
-.field label,
-.field legend {
+.fieldBody label,
+.fieldBody legend {
+  padding: 0;
   font-weight: 700;
 }
 
-.field input[type='text'],
-.field textarea {
+.required {
+  color: var(--neon-pink);
+}
+
+.optional {
+  color: var(--ink-soft);
+  font-weight: 600;
+}
+
+.fieldBody input[type='text'],
+.fieldBody textarea {
   width: 100%;
   padding: 0.7rem 1rem;
-  border: 1px solid var(--ink-soft);
+  border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   color: var(--ink);
   background: var(--surface);
   font: inherit;
 }
 
-.field input[type='text'] {
+.fieldBody input[type='text'] {
   min-height: 3rem;
 }
 
-.field textarea {
-  min-height: 16rem;
+.fieldBody textarea {
+  min-height: 5.5rem;
   resize: vertical;
-  font-family: var(--font-mono);
-  font-size: 0.9375rem;
-  line-height: 1.55;
 }
 
-.field [aria-invalid='true'] {
+.fieldBody input[type='text']:focus,
+.fieldBody textarea:focus {
+  border-color: var(--blue-violet);
+  box-shadow: 0 0 0 1px var(--blue-violet);
+}
+
+/* Notes are longer, so the box is taller. */
+.fieldBody textarea[name='notes'] {
+  min-height: 12rem;
+}
+
+.fieldBody [aria-invalid='true'] {
   border-color: var(--neon-pink);
   box-shadow: 0 0 0 1px var(--neon-pink);
 }
@@ -253,25 +321,25 @@
 .stages {
   display: grid;
   gap: 0.6rem;
-  margin-top: 0.4rem;
+  margin-top: 0.25rem;
 }
 
-@media (min-width: 36rem) {
+@media (min-width: 48rem) {
   .stages {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
+/* A stage card: radio, icon, name and a line about it. */
 .stage {
-  display: flex;
-  align-items: center;
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr);
+  align-items: start;
   gap: 0.6rem;
-  min-height: 3rem;
-  padding: 0.5rem 0.9rem;
-  border: 1px solid var(--ink-soft);
+  padding: 0.75rem 0.85rem;
+  border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   background: var(--surface);
-  font-weight: 600;
   cursor: pointer;
 }
 
@@ -289,13 +357,34 @@
 .stage input {
   width: 1.15rem;
   height: 1.15rem;
+  margin-top: 0.15rem;
   accent-color: var(--blue-violet);
+}
+
+.stageIcon {
+  margin-top: 0.1rem;
+  color: var(--blue-violet);
+}
+
+.stageText {
+  display: grid;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.stageText span {
+  color: var(--ink-soft);
+  font-size: 0.8125rem;
+  line-height: 1.35;
 }
 
 .actions {
   display: flex;
   flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 0.75rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--line);
 }
 
 .status:empty {
@@ -311,18 +400,12 @@
 /* Detail */
 
 .detail {
-  max-width: 48rem;
-  margin-top: 1.5rem;
   padding: clamp(1.25rem, 4vw, 2rem);
-}
-
-.detail h1 {
-  font-size: clamp(2rem, 7vw, 3.25rem);
-  overflow-wrap: anywhere;
+  border-radius: var(--radius-lg);
 }
 
 .summary {
-  margin-top: 1rem;
+  margin-top: 0;
   color: var(--ink-soft);
   font-size: 1.125rem;
   overflow-wrap: anywhere;

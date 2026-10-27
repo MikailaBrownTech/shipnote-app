@@ -7,6 +7,7 @@ import { listProjects } from '@/server/projects'
 import { AccountMenu } from './account-menu'
 import styles from './dashboard.module.css'
 import { Icon, type IconName } from './icons'
+import { PageIntro } from './page-intro'
 import { StageBadge, Updated } from './projects/stage-badge'
 import projectStyles from './projects/projects.module.css'
 import shell from './shell.module.css'
@@ -78,17 +79,16 @@ async function Dashboard() {
 
   return (
     <>
-      <div className={shell.pageHead}>
-        <div>
-          <h1>Welcome back</h1>
-          <p>
-            {user.email
-              ? `Signed in as ${user.email}`
-              : 'Your projects, in one place.'}
-          </p>
-        </div>
+      <PageIntro
+        title="Welcome back"
+        subtitle={
+          user.email
+            ? `Signed in as ${user.email}`
+            : 'Your projects, in one place.'
+        }
+      >
         <AccountMenu email={user.email} />
-      </div>
+      </PageIntro>
 
       {result.ok ? (
         <ul className={shell.tiles} aria-label="Your projects at a glance">

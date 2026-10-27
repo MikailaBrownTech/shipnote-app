@@ -3,9 +3,12 @@ import Link from 'next/link'
 import { Suspense } from 'react'
 import { requireUser } from '@/lib/auth'
 import styles from '../../dashboard.module.css'
+import { Icon } from '../../icons'
+import { PageIntro } from '../../page-intro'
+import { DetailRail } from '../../rail'
+import shell from '../../shell.module.css'
 import { DeleteProject } from '../delete-project'
 import { loadOwnProject } from '../load-project'
-import { PageHeader } from '../page-header'
 import projectStyles from '../projects.module.css'
 import { StageBadge, Updated } from '../stage-badge'
 
@@ -38,7 +41,7 @@ async function Project({
   if (!project) {
     return (
       <>
-        <PageHeader />
+        <PageIntro title="Project" backHref="/dashboard" />
         <p role="alert" className={`on-pink ${projectStyles.notice}`}>
           We could not load this project. Try again in a moment.
         </p>
@@ -48,35 +51,46 @@ async function Project({
 
   return (
     <>
-      <PageHeader />
-      {/* Everything below is rendered as plain text. */}
-      <article className={`card ${projectStyles.detail}`}>
-        <h1>{project.name}</h1>
-        <div className={projectStyles.meta}>
-          <StageBadge stage={project.stage} />
-          <Updated iso={project.updatedAt} />
-        </div>
-        {project.summary ? (
-          <p className={projectStyles.summary}>{project.summary}</p>
-        ) : null}
+      {/* The title is the person's own text, so it is not styled as a phrase. */}
+      <PageIntro
+        title={project.name}
+        accent={false}
+        subtitle={
+          <span className={projectStyles.meta}>
+            <StageBadge stage={project.stage} />
+            <Updated iso={project.updatedAt} />
+          </span>
+        }
+        backHref="/dashboard"
+      />
 
-        <h2 className={projectStyles.notesTitle}>Notes</h2>
-        {project.notes ? (
-          <div className={projectStyles.notes}>{project.notes}</div>
-        ) : (
-          <p className={projectStyles.notesEmpty}>No notes yet.</p>
-        )}
+      <div className={shell.twoCol}>
+        {/* Everything below is rendered as plain text. */}
+        <article className={`card ${projectStyles.detail}`}>
+          {project.summary ? (
+            <p className={projectStyles.summary}>{project.summary}</p>
+          ) : null}
 
-        <div className={projectStyles.detailActions}>
-          <Link
-            href={`/dashboard/projects/${project.id}/edit`}
-            className="button"
-          >
-            Edit project
-          </Link>
-          <DeleteProject id={project.id} />
-        </div>
-      </article>
+          <h2 className={projectStyles.notesTitle}>Notes</h2>
+          {project.notes ? (
+            <div className={projectStyles.notes}>{project.notes}</div>
+          ) : (
+            <p className={projectStyles.notesEmpty}>No notes yet.</p>
+          )}
+
+          <div className={projectStyles.detailActions}>
+            <Link
+              href={`/dashboard/projects/${project.id}/edit`}
+              className="button"
+            >
+              <Icon name="edit" size={18} />
+              Edit project
+            </Link>
+            <DeleteProject id={project.id} />
+          </div>
+        </article>
+        <DetailRail />
+      </div>
     </>
   )
 }
