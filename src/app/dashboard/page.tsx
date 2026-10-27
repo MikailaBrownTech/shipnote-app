@@ -2,11 +2,14 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { Suspense } from 'react'
 import { requireUser } from '@/lib/auth'
+import { parseBufferFlash } from '@/lib/buffer-flash'
 import { parseGithubFlash } from '@/lib/github-flash'
 import { PROJECT_LIMITS, type Stage } from '@/lib/project-schema'
 import { githubIsEnabled } from '@/server/github-app'
 import { listProjects } from '@/server/projects'
+import { schedulingIsEnabled } from '@/server/scheduling'
 import { AccountMenu } from './account-menu'
+import { BufferDashboardPanel } from './buffer/dashboard-panel'
 import { GithubDashboardPanel } from './github/dashboard-panel'
 import styles from './dashboard.module.css'
 import { Icon, type IconName } from './icons'
@@ -52,6 +55,9 @@ async function Dashboard({
   // Only a known code is shown, as fixed text; the raw value is never echoed.
   const flash = githubIsEnabled()
     ? parseGithubFlash((await searchParams).github)
+    : null
+  const bufferFlash = schedulingIsEnabled()
+    ? parseBufferFlash((await searchParams).buffer)
     : null
   const result = await listProjects(user.id)
   const projects = result.ok ? result.value : []
@@ -198,6 +204,7 @@ async function Dashboard({
 
         <div className={shell.rail}>
           <GithubDashboardPanel userId={user.id} flash={flash} />
+          <BufferDashboardPanel flash={bufferFlash} />
           <section
             className={`card ${shell.panel}`}
             aria-labelledby="how-title"

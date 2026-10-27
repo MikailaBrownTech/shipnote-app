@@ -135,4 +135,42 @@ describe('check-env script', () => {
     expect(code).toBe(1)
     expect(out).toMatch(/NEXT_PUBLIC_ANTHROPIC_API_KEY/)
   })
+
+  it('requires the Buffer settings only when SCHEDULING_ENABLED=true', () => {
+    const base = { ...publicVars, SUPABASE_SERVICE_ROLE_KEY: 'k' }
+    expect(run(base).code).toBe(0)
+    const on = run({ ...base, SCHEDULING_ENABLED: 'true' })
+    expect(on.code).toBe(1)
+    expect(on.out).toMatch(/MISSING BUFFER_CLIENT_ID/)
+    expect(on.out).toMatch(/MISSING BUFFER_CLIENT_SECRET/)
+    expect(on.out).toMatch(/MISSING BUFFER_TOKEN_ENCRYPTION_KEY/)
+  })
+
+  it('never prints a Buffer value', () => {
+    const { out } = run({
+      ...publicVars,
+      SUPABASE_SERVICE_ROLE_KEY: 'k',
+      SCHEDULING_ENABLED: 'true',
+      BUFFER_CLIENT_ID: 'value-buffer-id',
+      BUFFER_CLIENT_SECRET: 'value-buffer-secret',
+      BUFFER_TOKEN_ENCRYPTION_KEY: 'value-buffer-key',
+    })
+    for (const value of [
+      'value-buffer-id',
+      'value-buffer-secret',
+      'value-buffer-key',
+    ]) {
+      expect(out).not.toContain(value)
+    }
+  })
+
+  it('flags a Buffer secret named with NEXT_PUBLIC_', () => {
+    const { code, out } = run({
+      ...publicVars,
+      SUPABASE_SERVICE_ROLE_KEY: 'k',
+      NEXT_PUBLIC_BUFFER_CLIENT_SECRET: 'x',
+    })
+    expect(code).toBe(1)
+    expect(out).toMatch(/NEXT_PUBLIC_BUFFER_CLIENT_SECRET/)
+  })
 })

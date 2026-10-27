@@ -10,6 +10,20 @@ const listInstallations = vi.fn()
 const listProjects = vi.fn()
 
 vi.mock('server-only', () => ({}))
+// Scheduling is off in these tests, as it is by default.
+vi.mock('@/server/scheduling', () => ({ schedulingIsEnabled: () => false }))
+vi.mock('@/server/scheduled-posts', () => ({
+  getConnectionStatus: vi.fn(),
+  listProjectSchedules: vi.fn(),
+}))
+vi.mock('./buffer/actions', () => ({
+  connectBufferAction: vi.fn(),
+  disconnectBufferAction: vi.fn(),
+  startReviewAction: vi.fn(),
+  confirmScheduleAction: vi.fn(),
+  cancelScheduleAction: vi.fn(),
+  refreshStatusAction: vi.fn(),
+}))
 vi.mock('next/navigation', () => ({
   notFound: () => {
     throw new Error('NEXT_NOT_FOUND')

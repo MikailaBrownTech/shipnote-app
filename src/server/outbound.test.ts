@@ -12,6 +12,8 @@ describe('isAllowedUrl', () => {
     'https://api.resend.com/emails',
     'https://github.com/login/oauth/access_token',
     'https://api.anthropic.com/v1/messages',
+    'https://api.buffer.com/',
+    'https://auth.buffer.com/token',
   ])('allows %s', (url) => {
     expect(isAllowedUrl(url)).toBe(true)
   })
@@ -55,6 +57,12 @@ describe('isAllowedUrl', () => {
       'https://api.anthropic.com.evil.test/v1/messages',
     ],
     ['Anthropic over http', 'http://api.anthropic.com/v1/messages'],
+    ['another Buffer API path', 'https://api.buffer.com/graphql'],
+    ['the Buffer authorize page', 'https://auth.buffer.com/auth'],
+    ['another Buffer auth path', 'https://auth.buffer.com/revoke'],
+    ['another Buffer host', 'https://buffer.com/'],
+    ['Buffer over http', 'http://api.buffer.com/'],
+    ['a Buffer lookalike', 'https://api.buffer.com.evil.test/'],
     ['another Anthropic host', 'https://console.anthropic.com/v1/messages'],
     ['a constructor host', 'https://constructor/'],
   ])('refuses %s', (_label, url) => {

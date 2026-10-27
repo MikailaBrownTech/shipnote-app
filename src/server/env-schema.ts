@@ -236,3 +236,83 @@ export function parseAiEnv(source: Source) {
     ),
   }
 }
+
+// Scheduling a draft on LinkedIn through the user's own Buffer account. Off
+// unless SCHEDULING_ENABLED=true; this is the kill switch. When on, the Buffer
+// App Client and the token encryption key are required, and a missing or
+// malformed variable is named in the error (never its value).
+//
+// BUFFER_TOKEN_ENCRYPTION_KEY is base64 of exactly 32 random bytes. To rotate
+// it, raise BUFFER_TOKEN_KEY_VERSION (default 1) and keep the old key in
+// BUFFER_TOKEN_ENCRYPTION_KEY_PREVIOUS, which is taken to be the version below
+// the current one. See the README.
+const isKey = (value: string) =>
+  /^[A-Za-z0-9+/]+={0,2}$/.test(value) &&
+  Buffer.from(value, 'base64').length === 32
+
+const schedulingSchema = z.object({
+  BUFFER_CLIENT_ID: z
+    .string()
+    .min(1)
+    .max(200)
+    .regex(/^[\x21-\x7e]+$/),
+  BUFFER_CLIENT_SECRET: z
+    .string()
+    .min(1)
+    .max(500)
+    .regex(/^[\x21-\x7e]+$/),
+  BUFFER_TOKEN_ENCRYPTION_KEY: z.string().refine(isKey),
+  BUFFER_TOKEN_KEY_VERSION: z
+    .string()
+    .regex(/^[1-9]\d{0,3}$/)
+    .transform(Number),
+  BUFFER_TOKEN_ENCRYPTION_KEY_PREVIOUS: z.string().refine(isKey).optional(),
+})
+
+export function isSchedulingEnabled(source: Source): boolean {
+  return source.SCHEDULING_ENABLED?.trim().toLowerCase() === 'true'
+}
+
+// null while SCHEDULING_ENABLED is off. Throws, naming the variable, when it is
+// on and something is missing or malformed.
+export function parseSchedulingEnv(source: Source) {
+  const flag = source.SCHEDULING_ENABLED?.trim().toLowerCase()
+  if (flag === undefined || flag === '' || flag === 'false') return null
+  if (flag !== 'true') {
+    throw new Error(
+      'Invalid server environment:\n- SCHEDULING_ENABLED must be true or false',
+    )
+  }
+  const parsed = parseGroup(schedulingSchema, {
+    BUFFER_CLIENT_ID: source.BUFFER_CLIENT_ID?.trim(),
+    BUFFER_CLIENT_SECRET: source.BUFFER_CLIENT_SECRET?.trim(),
+    BUFFER_TOKEN_ENCRYPTION_KEY: source.BUFFER_TOKEN_ENCRYPTION_KEY?.trim(),
+    BUFFER_TOKEN_KEY_VERSION: source.BUFFER_TOKEN_KEY_VERSION?.trim() || '1',
+    BUFFER_TOKEN_ENCRYPTION_KEY_PREVIOUS:
+      source.BUFFER_TOKEN_ENCRYPTION_KEY_PREVIOUS?.trim() || undefined,
+  })
+  const version = parsed.BUFFER_TOKEN_KEY_VERSION
+  if (parsed.BUFFER_TOKEN_ENCRYPTION_KEY_PREVIOUS && version < 2) {
+    throw new Error(
+      'Invalid server environment:\n- BUFFER_TOKEN_ENCRYPTION_KEY_PREVIOUS needs BUFFER_TOKEN_KEY_VERSION of 2 or more',
+    )
+  }
+  const keys = [
+    {
+      version,
+      key: Buffer.from(parsed.BUFFER_TOKEN_ENCRYPTION_KEY, 'base64'),
+    },
+  ]
+  if (parsed.BUFFER_TOKEN_ENCRYPTION_KEY_PREVIOUS) {
+    keys.push({
+      version: version - 1,
+      key: Buffer.from(parsed.BUFFER_TOKEN_ENCRYPTION_KEY_PREVIOUS, 'base64'),
+    })
+  }
+  return {
+    clientId: parsed.BUFFER_CLIENT_ID,
+    clientSecret: parsed.BUFFER_CLIENT_SECRET,
+    // The first key is the current one, used to seal new tokens.
+    keys,
+  }
+}

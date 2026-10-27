@@ -44,6 +44,47 @@ describe('deleteAccountAction', () => {
     expect(clearAuthCookies).toHaveBeenCalledOnce()
   })
 
+  it.each([
+    [
+      { hadConnection: true, couldNotCancel: 0, canceled: 0 },
+      '/account-deleted?buffer=1',
+    ],
+    [
+      { hadConnection: true, couldNotCancel: 3, canceled: 1 },
+      '/account-deleted?buffer=1&left=3',
+    ],
+    [
+      { hadConnection: false, couldNotCancel: 2, canceled: 0 },
+      '/account-deleted?left=2',
+    ],
+    [
+      { hadConnection: true, couldNotCancel: 5000, canceled: 0 },
+      '/account-deleted?buffer=1&left=999',
+    ],
+    [
+      { hadConnection: false, couldNotCancel: 0, canceled: 0 },
+      '/account-deleted',
+    ],
+  ])(
+    'tells the goodbye page what is left to do in Buffer (%j)',
+    async (cleanup, expected) => {
+      deleteAccount.mockImplementation(
+        (
+          _u: unknown,
+          _r: unknown,
+          _n: unknown,
+          onCleanup: (c: unknown) => void,
+        ) => {
+          onCleanup(cleanup)
+          return Promise.resolve('deleted')
+        },
+      )
+      await expect(
+        deleteAccountAction({ error: null }, form('a@b.co')),
+      ).rejects.toThrow('redirect:' + expected)
+    },
+  )
+
   it('still clears cookies and redirects if the revoke call throws', async () => {
     deleteAccount.mockResolvedValue('deleted')
     signOutMock.mockRejectedValue(new Error('session gone'))

@@ -280,3 +280,192 @@ export async function generationsUsedToday(
   const used: unknown = response.data
   return !response.error && typeof used === 'number' ? used : null
 }
+
+// ---- Buffer scheduling ----
+//
+// Narrow wrappers over the service-role functions in
+// supabase/migrations/20261031000100_buffer_scheduling.sql. The token columns
+// are readable by no user role, so everything about a connection goes through
+// here. Tokens arrive and leave as ciphertext (see token-vault.ts); nothing
+// here logs a value.
+
+export type StoredConnection = {
+  accessTokenEnc: string
+  refreshTokenEnc: string | null
+  keyVersion: number
+  expiresAt: string | null
+  scopes: string | null
+  organizationId: string | null
+  status: 'connected' | 'needs_reconnect'
+}
+
+export async function saveBufferConnection(input: {
+  userId: string
+  accessTokenEnc: string
+  refreshTokenEnc: string | null
+  keyVersion: number
+  expiresAt: string | null
+  scopes: string | null
+  organizationId: string | null
+}): Promise<boolean> {
+  const response = await admin().rpc('save_buffer_connection', {
+    p_user_id: input.userId,
+    p_access_token_enc: input.accessTokenEnc,
+    p_refresh_token_enc: input.refreshTokenEnc,
+    p_key_version: input.keyVersion,
+    p_expires_at: input.expiresAt,
+    p_scopes: input.scopes,
+    p_organization_id: input.organizationId,
+  })
+  const id: unknown = response.data
+  return !response.error && typeof id === 'string'
+}
+
+// The user's stored connection, or null if there is none (or the account is
+// deleted, or it could not be read).
+export async function readBufferConnection(
+  userId: string,
+): Promise<StoredConnection | null> {
+  const response = await admin().rpc('read_buffer_connection', {
+    p_user_id: userId,
+  })
+  if (response.error) return null
+  const rows: unknown = response.data
+  if (!Array.isArray(rows) || rows.length !== 1) return null
+  const row = rows[0] as Record<string, unknown>
+  if (
+    typeof row.access_token_enc !== 'string' ||
+    typeof row.key_version !== 'number' ||
+    (row.status !== 'connected' && row.status !== 'needs_reconnect')
+  ) {
+    return null
+  }
+  const text = (value: unknown) => (typeof value === 'string' ? value : null)
+  return {
+    accessTokenEnc: row.access_token_enc,
+    refreshTokenEnc: text(row.refresh_token_enc),
+    keyVersion: row.key_version,
+    expiresAt: text(row.expires_at),
+    scopes: text(row.scopes),
+    organizationId: text(row.organization_id),
+    status: row.status,
+  }
+}
+
+export async function updateBufferTokens(input: {
+  userId: string
+  accessTokenEnc: string
+  refreshTokenEnc: string | null
+  keyVersion: number
+  expiresAt: string | null
+}): Promise<boolean> {
+  const response = await admin().rpc('update_buffer_tokens', {
+    p_user_id: input.userId,
+    p_access_token_enc: input.accessTokenEnc,
+    p_refresh_token_enc: input.refreshTokenEnc,
+    p_key_version: input.keyVersion,
+    p_expires_at: input.expiresAt,
+  })
+  const ok: unknown = response.data
+  return !response.error && ok === true
+}
+
+export async function markBufferNeedsReconnect(
+  userId: string,
+): Promise<boolean> {
+  const { error } = await admin().rpc('mark_buffer_needs_reconnect', {
+    p_user_id: userId,
+  })
+  return !error
+}
+
+export async function deleteBufferConnection(userId: string): Promise<boolean> {
+  const { error } = await admin().rpc('delete_buffer_connection', {
+    p_user_id: userId,
+  })
+  return !error
+}
+
+export type CreateScheduleResult =
+  | { ok: true; id: string }
+  | {
+      ok: false
+      reason:
+        | 'daily_limit'
+        | 'already_scheduled'
+        | 'invalid'
+        | 'not_found'
+        | 'inactive'
+        | 'failed'
+    }
+
+// Takes the "scheduling" row before Buffer is called.
+export async function createScheduledPost(input: {
+  userId: string
+  draftId: string
+  body: string
+  bodyHash: string
+  channelId: string
+  channelLabel: string | null
+  scheduledFor: string
+  dailyLimit: number
+}): Promise<CreateScheduleResult> {
+  const response = await admin().rpc('create_scheduled_post', {
+    p_user_id: input.userId,
+    p_draft_id: input.draftId,
+    p_body: input.body,
+    p_body_hash: input.bodyHash,
+    p_channel_id: input.channelId,
+    p_channel_label: input.channelLabel,
+    p_scheduled_for: input.scheduledFor,
+    p_daily_limit: input.dailyLimit,
+  })
+  if (response.error) {
+    const code = response.error.code
+    if (code === 'SN020') return { ok: false, reason: 'daily_limit' }
+    // SN021 from the function, 23505 from the unique index if two requests race.
+    if (code === 'SN021' || code === '23505') {
+      return { ok: false, reason: 'already_scheduled' }
+    }
+    if (code === 'SN022') return { ok: false, reason: 'invalid' }
+    if (code === 'SN023') return { ok: false, reason: 'not_found' }
+    if (code === 'SN024') return { ok: false, reason: 'inactive' }
+    return { ok: false, reason: 'failed' }
+  }
+  const id: unknown = response.data
+  return typeof id === 'string' && id.length > 0
+    ? { ok: true, id }
+    : { ok: false, reason: 'failed' }
+}
+
+export async function markPostScheduled(input: {
+  id: string
+  userId: string
+  bufferPostId: string
+}): Promise<boolean> {
+  const response = await admin().rpc('mark_post_scheduled', {
+    p_id: input.id,
+    p_user_id: input.userId,
+    p_buffer_post_id: input.bufferPostId,
+  })
+  const ok: unknown = response.data
+  return !response.error && ok === true
+}
+
+// Ends a schedule as canceled, failed or published. failureCode is a short
+// fixed code, never text from Buffer.
+export async function finishScheduledPost(input: {
+  id: string
+  userId: string
+  status: 'canceled' | 'failed' | 'published'
+  failureCode: string | null
+}): Promise<boolean> {
+  const response = await admin().rpc('finish_scheduled_post', {
+    p_id: input.id,
+    p_user_id: input.userId,
+    p_status: input.status,
+    p_failure_code: input.failureCode,
+  })
+  const ok: unknown = response.data
+  return !response.error && ok === true
+}

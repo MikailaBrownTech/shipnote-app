@@ -24,11 +24,20 @@ const OPTIONAL = [
   'AI_ENABLED', // defaults to false
   'ANTHROPIC_MODEL', // defaults to claude-sonnet-5-5
   'AI_MONTHLY_CAP_USD', // defaults to 10
+  'SCHEDULING_ENABLED', // defaults to false
+  'BUFFER_TOKEN_KEY_VERSION', // defaults to 1
+  'BUFFER_TOKEN_ENCRYPTION_KEY_PREVIOUS', // only while rotating the key
 ]
 // Required only while ALERTS_ENABLED=true.
 const WHEN_ALERTS = ['RESEND_API_KEY', 'EMAIL_FROM', 'DEVICE_HASH_SALT']
 // Required only while AI_ENABLED=true.
 const WHEN_AI = ['ANTHROPIC_API_KEY']
+// Required only while SCHEDULING_ENABLED=true.
+const WHEN_SCHEDULING = [
+  'BUFFER_CLIENT_ID',
+  'BUFFER_CLIENT_SECRET',
+  'BUFFER_TOKEN_ENCRYPTION_KEY',
+]
 // Required only while GITHUB_ENABLED=true.
 const WHEN_GITHUB = [
   'GITHUB_APP_ID',
@@ -42,6 +51,8 @@ const isSet = (name) => Boolean(process.env[name]?.trim())
 const alertsOn = process.env.ALERTS_ENABLED?.trim().toLowerCase() === 'true'
 const githubOn = process.env.GITHUB_ENABLED?.trim().toLowerCase() === 'true'
 const aiOn = process.env.AI_ENABLED?.trim().toLowerCase() === 'true'
+const schedulingOn =
+  process.env.SCHEDULING_ENABLED?.trim().toLowerCase() === 'true'
 
 const exampleNames = readFileSync(exampleFile, 'utf8')
   .split(/\r?\n/)
@@ -54,6 +65,7 @@ const known = new Set([
   ...WHEN_ALERTS,
   ...WHEN_GITHUB,
   ...WHEN_AI,
+  ...WHEN_SCHEDULING,
 ])
 
 let failed = false
@@ -86,6 +98,11 @@ section(
   WHEN_AI,
   { required: aiOn },
 )
+section(
+  `Server-only, required only when SCHEDULING_ENABLED=true (currently ${schedulingOn ? 'on' : 'off'})`,
+  WHEN_SCHEDULING,
+  { required: schedulingOn },
+)
 
 const upstash = ['UPSTASH_REDIS_REST_URL', 'UPSTASH_REDIS_REST_TOKEN']
 const upstashSet = upstash.filter(isSet).length
@@ -113,7 +130,7 @@ if (drift.length > 0) {
 const leaked = Object.keys(process.env).filter(
   (name) =>
     name.startsWith('NEXT_PUBLIC_') &&
-    /SERVICE_ROLE|SECRET|TOKEN|SALT|RESEND|UPSTASH|PRIVATE_KEY|GITHUB_APP|ANTHROPIC/.test(
+    /SERVICE_ROLE|SECRET|TOKEN|SALT|RESEND|UPSTASH|PRIVATE_KEY|GITHUB_APP|ANTHROPIC|BUFFER/.test(
       name,
     ),
 )

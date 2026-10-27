@@ -1,16 +1,23 @@
 import 'server-only'
-import { getAiEnv, getAlertsEnv, getGithubEnv } from './env'
+import {
+  getAiEnv,
+  getAlertsEnv,
+  getGithubEnv,
+  getSchedulingEnv,
+} from './env'
 import { serverConfigWarnings } from './env-schema'
 
 // Called once at server start (see src/instrumentation.ts). Throws, naming
 // the variable, if ALERTS_ENABLED=true and the email settings are incomplete,
 // GITHUB_ENABLED=true and the GitHub App settings are, or AI_ENABLED=true and
-// the Anthropic settings are.
+// the Anthropic settings are, or SCHEDULING_ENABLED=true and the Buffer
+// settings are.
 // Everything else that is misconfigured is logged once, names only.
 export function assertServerConfig() {
   getAlertsEnv()
   getGithubEnv()
   getAiEnv()
+  getSchedulingEnv()
 
   const warnings = serverConfigWarnings(
     {

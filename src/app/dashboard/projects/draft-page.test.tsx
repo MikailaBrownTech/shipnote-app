@@ -12,6 +12,9 @@ const aiIsEnabled = vi.fn()
 const draftsLeftToday = vi.fn()
 const listRecentDrafts = vi.fn()
 const coveredShas = vi.fn()
+const schedulingIsEnabled = vi.fn()
+const getConnectionStatus = vi.fn()
+const listProjectSchedules = vi.fn()
 
 vi.mock('server-only', () => ({}))
 vi.mock('next/navigation', () => ({
@@ -28,6 +31,19 @@ vi.mock('@/server/github-projects', () => ({ listInstallations: vi.fn() }))
 vi.mock('@/server/projects', () => ({ getProject }))
 vi.mock('@/server/draft-generation', () => ({ aiIsEnabled, draftsLeftToday }))
 vi.mock('@/server/drafts', () => ({ listRecentDrafts, coveredShas }))
+vi.mock('@/server/scheduling', () => ({ schedulingIsEnabled }))
+vi.mock('@/server/scheduled-posts', () => ({
+  getConnectionStatus,
+  listProjectSchedules,
+}))
+vi.mock('../buffer/actions', () => ({
+  connectBufferAction: vi.fn(),
+  disconnectBufferAction: vi.fn(),
+  startReviewAction: vi.fn(),
+  confirmScheduleAction: vi.fn(),
+  cancelScheduleAction: vi.fn(),
+  refreshStatusAction: vi.fn(),
+}))
 vi.mock('../github/actions', () => ({ connectGithubAction: vi.fn() }))
 vi.mock('./actions', () => ({
   createProjectAction: vi.fn(),
@@ -104,6 +120,9 @@ beforeEach(() => {
   draftsLeftToday.mockResolvedValue(7)
   listRecentDrafts.mockResolvedValue([])
   coveredShas.mockResolvedValue([])
+  schedulingIsEnabled.mockReturnValue(false)
+  getConnectionStatus.mockResolvedValue({ state: 'none', connectedAt: null })
+  listProjectSchedules.mockResolvedValue([])
   getProject.mockResolvedValue({ ok: true, value: project() })
 })
 
@@ -250,5 +269,167 @@ describe('with AI off', () => {
     expect(listRecentDrafts).not.toHaveBeenCalled()
     expect(coveredShas).not.toHaveBeenCalled()
     expect(draftsLeftToday).not.toHaveBeenCalled()
+  })
+})
+
+describe('with scheduling on', () => {
+  const when = '2026-11-10T14:30:00.000Z'
+  const DRAFT_ID = '99999999-2222-4333-8444-555555555555'
+  const schedule = (over: Record<string, unknown> = {}) => ({
+    id: '77777777-2222-4333-8444-555555555555',
+    projectId: ID,
+    draftId: DRAFT_ID,
+    body: 'The exact text that was sent',
+    channelLabel: 'My LinkedIn',
+    scheduledFor: when,
+    bufferPostId: 'bp-1',
+    status: 'scheduled',
+    failureCode: null,
+    createdAt: '2026-11-02T12:00:00Z',
+    ...over,
+  })
+  const connected = () =>
+    getConnectionStatus.mockResolvedValue({
+      state: 'connected',
+      connectedAt: 'x',
+    })
+
+  beforeEach(() => {
+    schedulingIsEnabled.mockReturnValue(true)
+    listRecentDrafts.mockResolvedValue([draft()])
+  })
+
+  it('offers Connect Buffer on a draft when not connected, and no scheduling', async () => {
+    getConnectionStatus.mockResolvedValue({ state: 'none', connectedAt: null })
+    const { html, errors } = await render()
+    expect(errors).toEqual([])
+    expect(html).toContain(
+      'Connect your Buffer account to schedule this draft on LinkedIn.',
+    )
+    expect(html).toContain('Connect Buffer')
+    expect(html).not.toContain('Schedule on LinkedIn')
+  })
+
+  it('remembers the project and draft in the Connect button so the person comes back', async () => {
+    getConnectionStatus.mockResolvedValue({ state: 'none', connectedAt: null })
+    const { html } = await render()
+    expect(html).toContain(`name="project" value="${ID}"`)
+    expect(html).toContain(`name="draft" value="${DRAFT_ID}"`)
+  })
+
+  it('offers Schedule on LinkedIn when connected, and schedules nothing by itself', async () => {
+    connected()
+    const { html } = await render()
+    expect(html).toContain('Schedule on LinkedIn')
+    expect(html).not.toContain('Confirm and schedule')
+    expect(html).not.toContain('Review before scheduling')
+  })
+
+  it('offers Reconnect Buffer when it needs it', async () => {
+    getConnectionStatus.mockResolvedValue({
+      state: 'needs_reconnect',
+      connectedAt: 'x',
+    })
+    const { html } = await render()
+    expect(html).toContain('Reconnect Buffer')
+    expect(html).toContain(
+      'Buffer needs to be connected again to schedule posts.',
+    )
+    expect(html).not.toContain('Schedule on LinkedIn')
+  })
+
+  it('shows an active schedule with Cancel, and says edits do not change it', async () => {
+    connected()
+    listProjectSchedules.mockResolvedValue([schedule()])
+    const { html } = await render()
+    expect(html).toContain('Scheduled for Nov 10, 2026, 2:30 PM UTC')
+    expect(html).toContain('on My LinkedIn')
+    expect(html).toContain(
+      'Editing this draft later does not change the scheduled text.',
+    )
+    expect(html).toContain('Cancel schedule')
+    expect(html).not.toContain('Schedule on LinkedIn')
+  })
+
+  it('shows a published post without a cancel button', async () => {
+    connected()
+    listProjectSchedules.mockResolvedValue([schedule({ status: 'published' })])
+    const { html } = await render()
+    expect(html).toContain('Published by Buffer')
+    expect(html).not.toContain('Cancel schedule')
+  })
+
+  it('a canceled or failed schedule leaves the draft free to schedule again', async () => {
+    connected()
+    listProjectSchedules.mockResolvedValue([
+      schedule({ status: 'canceled' }),
+      schedule({
+        id: '88888888-2222-4333-8444-555555555555',
+        status: 'failed',
+        failureCode: 'unknown_result',
+      }),
+    ])
+    const { html } = await render()
+    expect(html).toContain('Schedule on LinkedIn')
+  })
+
+  it('lists the project schedules as plain text with a Refresh status button', async () => {
+    connected()
+    listProjectSchedules.mockResolvedValue([
+      schedule({ body: '<img src=x onerror=alert(1)> and **bold**' }),
+      schedule({
+        id: '88888888-2222-4333-8444-555555555555',
+        draftId: null,
+        status: 'failed',
+        failureCode: 'unknown_result',
+      }),
+    ])
+    const { html } = await render()
+    expect(html).toContain('Scheduled posts')
+    expect(html).toContain('Refresh status')
+    expect(html).toContain('&lt;img src=x onerror=alert(1)&gt; and **bold**')
+    expect(html).not.toContain('<img src=x')
+    expect(html).toContain(
+      'We could not confirm whether Buffer scheduled this. Check Buffer.',
+    )
+  })
+
+  it('says so when nothing is scheduled', async () => {
+    connected()
+    const { html } = await render()
+    expect(html).toContain('Nothing scheduled for this project yet.')
+  })
+
+  it('asks only for this user and this project schedules', async () => {
+    connected()
+    await render()
+    expect(listProjectSchedules).toHaveBeenCalledWith(USER, ID, 20)
+  })
+
+  it('offers no scheduling when the connection cannot be read', async () => {
+    getConnectionStatus.mockResolvedValue(null)
+    const { html } = await render()
+    expect(html).not.toContain('Schedule on LinkedIn')
+    expect(html).not.toContain('Connect Buffer')
+    expect(html).not.toContain('Scheduled posts')
+  })
+
+  it('never offers to post, send or publish by itself', async () => {
+    connected()
+    const { html } = await render()
+    expect(html).not.toMatch(
+      /Post now|Publish now|Auto-?schedule|Schedule automatically/i,
+    )
+  })
+})
+
+describe('with scheduling off', () => {
+  it('shows no Buffer text, controls or scheduled posts, and reads nothing from Buffer', async () => {
+    schedulingIsEnabled.mockReturnValue(false)
+    listRecentDrafts.mockResolvedValue([draft()])
+    const { html } = await render()
+    expect(html).not.toMatch(/Buffer|Schedule on LinkedIn|Scheduled posts/)
+    expect(getConnectionStatus).not.toHaveBeenCalled()
+    expect(listProjectSchedules).not.toHaveBeenCalled()
   })
 })

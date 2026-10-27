@@ -14,6 +14,12 @@ import {
 } from './draft-actions'
 import { checkCommitsAction, type CommitState } from './github-actions'
 import styles from './drafts.module.css'
+import {
+  ScheduledPostsList,
+  ScheduleSection,
+  type ConnectionState,
+  type ScheduleView,
+} from './schedule-controls'
 
 // The Drafts tab. Everything shown is plain text: the model's draft sits in a
 // text area (never as markup), commit titles are text, and every message is
@@ -22,6 +28,15 @@ import styles from './drafts.module.css'
 
 const DAILY_LIMIT = 10
 const MAX_COMMITS = 5
+
+// Scheduling through Buffer, present only while it is on.
+export type SchedulingView = {
+  connection: ConnectionState
+  // The active schedule of each draft, by draft id.
+  byDraft: Record<string, ScheduleView>
+  // The project's schedules, newest first.
+  posts: (ScheduleView & { body: string })[]
+}
 
 export type DraftView = {
   id: string
@@ -93,11 +108,13 @@ function DraftEditor({
   draft,
   warnings: initialWarnings,
   onGone,
+  scheduling,
 }: {
   projectId: string
   draft: DraftView
   warnings: DraftWarning[]
   onGone: (id: string) => void
+  scheduling: SchedulingView | null
 }) {
   const [body, setBody] = useState(draft.body)
   const [warnings, setWarnings] = useState(initialWarnings)
@@ -216,6 +233,15 @@ function DraftEditor({
       <p className={styles.help} role="status" aria-live="polite">
         {message}
       </p>
+      {scheduling ? (
+        <ScheduleSection
+          key={draft.id}
+          projectId={projectId}
+          draftId={draft.id}
+          connection={scheduling.connection}
+          active={scheduling.byDraft[draft.id] ?? null}
+        />
+      ) : null}
     </div>
   )
 }
@@ -226,6 +252,7 @@ export function DraftWorkshop({
   initialLeft,
   covered,
   recent,
+  scheduling,
 }: {
   projectId: string
   // A repository is linked and connected.
@@ -235,6 +262,8 @@ export function DraftWorkshop({
   // Full shas of commits already in a copied draft.
   covered: string[]
   recent: DraftView[]
+  // null while scheduling is off.
+  scheduling: SchedulingView | null
 }) {
   const [commitState, checkCommits, checking] = useActionState(
     checkCommitsAction.bind(null, projectId),
@@ -435,6 +464,7 @@ export function DraftWorkshop({
             onGone={(id) => {
               setGone((list) => [...list, id])
             }}
+            scheduling={scheduling}
           />
         </section>
       ) : null}
@@ -464,6 +494,7 @@ export function DraftWorkshop({
                     onGone={(id) => {
                       setGone((list) => [...list, id])
                     }}
+                    scheduling={scheduling}
                   />
                 </details>
               </li>
@@ -471,6 +502,10 @@ export function DraftWorkshop({
           </ul>
         )}
       </section>
+
+      {scheduling ? (
+        <ScheduledPostsList projectId={projectId} posts={scheduling.posts} />
+      ) : null}
     </div>
   )
 }
