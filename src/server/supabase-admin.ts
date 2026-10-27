@@ -14,9 +14,43 @@ function admin() {
   )
 }
 
-export async function deleteAuthUser(userId: string): Promise<boolean> {
+// Removes the user row for good. Only for an account that was created a moment
+// ago and has no data (the unverified-GitHub backstop). People deleting their
+// own account go through softDeleteAuthUser.
+export async function hardDeleteAuthUser(userId: string): Promise<boolean> {
   const { error } = await admin().auth.admin.deleteUser(userId)
   return !error
+}
+
+// Soft delete: Supabase sets auth.users.deleted_at, removes the user's
+// sessions, and scrambles the email, identities and metadata so the account
+// can never be signed into again. The row (and so every table that references
+// it) stays. Not reversible. Does nothing if the user is already deleted.
+export async function softDeleteAuthUser(userId: string): Promise<boolean> {
+  const { error } = await admin().auth.admin.deleteUser(userId, true)
+  return !error
+}
+
+// Does this session still exist, for a user whose account is not deleted?
+// Fails closed: any error counts as "not active".
+export async function isSessionActive(
+  sessionId: string,
+  userId: string,
+): Promise<boolean> {
+  const response = await admin().rpc('session_is_active', {
+    p_session_id: sessionId,
+    p_user_id: userId,
+  })
+  return !response.error && response.data === true
+}
+
+// How many sessions the user has left, or null if that could not be read.
+export async function countSessions(userId: string): Promise<number | null> {
+  const response = await admin().rpc('active_session_count', {
+    p_user_id: userId,
+  })
+  if (response.error || typeof response.data !== 'number') return null
+  return response.data
 }
 
 export type RecordedSignIn = { alert: boolean; eventId: string }

@@ -24,11 +24,13 @@ export async function deleteAccountAction(
   }
   if (outcome !== 'deleted') return { error: outcome }
 
-  // The user is gone. Clearing the cookies is what matters; the revoke call
-  // may fail because the session no longer exists.
+  // The account is soft-deleted, which already removed its sessions. Sign out
+  // everywhere anyway, in case any survive, then clear this browser. The
+  // revoke call may be refused because the session no longer exists; that is
+  // expected, and the cookies are cleared regardless.
   try {
     const supabase = await createClient()
-    await supabase.auth.signOut({ scope: 'local' })
+    await supabase.auth.signOut({ scope: 'global' })
   } catch {
     // Nothing to do. The cookies are cleared next.
   }

@@ -2,7 +2,7 @@ import 'server-only'
 import { z } from 'zod'
 import { signedInWithin } from '@/lib/auth-claims'
 import { rateLimit } from './rate-limit'
-import { deleteAuthUser } from './supabase-admin'
+import { softDeleteAuthUser } from './supabase-admin'
 
 // Deleting an account needs a sign-in from the last 10 minutes.
 export const RECENT_SIGN_IN_SECONDS = 10 * 60
@@ -53,5 +53,5 @@ export async function deleteAccount(
     return 'recent'
   }
 
-  return (await deleteAuthUser(user.id)) ? 'deleted' : 'failed'
+  return (await softDeleteAuthUser(user.id)) ? 'deleted' : 'failed'
 }
