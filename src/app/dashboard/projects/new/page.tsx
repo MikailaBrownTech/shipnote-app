@@ -4,8 +4,10 @@ import { requireUser } from '@/lib/auth'
 import { PROJECT_LIMITS } from '@/lib/project-schema'
 import { listProjects } from '@/server/projects'
 import styles from '../../dashboard.module.css'
+import { PageIntro } from '../../page-intro'
+import { FormRail } from '../../rail'
+import shell from '../../shell.module.css'
 import { createProjectAction } from '../actions'
-import { PageHeader } from '../page-header'
 import { ProjectForm } from '../project-form'
 import projectStyles from '../projects.module.css'
 
@@ -31,24 +33,30 @@ async function NewProject() {
 
   return (
     <>
-      <PageHeader />
-      <h1 className={styles.title}>New project</h1>
+      <PageIntro
+        title="New project"
+        subtitle="Add a project to start turning your development work into LinkedIn content."
+        backHref="/dashboard"
+      />
 
-      {full ? (
-        <p className={`on-amber ${projectStyles.notice}`}>
-          You have reached the {PROJECT_LIMITS.perUser} project limit. Delete a
-          project to add another.
-        </p>
-      ) : (
-        <div className={`card ${projectStyles.formWrap}`}>
-          <ProjectForm
-            action={createProjectAction}
-            initial={{ name: '', summary: '', stage: 'idea', notes: '' }}
-            submitLabel="Create project"
-            cancelHref="/dashboard"
-          />
-        </div>
-      )}
+      <div className={shell.twoCol}>
+        {full ? (
+          <p className={`on-amber ${projectStyles.notice}`}>
+            You have reached the {PROJECT_LIMITS.perUser} project limit. Delete
+            a project to add another.
+          </p>
+        ) : (
+          <div className={`card ${projectStyles.formWrap}`}>
+            <ProjectForm
+              action={createProjectAction}
+              initial={{ name: '', summary: '', stage: 'idea', notes: '' }}
+              submitLabel="Create project"
+              cancelHref="/dashboard"
+            />
+          </div>
+        )}
+        <FormRail />
+      </div>
     </>
   )
 }

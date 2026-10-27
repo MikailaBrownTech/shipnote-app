@@ -3,7 +3,9 @@ import { Suspense } from 'react'
 import { requireUser } from '@/lib/auth'
 import { confirmationText, hasRecentSignIn } from '@/server/delete-account'
 import styles from '../dashboard.module.css'
-import { PageHeader } from '../projects/page-header'
+import { PageIntro } from '../page-intro'
+import { AccountRail } from '../rail'
+import shell from '../shell.module.css'
 import { reauthenticate } from './actions'
 import { DeleteForm } from './delete-form'
 
@@ -27,31 +29,36 @@ async function Account() {
 
   return (
     <>
-      <PageHeader />
+      <PageIntro
+        title="Account"
+        subtitle="Manage your Shipnote account."
+        backHref="/dashboard"
+      />
 
-      <h1 className={styles.title}>Account</h1>
+      <div className={shell.twoCol}>
+        <section
+          className={`card ${styles.danger}`}
+          aria-labelledby="delete-title"
+        >
+          <h2 id="delete-title">Delete your account</h2>
+          <p>
+            This permanently deletes your account and everything in it. It
+            cannot be undone, and your invite cannot be used again.
+          </p>
 
-      <section
-        className={`card ${styles.danger}`}
-        aria-labelledby="delete-title"
-      >
-        <h2 id="delete-title">Delete your account</h2>
-        <p>
-          This permanently deletes your account and everything in it. It cannot
-          be undone, and your invite cannot be used again.
-        </p>
-
-        {recent ? (
-          <DeleteForm phrase={confirmationText(user)} />
-        ) : (
-          <form action={reauthenticate} className={styles.dangerForm}>
-            <p role="status">Sign in again to delete your account.</p>
-            <button type="submit" className="button button-dark">
-              Sign in again
-            </button>
-          </form>
-        )}
-      </section>
+          {recent ? (
+            <DeleteForm phrase={confirmationText(user)} />
+          ) : (
+            <form action={reauthenticate} className={styles.dangerForm}>
+              <p role="status">Sign in again to delete your account.</p>
+              <button type="submit" className="button button-dark">
+                Sign in again
+              </button>
+            </form>
+          )}
+        </section>
+        <AccountRail />
+      </div>
     </>
   )
 }

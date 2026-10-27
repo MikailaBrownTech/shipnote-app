@@ -145,7 +145,7 @@ describe('new project', () => {
     expect(html).toContain('Paste your README, spec or recent progress notes')
     expect(html).toContain('Do not paste secrets or customer data')
     expect(html).toContain('0 / 12,000')
-    for (const label of ['Name', 'Summary', 'Stage', 'Notes']) {
+    for (const label of ['Project name', 'Summary', 'Stage', 'Notes']) {
       expect(html).toContain(label)
     }
   })
@@ -224,7 +224,7 @@ describe('edit page', () => {
     getProject.mockResolvedValue({ ok: true, value: project() })
     const { html } = await render(<EditProjectPage {...idParams(ID)} />)
     expect(html).toContain('value="Shipnote"')
-    expect(html).toContain('value="Posts from commits"')
+    expect(html).toContain('>Posts from commits</textarea>')
     expect(html).toContain('line one')
     expect(html).toContain('Save changes')
   })

@@ -85,9 +85,8 @@
 }
 
 .danger {
-  max-width: 36rem;
-  margin-top: 2rem;
   padding: clamp(1.25rem, 4vw, 2rem);
+  border-radius: var(--radius-lg);
 }
 
 .danger h2 {

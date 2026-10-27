@@ -2,9 +2,11 @@ import type { Metadata } from 'next'
 import { Suspense } from 'react'
 import { requireUser } from '@/lib/auth'
 import styles from '../../../dashboard.module.css'
+import { PageIntro } from '../../../page-intro'
+import { FormRail } from '../../../rail'
+import shell from '../../../shell.module.css'
 import { updateProjectAction } from '../../actions'
 import { loadOwnProject } from '../../load-project'
-import { PageHeader } from '../../page-header'
 import { ProjectForm } from '../../project-form'
 import projectStyles from '../../projects.module.css'
 
@@ -35,7 +37,7 @@ async function EditProject({
   if (!project) {
     return (
       <>
-        <PageHeader />
+        <PageIntro title="Edit project" backHref="/dashboard" />
         <p role="alert" className={`on-pink ${projectStyles.notice}`}>
           We could not load this project. Try again in a moment.
         </p>
@@ -45,23 +47,27 @@ async function EditProject({
 
   return (
     <>
-      <PageHeader
+      <PageIntro
+        title="Edit project"
+        subtitle="Update the details and notes for this project."
         backHref={`/dashboard/projects/${project.id}`}
         backLabel="Back to project"
       />
-      <h1 className={styles.title}>Edit project</h1>
-      <div className={`card ${projectStyles.formWrap}`}>
-        <ProjectForm
-          action={updateProjectAction.bind(null, project.id)}
-          initial={{
-            name: project.name,
-            summary: project.summary ?? '',
-            stage: project.stage,
-            notes: project.notes,
-          }}
-          submitLabel="Save changes"
-          cancelHref={`/dashboard/projects/${project.id}`}
-        />
+      <div className={shell.twoCol}>
+        <div className={`card ${projectStyles.formWrap}`}>
+          <ProjectForm
+            action={updateProjectAction.bind(null, project.id)}
+            initial={{
+              name: project.name,
+              summary: project.summary ?? '',
+              stage: project.stage,
+              notes: project.notes,
+            }}
+            submitLabel="Save changes"
+            cancelHref={`/dashboard/projects/${project.id}`}
+          />
+        </div>
+        <FormRail />
       </div>
     </>
   )
