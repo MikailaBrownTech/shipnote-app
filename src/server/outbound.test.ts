@@ -11,6 +11,7 @@ describe('isAllowedUrl', () => {
     'https://api.github.com/repos/octo/repo/commits?per_page=100',
     'https://api.resend.com/emails',
     'https://github.com/login/oauth/access_token',
+    'https://api.anthropic.com/v1/messages',
   ])('allows %s', (url) => {
     expect(isAllowedUrl(url)).toBe(true)
   })
@@ -43,6 +44,18 @@ describe('isAllowedUrl', () => {
       'https://github.com/login/oauth/access_token%2f..%2fauthorize',
     ],
     ['a prototype key as host', 'https://__proto__/'],
+    ['another Anthropic path', 'https://api.anthropic.com/v1/complete'],
+    ['the Anthropic root', 'https://api.anthropic.com/'],
+    [
+      'an Anthropic path trick',
+      'https://api.anthropic.com/v1/messages/../models',
+    ],
+    [
+      'an Anthropic lookalike',
+      'https://api.anthropic.com.evil.test/v1/messages',
+    ],
+    ['Anthropic over http', 'http://api.anthropic.com/v1/messages'],
+    ['another Anthropic host', 'https://console.anthropic.com/v1/messages'],
     ['a constructor host', 'https://constructor/'],
   ])('refuses %s', (_label, url) => {
     expect(isAllowedUrl(url)).toBe(false)

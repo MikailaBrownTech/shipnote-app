@@ -1,6 +1,8 @@
 import 'server-only'
 import {
+  isAiEnabled,
   isGithubEnabled,
+  parseAiEnv,
   parseAdminEnv,
   parseAlertsEnv,
   parseGithubEnv,
@@ -47,5 +49,22 @@ export function getGithubEnv() {
     GITHUB_APP_CLIENT_ID: process.env.GITHUB_APP_CLIENT_ID,
     GITHUB_APP_CLIENT_SECRET: process.env.GITHUB_APP_CLIENT_SECRET,
     GITHUB_APP_PRIVATE_KEY: process.env.GITHUB_APP_PRIVATE_KEY,
+  })
+}
+
+// Whether draft generation is on. Only reads the flag, so pages can hide the
+// feature without touching the key.
+export function aiEnabled() {
+  return isAiEnabled({ AI_ENABLED: process.env.AI_ENABLED })
+}
+
+// null while AI_ENABLED is off. Throws, naming the variable, when it is on and
+// something is missing or malformed.
+export function getAiEnv() {
+  return parseAiEnv({
+    AI_ENABLED: process.env.AI_ENABLED,
+    ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
+    ANTHROPIC_MODEL: process.env.ANTHROPIC_MODEL,
+    AI_MONTHLY_CAP_USD: process.env.AI_MONTHLY_CAP_USD,
   })
 }

@@ -179,3 +179,104 @@ export async function unlinkProjectRepo(
     .select('id')
   return !error && (data as unknown[]).length === 1
 }
+
+// ---- Draft generation ----
+//
+// Narrow wrappers over the generation functions in Postgres (see
+// supabase/migrations/20261030000100_drafts.sql). Only the service role may
+// call them. The limits live in the database: these only pass arguments and
+// read the answer, and any surprise is treated as a refusal (fail closed).
+
+export type ReserveResult =
+  | { ok: true; usageId: string }
+  | { ok: false; reason: 'daily_limit' | 'monthly_cap' | 'failed' }
+
+export async function reserveGeneration(input: {
+  userId: string
+  estimatedMicrousd: number
+  dailyLimit: number
+  monthlyCapMicrousd: number
+}): Promise<ReserveResult> {
+  const response = await admin().rpc('reserve_generation', {
+    p_user_id: input.userId,
+    p_estimated_microusd: input.estimatedMicrousd,
+    p_daily_limit: input.dailyLimit,
+    p_monthly_cap_microusd: input.monthlyCapMicrousd,
+  })
+  if (response.error) {
+    if (response.error.code === 'SN010')
+      return { ok: false, reason: 'daily_limit' }
+    if (response.error.code === 'SN011')
+      return { ok: false, reason: 'monthly_cap' }
+    return { ok: false, reason: 'failed' }
+  }
+  const id: unknown = response.data
+  return typeof id === 'string' && id.length > 0
+    ? { ok: true, usageId: id }
+    : { ok: false, reason: 'failed' }
+}
+
+// Writes the draft, its commit links and the final cost in one transaction.
+// Returns the draft id, or null if nothing was written.
+export async function completeGeneration(input: {
+  usageId: string
+  userId: string
+  projectId: string
+  body: string
+  model: string
+  inputTokens: number
+  outputTokens: number
+  costMicrousd: number
+  commitShas: string[]
+}): Promise<string | null> {
+  const response = await admin().rpc('complete_generation', {
+    p_usage_id: input.usageId,
+    p_user_id: input.userId,
+    p_project_id: input.projectId,
+    p_body: input.body,
+    p_model: input.model,
+    p_input_tokens: input.inputTokens,
+    p_output_tokens: input.outputTokens,
+    p_cost_microusd: input.costMicrousd,
+    p_commit_shas: input.commitShas,
+  })
+  const id: unknown = response.data
+  return !response.error && typeof id === 'string' ? id : null
+}
+
+// The model answered but the answer was unusable: it still counts.
+export async function recordUnusableGeneration(
+  usageId: string,
+  userId: string,
+  costMicrousd: number,
+): Promise<boolean> {
+  const { error } = await admin().rpc('record_unusable_generation', {
+    p_usage_id: usageId,
+    p_user_id: userId,
+    p_cost_microusd: costMicrousd,
+  })
+  return !error
+}
+
+// Provider or network errors only: the generation did not happen.
+export async function releaseGeneration(
+  usageId: string,
+  userId: string,
+): Promise<boolean> {
+  const { error } = await admin().rpc('release_generation', {
+    p_usage_id: usageId,
+    p_user_id: userId,
+  })
+  return !error
+}
+
+// How many generations the user has used today (UTC), or null if unknown.
+export async function generationsUsedToday(
+  userId: string,
+): Promise<number | null> {
+  const response = await admin().rpc('generations_used_today', {
+    p_user_id: userId,
+  })
+  const used: unknown = response.data
+  return !response.error && typeof used === 'number' ? used : null
+}

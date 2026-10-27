@@ -5,8 +5,8 @@ const on = { githubOn: true, hasGithubMessage: false }
 const off = { githubOn: false, hasGithubMessage: false }
 
 describe('chooseTab', () => {
-  it('has the three tabs', () => {
-    expect(PROJECT_TABS).toEqual(['overview', 'github', 'notes'])
+  it('has the four tabs', () => {
+    expect(PROJECT_TABS).toEqual(['overview', 'github', 'drafts', 'notes'])
   })
 
   it('defaults to overview', () => {
@@ -62,5 +62,21 @@ describe('chooseTab', () => {
     {},
   ])('ignores an invalid value (%j)', (value) => {
     expect(chooseTab({ value, ...on })).toBe('overview')
+  })
+})
+
+describe('the Drafts tab', () => {
+  it('exists only while AI is on', () => {
+    expect(chooseTab({ value: 'drafts', ...on, aiOn: true })).toBe('drafts')
+    expect(chooseTab({ value: 'drafts', ...on, aiOn: false })).toBe('overview')
+    expect(chooseTab({ value: 'drafts', ...on })).toBe('overview')
+  })
+
+  it('is never the default', () => {
+    expect(chooseTab({ value: undefined, ...on, aiOn: true })).toBe('overview')
+  })
+
+  it('works without GitHub', () => {
+    expect(chooseTab({ value: 'drafts', ...off, aiOn: true })).toBe('drafts')
   })
 })

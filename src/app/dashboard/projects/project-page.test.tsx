@@ -9,6 +9,10 @@ const requireUser = vi.fn()
 const githubIsEnabled = vi.fn()
 const listInstallations = vi.fn()
 const getProject = vi.fn()
+const aiIsEnabled = vi.fn()
+const draftsLeftToday = vi.fn()
+const listRecentDrafts = vi.fn()
+const coveredShas = vi.fn()
 
 vi.mock('server-only', () => ({}))
 vi.mock('next/navigation', () => ({
@@ -23,6 +27,14 @@ vi.mock('@/lib/auth', () => ({ requireUser }))
 vi.mock('@/server/github-app', () => ({ githubIsEnabled }))
 vi.mock('@/server/github-projects', () => ({ listInstallations }))
 vi.mock('@/server/projects', () => ({ getProject }))
+vi.mock('@/server/draft-generation', () => ({ aiIsEnabled, draftsLeftToday }))
+vi.mock('@/server/drafts', () => ({ listRecentDrafts, coveredShas }))
+vi.mock('./draft-actions', () => ({
+  generateDraftAction: vi.fn(),
+  saveDraftAction: vi.fn(),
+  copyDraftAction: vi.fn(),
+  discardDraftAction: vi.fn(),
+}))
 vi.mock('../github/actions', () => ({ connectGithubAction: vi.fn() }))
 vi.mock('./actions', () => ({
   createProjectAction: vi.fn(),
@@ -84,6 +96,10 @@ describe('the project page', () => {
     vi.clearAllMocks()
     requireUser.mockResolvedValue({ id: USER, email: 'a@b.co', signedInAt: 1 })
     githubIsEnabled.mockReturnValue(true)
+    aiIsEnabled.mockReturnValue(false)
+    draftsLeftToday.mockResolvedValue(7)
+    listRecentDrafts.mockResolvedValue([])
+    coveredShas.mockResolvedValue([])
     listInstallations.mockResolvedValue([
       { installationId: 42, accountLogin: 'octo' },
     ])

@@ -32,6 +32,21 @@ vi.mock('@/server/github-import', () => ({
   linkCreatedProject: vi.fn(),
 }))
 vi.mock('@/server/rate-limit', () => ({ rateLimit: vi.fn() }))
+// AI is off in these tests, as it is by default.
+vi.mock('@/server/draft-generation', () => ({
+  aiIsEnabled: () => false,
+  draftsLeftToday: vi.fn(),
+}))
+vi.mock('@/server/drafts', () => ({
+  listRecentDrafts: vi.fn(),
+  coveredShas: vi.fn(),
+}))
+vi.mock('./draft-actions', () => ({
+  generateDraftAction: vi.fn(),
+  saveDraftAction: vi.fn(),
+  copyDraftAction: vi.fn(),
+  discardDraftAction: vi.fn(),
+}))
 vi.mock('../github/actions', () => ({
   connectGithubAction: vi.fn(),
   disconnectGithubFromDashboardAction: vi.fn(),

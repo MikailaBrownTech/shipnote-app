@@ -4,11 +4,13 @@ import { Suspense } from 'react'
 import { requireUser } from '@/lib/auth'
 import { parseGithubFlash } from '@/lib/github-flash'
 import { chooseTab } from '@/lib/project-tabs'
+import { aiIsEnabled } from '@/server/draft-generation'
 import { githubIsEnabled } from '@/server/github-app'
 import styles from '../../dashboard.module.css'
 import { Icon } from '../../icons'
 import { PageIntro } from '../../page-intro'
 import shell from '../../shell.module.css'
+import { DraftPanel } from '../draft-panel'
 import { FlashNotice, GithubPanel } from '../github-panel'
 import { loadOwnProject } from '../load-project'
 import projectStyles from '../projects.module.css'
@@ -57,10 +59,12 @@ async function Project({
   // Only a known code is shown, as fixed text; the raw value is never echoed.
   const flash = githubOn ? parseGithubFlash(query.github) : null
   // Only a tab from the fixed list is used; anything else is ignored.
+  const aiOn = aiIsEnabled()
   const tab = chooseTab({
     value: query.tab,
     githubOn,
     hasGithubMessage: flash !== null,
+    aiOn,
   })
 
   if (!project) {
@@ -85,7 +89,12 @@ async function Project({
       </Link>
 
       <ProjectHeader project={project} />
-      <ProjectTabs projectId={project.id} active={tab} githubOn={githubOn} />
+      <ProjectTabs
+        projectId={project.id}
+        active={tab}
+        githubOn={githubOn}
+        aiOn={aiOn}
+      />
       <FlashNotice flash={flash} />
 
       <div className={shell.twoCol}>
@@ -93,11 +102,14 @@ async function Project({
           {tab === 'overview' ? (
             <>
               <StatusCards project={project} githubOn={githubOn} />
-              <ProgressPanel />
+              <ProgressPanel aiOn={aiOn} />
             </>
           ) : null}
           {tab === 'github' ? (
             <GithubPanel userId={user.id} project={project} flash={null} />
+          ) : null}
+          {tab === 'drafts' ? (
+            <DraftPanel userId={user.id} project={project} />
           ) : null}
           {tab === 'notes' ? <NotesCard project={project} /> : null}
         </div>

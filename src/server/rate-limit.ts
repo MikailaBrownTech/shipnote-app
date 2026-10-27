@@ -18,6 +18,8 @@ const LIMITS = {
   githubPrefill: { tokens: 20, window: '15 m' },
   githubLink: { tokens: 30, window: '15 m' },
   githubCommits: { tokens: 20, window: '10 m' },
+  draftGenerate: { tokens: 6, window: '10 m' },
+  draftEdit: { tokens: 60, window: '15 m' },
 } as const
 
 export type LimitName = keyof typeof LIMITS
