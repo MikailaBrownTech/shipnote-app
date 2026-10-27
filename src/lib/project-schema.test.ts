@@ -120,6 +120,66 @@ describe('parseProjectForm', () => {
   })
 })
 
+describe('the secret check on save', () => {
+  const cat = (...parts: string[]) => parts.join('')
+  const token = cat('gh', 'p', '_', 'aB3xY9'.repeat(6))
+
+  it('blocks a save whose notes contain a key, naming the kind and line', () => {
+    const parsed = parseProjectForm(
+      form({ ...valid, notes: cat('# Setup\n\nexport TOKEN=', token) }),
+    )
+    expect(parsed.ok).toBe(false)
+    expect(parsed).toMatchObject({
+      errors: {
+        notes: expect.stringContaining('a GitHub token on line 3') as string,
+      },
+    })
+  })
+
+  it('never puts the matched text in the message', () => {
+    const parsed = parseProjectForm(form({ ...valid, notes: token }))
+    expect(JSON.stringify(parsed)).not.toContain(token)
+    expect(JSON.stringify(parsed)).not.toContain(token.slice(5, 20))
+  })
+
+  it('also checks the summary and the name', () => {
+    const inSummary = parseProjectForm(form({ ...valid, summary: token }))
+    expect(inSummary).toMatchObject({
+      ok: false,
+      errors: { summary: expect.stringContaining('in the summary') as string },
+    })
+    const inName = parseProjectForm(form({ ...valid, name: token }))
+    expect(inName).toMatchObject({
+      ok: false,
+      errors: { name: expect.stringContaining('in the name') as string },
+    })
+  })
+
+  it('lets the same text through once the secret is removed', () => {
+    const blocked = parseProjectForm(
+      form({ ...valid, notes: cat('key ', token) }),
+    )
+    expect(blocked.ok).toBe(false)
+    const fixed = parseProjectForm(form({ ...valid, notes: 'key (removed)' }))
+    expect(fixed.ok).toBe(true)
+  })
+
+  it('does not block ordinary notes', () => {
+    const notes =
+      '# My app\n\nRun npm install. Set STRIPE_SECRET_KEY in your environment.'
+    expect(parseProjectForm(form({ ...valid, notes })).ok).toBe(true)
+  })
+
+  it('reports the line numbers of the stored text (LF), not the browser CRLF', () => {
+    const parsed = parseProjectForm(
+      form({ ...valid, notes: cat('a\r\nb\r\n', token) }),
+    )
+    expect(parsed).toMatchObject({
+      errors: { notes: expect.stringContaining('line 3') as string },
+    })
+  })
+})
+
 describe('projectId', () => {
   it('accepts a UUID and nothing else', () => {
     expect(
