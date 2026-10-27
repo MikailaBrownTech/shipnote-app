@@ -29,7 +29,10 @@ vi.mock('@/server/github-projects', () => ({
 }))
 vi.mock('@/server/projects', () => ({ getProject }))
 vi.mock('@/server/rate-limit', () => ({ rateLimit }))
-vi.mock('../github/actions', () => ({ connectGithubAction: vi.fn() }))
+vi.mock('../github/actions', () => ({
+  connectGithubAction: vi.fn(),
+  disconnectGithubFromDashboardAction: vi.fn(),
+}))
 vi.mock('./github-actions', () => ({
   linkRepoAction: vi.fn(),
   unlinkRepoAction: vi.fn(),

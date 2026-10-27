@@ -91,11 +91,7 @@ async function ChooseRepo({
               GitHub is not connected. Connect it to choose a repository.
             </p>
             <form action={connectGithubAction}>
-              <input
-                type="hidden"
-                name="next"
-                value={`/dashboard/projects/${project.id}/repo`}
-              />
+              <input type="hidden" name="project" value={project.id} />
               <button type="submit" className="button">
                 Connect GitHub
               </button>

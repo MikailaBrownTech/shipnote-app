@@ -470,3 +470,34 @@
   gap: 1.25rem;
   min-width: 0;
 }
+
+/* GitHub panel on the dashboard */
+
+.panelText {
+  margin: 0.75rem 0 1rem;
+  color: var(--ink-soft);
+  font-size: 0.9375rem;
+}
+
+.panelText code {
+  font-family: var(--font-mono);
+  font-size: 0.875em;
+}
+
+.connList {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0.75rem 0 1rem;
+  list-style: none;
+}
+
+.connRow {
+  display: grid;
+  gap: 0.6rem;
+  justify-items: start;
+  min-width: 0;
+}
+
+.connRow strong {
+  overflow-wrap: anywhere;
+}
