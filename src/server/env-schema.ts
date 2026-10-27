@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { DEFAULT_MODEL, modelConfig } from '@/lib/ai-models'
 
 // Server-only variables. None start with NEXT_PUBLIC_, so Next never sends
 // them to the browser. Each group is parsed when first used, so a page that
@@ -188,5 +189,50 @@ export function parseGithubEnv(source: Source) {
     clientSecret: parsed.GITHUB_APP_CLIENT_SECRET,
     // refine() above guarantees this decodes.
     privateKeyPem: decodePrivateKey(parsed.GITHUB_APP_PRIVATE_KEY) ?? '',
+  }
+}
+
+// Draft generation with Claude. Off unless AI_ENABLED=true; when on, the key is
+// required and a missing or malformed variable is named in the error (never its
+// value). The model must be one in src/lib/ai-models.ts, so its price is known.
+const aiSchema = z.object({
+  ANTHROPIC_API_KEY: z
+    .string()
+    .min(20)
+    .max(300)
+    .regex(/^[\x21-\x7e]+$/),
+  ANTHROPIC_MODEL: z.string().refine((value) => modelConfig(value) !== null),
+  // Dollars, up to two decimals. Greater than zero.
+  AI_MONTHLY_CAP_USD: z
+    .string()
+    .regex(/^\d{1,6}(\.\d{1,2})?$/)
+    .refine((value) => Number(value) > 0),
+})
+
+export function isAiEnabled(source: Source): boolean {
+  return source.AI_ENABLED?.trim().toLowerCase() === 'true'
+}
+
+// null while AI_ENABLED is off. Throws, naming the variable, when it is on and
+// something is missing or malformed.
+export function parseAiEnv(source: Source) {
+  const flag = source.AI_ENABLED?.trim().toLowerCase()
+  if (flag === undefined || flag === '' || flag === 'false') return null
+  if (flag !== 'true') {
+    throw new Error(
+      'Invalid server environment:\n- AI_ENABLED must be true or false',
+    )
+  }
+  const parsed = parseGroup(aiSchema, {
+    ANTHROPIC_API_KEY: source.ANTHROPIC_API_KEY?.trim(),
+    ANTHROPIC_MODEL: source.ANTHROPIC_MODEL?.trim() || DEFAULT_MODEL,
+    AI_MONTHLY_CAP_USD: source.AI_MONTHLY_CAP_USD?.trim() || '10',
+  })
+  return {
+    apiKey: parsed.ANTHROPIC_API_KEY,
+    model: parsed.ANTHROPIC_MODEL,
+    monthlyCapMicrousd: Math.round(
+      Number(parsed.AI_MONTHLY_CAP_USD) * 1_000_000,
+    ),
   }
 }

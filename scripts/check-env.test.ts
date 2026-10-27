@@ -103,4 +103,36 @@ describe('check-env script', () => {
     expect(code).toBe(1)
     expect(out).toMatch(/NEXT_PUBLIC_GITHUB_APP_PRIVATE_KEY/)
   })
+
+  it('requires the Anthropic key only when AI_ENABLED=true', () => {
+    const base = { ...publicVars, SUPABASE_SERVICE_ROLE_KEY: 'k' }
+    expect(run(base).code).toBe(0)
+    const on = run({ ...base, AI_ENABLED: 'true' })
+    expect(on.code).toBe(1)
+    expect(on.out).toMatch(/MISSING ANTHROPIC_API_KEY/)
+  })
+
+  it('never prints an Anthropic value', () => {
+    const { out } = run({
+      ...publicVars,
+      SUPABASE_SERVICE_ROLE_KEY: 'k',
+      AI_ENABLED: 'true',
+      ANTHROPIC_API_KEY: 'value-anthropic-key',
+      ANTHROPIC_MODEL: 'value-model',
+      AI_MONTHLY_CAP_USD: 'value-cap',
+    })
+    for (const value of ['value-anthropic-key', 'value-model', 'value-cap']) {
+      expect(out).not.toContain(value)
+    }
+  })
+
+  it('flags an Anthropic key named with NEXT_PUBLIC_', () => {
+    const { code, out } = run({
+      ...publicVars,
+      SUPABASE_SERVICE_ROLE_KEY: 'k',
+      NEXT_PUBLIC_ANTHROPIC_API_KEY: 'x',
+    })
+    expect(code).toBe(1)
+    expect(out).toMatch(/NEXT_PUBLIC_ANTHROPIC_API_KEY/)
+  })
 })

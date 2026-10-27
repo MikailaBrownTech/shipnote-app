@@ -10,6 +10,8 @@ const RULES: Record<string, { paths?: readonly string[] }> = {
   'api.resend.com': {},
   // The GitHub REST API.
   'api.github.com': {},
+  // Draft generation. Only the Messages endpoint.
+  'api.anthropic.com': { paths: ['/v1/messages'] },
   // GitHub's OAuth token exchange lives on github.com, not api.github.com.
   // Only that one path is allowed there.
   'github.com': { paths: ['/login/oauth/access_token'] },

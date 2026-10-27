@@ -21,9 +21,14 @@ const OPTIONAL = [
   'UPSTASH_REDIS_REST_TOKEN',
   'ALERTS_ENABLED', // defaults to false
   'GITHUB_ENABLED', // defaults to false
+  'AI_ENABLED', // defaults to false
+  'ANTHROPIC_MODEL', // defaults to claude-sonnet-5-5
+  'AI_MONTHLY_CAP_USD', // defaults to 10
 ]
 // Required only while ALERTS_ENABLED=true.
 const WHEN_ALERTS = ['RESEND_API_KEY', 'EMAIL_FROM', 'DEVICE_HASH_SALT']
+// Required only while AI_ENABLED=true.
+const WHEN_AI = ['ANTHROPIC_API_KEY']
 // Required only while GITHUB_ENABLED=true.
 const WHEN_GITHUB = [
   'GITHUB_APP_ID',
@@ -36,6 +41,7 @@ const WHEN_GITHUB = [
 const isSet = (name) => Boolean(process.env[name]?.trim())
 const alertsOn = process.env.ALERTS_ENABLED?.trim().toLowerCase() === 'true'
 const githubOn = process.env.GITHUB_ENABLED?.trim().toLowerCase() === 'true'
+const aiOn = process.env.AI_ENABLED?.trim().toLowerCase() === 'true'
 
 const exampleNames = readFileSync(exampleFile, 'utf8')
   .split(/\r?\n/)
@@ -47,6 +53,7 @@ const known = new Set([
   ...OPTIONAL,
   ...WHEN_ALERTS,
   ...WHEN_GITHUB,
+  ...WHEN_AI,
 ])
 
 let failed = false
@@ -73,6 +80,11 @@ section(
   `Server-only, required only when GITHUB_ENABLED=true (currently ${githubOn ? 'on' : 'off'})`,
   WHEN_GITHUB,
   { required: githubOn },
+)
+section(
+  `Server-only, required only when AI_ENABLED=true (currently ${aiOn ? 'on' : 'off'})`,
+  WHEN_AI,
+  { required: aiOn },
 )
 
 const upstash = ['UPSTASH_REDIS_REST_URL', 'UPSTASH_REDIS_REST_TOKEN']
@@ -101,7 +113,7 @@ if (drift.length > 0) {
 const leaked = Object.keys(process.env).filter(
   (name) =>
     name.startsWith('NEXT_PUBLIC_') &&
-    /SERVICE_ROLE|SECRET|TOKEN|SALT|RESEND|UPSTASH|PRIVATE_KEY|GITHUB_APP/.test(
+    /SERVICE_ROLE|SECRET|TOKEN|SALT|RESEND|UPSTASH|PRIVATE_KEY|GITHUB_APP|ANTHROPIC/.test(
       name,
     ),
 )
