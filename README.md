@@ -23,6 +23,7 @@ pnpm lint
 pnpm typecheck   # runs `next typegen` first so route types exist
 pnpm test        # unit tests and the SQL tests (see below)
 pnpm build
+pnpm check:env   # lists missing env variable names, never values
 pnpm format
 ```
 
@@ -42,6 +43,39 @@ Names only. Put values in `.env.local` (gitignored). Never commit them.
 - `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`: rate limiting. If both are unset, rate limiting is off (fine for local development). Setting only one is an error.
 - `ALERTS_ENABLED`: `true` turns on new-device sign-in alert emails. Default off. While it is off nothing is recorded and nothing is sent.
 - `RESEND_API_KEY`, `EMAIL_FROM`, `DEVICE_HASH_SALT`: required when `ALERTS_ENABLED=true`. If one is missing the server refuses to start and the error names it. `EMAIL_FROM` is read from the environment, never hardcoded (`alerts@your-domain` or `Shipnote <alerts@your-domain>`). `DEVICE_HASH_SALT` must be at least 16 random characters.
+
+## Deploying to Vercel
+
+Add the variables in **Project Settings > Environment Variables**, for the Production environment (and Preview if you use it). Then **redeploy**: changed variables only apply to new deployments, and `NEXT_PUBLIC_*` values are baked in at build time, so the old build keeps the old (or missing) values.
+
+| Variable                               | Public or server-only | Required                        | Where to find the value                                           |
+| -------------------------------------- | --------------------- | ------------------------------- | ----------------------------------------------------------------- |
+| `NEXT_PUBLIC_SITE_URL`                 | Public                | Required                        | Your production URL, e.g. `https://shipnote.example`              |
+| `NEXT_PUBLIC_SUPABASE_URL`             | Public                | Required                        | Supabase project > Project Settings > API (Project URL)           |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Public                | Required                        | Supabase project > Project Settings > API (publishable key)       |
+| `SUPABASE_SERVICE_ROLE_KEY`            | Server-only           | Required                        | Supabase project > Project Settings > API (secret / service_role) |
+| `UPSTASH_REDIS_REST_URL`               | Server-only           | Optional, set both or neither   | Upstash console > your database > REST API                        |
+| `UPSTASH_REDIS_REST_TOKEN`             | Server-only           | Optional, set both or neither   | Upstash console > your database > REST API                        |
+| `ALERTS_ENABLED`                       | Server-only           | Optional (default `false`)      | You choose: `true` or `false`                                     |
+| `RESEND_API_KEY`                       | Server-only           | Only when `ALERTS_ENABLED=true` | Resend dashboard > API Keys                                       |
+| `EMAIL_FROM`                           | Server-only           | Only when `ALERTS_ENABLED=true` | An address on a domain verified in the Resend dashboard           |
+| `DEVICE_HASH_SALT`                     | Server-only           | Only when `ALERTS_ENABLED=true` | Generate it: `openssl rand -hex 32`                               |
+
+Rules:
+
+- `NEXT_PUBLIC_SITE_URL` must be the production **https** URL with **no trailing slash** (`https://shipnote.example`, not `https://shipnote.example/`). A trailing slash is stripped, but a `localhost` or `http` value on a production deployment makes sign-in redirects and cookies point at the wrong origin; the server logs a warning at startup if it sees that.
+- Server-only variables must **never** start with `NEXT_PUBLIC_`. Anything with that prefix is sent to every visitor's browser. `pnpm check:env` flags a secret-looking name that has the prefix.
+- **Upstash is optional but you want it in production.** Without it sign-in rate limiting is off, and the server logs one warning at startup (names only) saying so. Setting only one of the two is the same as setting neither.
+- With `ALERTS_ENABLED=true`, a missing email variable stops the server from starting and the error names it.
+- A missing **public** variable fails the build, naming the variable (never the value). A missing server variable does not break the build or unrelated pages such as the landing page; it is checked where it is first used.
+
+Check a configuration without printing any value:
+
+```bash
+pnpm check:env                                      # checks the variables in your shell
+node --env-file=.env.local scripts/check-env.mjs    # checks a local file
+vercel env pull .env.vercel && node --env-file=.env.vercel scripts/check-env.mjs   # checks what Vercel holds (delete the file after)
+```
 
 ## Supabase checklist (set by hand)
 
