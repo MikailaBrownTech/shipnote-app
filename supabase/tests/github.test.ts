@@ -305,3 +305,85 @@ describe('projects: the repository link', () => {
     expect(rows.rows).toEqual([])
   })
 })
+
+describe('one repository per user', () => {
+  it('refuses linking the same repository to two projects of one user', async () => {
+    await install(A, 1)
+    const first = await project(A, 'one')
+    const second = await project(A, 'two')
+    await link(first, 1, 'alice/site')
+    await expect(link(second, 1, 'alice/site')).rejects.toThrow(
+      /duplicate key|unique/,
+    )
+  })
+
+  it('treats names that differ only by case as the same repository', async () => {
+    await install(A, 1)
+    const first = await project(A, 'one')
+    const second = await project(A, 'two')
+    await link(first, 1, 'Alice/Site')
+    await expect(link(second, 1, 'alice/site')).rejects.toThrow(
+      /duplicate key|unique/,
+    )
+  })
+
+  it('allows different repositories on different projects', async () => {
+    await install(A, 1)
+    const first = await project(A, 'one')
+    const second = await project(A, 'two')
+    await link(first, 1, 'alice/site')
+    await expect(link(second, 1, 'alice/other')).resolves.toBeDefined()
+  })
+
+  it('does not limit projects that have no repository', async () => {
+    await project(A, 'one')
+    await project(A, 'two')
+    await project(A, 'three')
+    const rows = await db.query<{ n: number }>(
+      'select count(*)::int as n from public.projects where repo_full_name is null',
+    )
+    expect(rows.rows[0]?.n).toBe(3)
+  })
+
+  it('is per user: another user may link a repository of the same name', async () => {
+    await install(A, 1)
+    await install(B, 2)
+    const a = await project(A)
+    const b = await project(B)
+    await link(a, 1, 'shared/name')
+    await expect(link(b, 2, 'shared/name')).resolves.toBeDefined()
+  })
+
+  it('frees the repository when a project is unlinked or deleted', async () => {
+    await install(A, 1)
+    const first = await project(A, 'one')
+    const second = await project(A, 'two')
+    await link(first, 1, 'alice/site')
+    await asRole(db, 'service_role', () =>
+      db.query(
+        'update public.projects set installation_id = null, repo_full_name = null where id = $1',
+        [first],
+      ),
+    )
+    await expect(link(second, 1, 'alice/site')).resolves.toBeDefined()
+    await db.query('delete from public.projects where id = $1', [second])
+    const third = await project(A, 'three')
+    await expect(link(third, 1, 'alice/site')).resolves.toBeDefined()
+  })
+
+  it('a needs-reconnect project (repository kept, no installation) still holds its repository', async () => {
+    await install(A, 1)
+    const first = await project(A, 'one')
+    const second = await project(A, 'two')
+    await link(first, 1, 'alice/site')
+    await asRole(db, 'service_role', () =>
+      db.query(
+        'delete from public.github_installations where installation_id = 1',
+      ),
+    )
+    await install(A, 5)
+    await expect(link(second, 5, 'alice/site')).rejects.toThrow(
+      /duplicate key|unique/,
+    )
+  })
+})
