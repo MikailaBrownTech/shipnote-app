@@ -40,6 +40,9 @@ import { sealToken } from './token-vault'
 
 export const SCHEDULE_DAILY_LIMIT = 5
 
+// The most time spent calling Buffer to cancel posts when cleaning up.
+const CLEANUP_BUDGET_MS = 20_000
+
 export function schedulingIsEnabled(): boolean {
   return schedulingEnabled()
 }
@@ -420,9 +423,12 @@ async function cancelAllActive(
   let canceled = 0
   let couldNotCancel = 0
   const active = await listActiveSchedules(userId)
+  // Stop calling Buffer after a while, so deleting an account is never held up
+  // by a slow Buffer. Whatever is left is reported as not cancelled.
+  const giveUpAt = Date.now() + CLEANUP_BUDGET_MS
   for (const post of active ?? []) {
     let gone = false
-    if (cancelAtBuffer && post.bufferPostId) {
+    if (cancelAtBuffer && post.bufferPostId && Date.now() < giveUpAt) {
       try {
         await deleteScheduledPost(userId, post.bufferPostId, nowMs)
         gone = true

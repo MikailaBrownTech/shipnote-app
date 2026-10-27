@@ -2,10 +2,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const softDeleteAuthUser = vi.fn()
 const rateLimit = vi.fn()
+const cleanupForDeletion = vi.fn()
 
 vi.mock('server-only', () => ({}))
 vi.mock('./supabase-admin', () => ({ softDeleteAuthUser }))
 vi.mock('./rate-limit', () => ({ rateLimit }))
+vi.mock('./scheduling', () => ({ cleanupForDeletion }))
 
 const { deleteAccount } = await import('./delete-account')
 
@@ -21,6 +23,11 @@ describe('deleteAccount', () => {
     vi.clearAllMocks()
     rateLimit.mockResolvedValue(true)
     softDeleteAuthUser.mockResolvedValue(true)
+    cleanupForDeletion.mockResolvedValue({
+      canceled: 0,
+      couldNotCancel: 0,
+      hadConnection: false,
+    })
   })
 
   it('rejects the wrong confirmation text', async () => {
@@ -67,5 +74,64 @@ describe('deleteAccount', () => {
     expect(await deleteAccount(user, { confirm: user.email }, NOW)).toBe(
       'failed',
     )
+  })
+
+  describe('the Buffer cleanup', () => {
+    it('runs for this user BEFORE the account is soft-deleted, and reports what it found', async () => {
+      const result = { canceled: 1, couldNotCancel: 2, hadConnection: true }
+      cleanupForDeletion.mockResolvedValue(result)
+      const seen: unknown[] = []
+      const outcome = await deleteAccount(
+        user,
+        { confirm: user.email },
+        NOW,
+        (r) => seen.push(r),
+      )
+      expect(outcome).toBe('deleted')
+      expect(cleanupForDeletion).toHaveBeenCalledExactlyOnceWith('user-1')
+      expect(seen).toEqual([result])
+      expect(cleanupForDeletion.mock.invocationCallOrder[0]).toBeLessThan(
+        softDeleteAuthUser.mock.invocationCallOrder[0] ?? 0,
+      )
+    })
+
+    it('a failure in the cleanup never blocks the deletion', async () => {
+      cleanupForDeletion.mockRejectedValue(new Error('Buffer exploded'))
+      const seen: unknown[] = []
+      const outcome = await deleteAccount(
+        user,
+        { confirm: user.email },
+        NOW,
+        (r) => seen.push(r),
+      )
+      expect(outcome).toBe('deleted')
+      expect(softDeleteAuthUser).toHaveBeenCalledOnce()
+      // It assumes there was a connection, so the person is still told.
+      expect(seen).toEqual([
+        { canceled: 0, couldNotCancel: 0, hadConnection: true },
+      ])
+    })
+
+    it('does not run when the deletion is refused', async () => {
+      await deleteAccount(user, { confirm: 'nope' }, NOW)
+      await deleteAccount(
+        { ...user, signedInAt: null },
+        { confirm: user.email },
+        NOW,
+      )
+      rateLimit.mockResolvedValue(false)
+      await deleteAccount(user, { confirm: user.email }, NOW)
+      expect(cleanupForDeletion).not.toHaveBeenCalled()
+      expect(softDeleteAuthUser).not.toHaveBeenCalled()
+    })
+
+    it('logs nothing', async () => {
+      const spies = (['error', 'warn', 'info', 'log'] as const).map((m) =>
+        vi.spyOn(console, m).mockImplementation(() => undefined),
+      )
+      cleanupForDeletion.mockRejectedValue(new Error('x'))
+      await deleteAccount(user, { confirm: user.email }, NOW)
+      expect(spies.flatMap((spy) => spy.mock.calls)).toEqual([])
+    })
   })
 })

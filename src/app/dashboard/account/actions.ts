@@ -14,9 +14,17 @@ export async function deleteAccountAction(
   formData: FormData,
 ): Promise<DeleteState> {
   const user = await requireUser()
-  const outcome = await deleteAccount(user, {
-    confirm: formData.get('confirm'),
-  })
+  const report: {
+    cleanup: { hadConnection: boolean; couldNotCancel: number } | null
+  } = { cleanup: null }
+  const outcome = await deleteAccount(
+    user,
+    { confirm: formData.get('confirm') },
+    Date.now(),
+    (result) => {
+      report.cleanup = result
+    },
+  )
 
   if (outcome === 'recent') {
     await rememberNext('/dashboard/account')
@@ -35,7 +43,20 @@ export async function deleteAccountAction(
     // Nothing to do. The cookies are cleared next.
   }
   await clearAuthCookies()
-  redirect('/account-deleted')
+  // What is left to do in Buffer, as two small numbers. The page reads them
+  // strictly and shows fixed wording.
+  const left = report.cleanup
+  const query = new URLSearchParams()
+  if (left?.hadConnection) query.set('buffer', '1')
+  if (left && left.couldNotCancel > 0) {
+    query.set('left', String(Math.min(left.couldNotCancel, 999)))
+  }
+
+  redirect(
+    query.size > 0
+      ? `/account-deleted?${query.toString()}`
+      : '/account-deleted',
+  )
 }
 
 // Sends the user through sign-in again, then back to the account page.

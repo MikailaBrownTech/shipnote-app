@@ -2,6 +2,7 @@ import 'server-only'
 import { z } from 'zod'
 import { signedInWithin } from '@/lib/auth-claims'
 import { rateLimit } from './rate-limit'
+import { cleanupForDeletion, type CleanupResult } from './scheduling'
 import { softDeleteAuthUser } from './supabase-admin'
 
 // Deleting an account needs a sign-in from the last 10 minutes.
@@ -41,6 +42,9 @@ export async function deleteAccount(
   user: DeletingUser,
   raw: unknown,
   now: number = Date.now(),
+  // Told what the Buffer cleanup found, so the goodbye page can say what the
+  // person still has to do in Buffer.
+  onCleanup?: (result: CleanupResult) => void,
 ): Promise<DeleteOutcome> {
   if (!(await rateLimit('deleteAccount', user.id))) return 'limited'
 
@@ -51,6 +55,16 @@ export async function deleteAccount(
 
   if (!hasRecentSignIn(user, now)) {
     return 'recent'
+  }
+
+  // Before the account is soft-deleted, while the person can still be read as
+  // themselves: cancel their scheduled posts at Buffer and delete their stored
+  // tokens. This is best effort and never blocks the deletion.
+  try {
+    onCleanup?.(await cleanupForDeletion(user.id))
+  } catch {
+    // Nothing is logged: it could name a user. Deletion goes on.
+    onCleanup?.({ canceled: 0, couldNotCancel: 0, hadConnection: true })
   }
 
   return (await softDeleteAuthUser(user.id)) ? 'deleted' : 'failed'
