@@ -86,9 +86,9 @@ const dashboardProps = {
   searchParams: Promise.resolve({}),
 }
 
-const idParams = (id: string) => ({
+const idParams = (id: string, tab?: string) => ({
   params: Promise.resolve({ id }),
-  searchParams: Promise.resolve({}),
+  searchParams: Promise.resolve(tab ? { tab } : {}),
 })
 
 describe('dashboard', () => {
@@ -194,7 +194,7 @@ describe('project page', () => {
 
   it('shows the project, with edit and delete', async () => {
     getProject.mockResolvedValue({ ok: true, value: project() })
-    const { html } = await render(<ProjectPage {...idParams(ID)} />)
+    const { html } = await render(<ProjectPage {...idParams(ID, 'notes')} />)
     expect(html).toContain('Shipnote')
     expect(html).toContain('Posts from commits')
     expect(html).toContain('line one\nline two')
@@ -208,7 +208,7 @@ describe('project page', () => {
       ok: true,
       value: project({ notes: '<script>alert(1)</script>' }),
     })
-    const { html } = await render(<ProjectPage {...idParams(ID)} />)
+    const { html } = await render(<ProjectPage {...idParams(ID, 'notes')} />)
     expect(html).not.toContain('<script>alert(1)')
     expect(html).toContain('&lt;script&gt;alert(1)&lt;/script&gt;')
   })

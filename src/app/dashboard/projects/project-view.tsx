@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { repoUrl } from '@/lib/github-repo'
 import { STAGE_LABELS, type Stage } from '@/lib/project-schema'
+import type { ProjectTab } from '@/lib/project-tabs'
 import type { Project } from '@/server/projects'
 import { Icon, type IconName } from '../icons'
 import { DeleteProject } from './delete-project'
@@ -40,23 +41,35 @@ export function ProjectHeader({ project }: { project: Project }) {
 }
 
 // Links to the sections below. Plain anchors, so it works without scripts.
-export function ProjectTabs({ githubOn }: { githubOn: boolean }) {
+export function ProjectTabs({
+  projectId,
+  active,
+  githubOn,
+}: {
+  projectId: string
+  active: ProjectTab
+  githubOn: boolean
+}) {
+  const tabs: { tab: ProjectTab; label: string; icon: IconName }[] = [
+    { tab: 'overview', label: 'Overview', icon: 'home' },
+    ...(githubOn
+      ? [{ tab: 'github' as const, label: 'GitHub', icon: 'github' as const }]
+      : []),
+    { tab: 'notes', label: 'Notes', icon: 'note' },
+  ]
   return (
     <nav className={styles.tabs} aria-label="Sections of this project">
-      <a href="#overview" className={styles.tabActive}>
-        <Icon name="home" size={18} />
-        Overview
-      </a>
-      {githubOn ? (
-        <a href="#github">
-          <Icon name="github" size={18} />
-          GitHub
-        </a>
-      ) : null}
-      <a href="#notes">
-        <Icon name="note" size={18} />
-        Notes
-      </a>
+      {tabs.map(({ tab, label, icon }) => (
+        <Link
+          key={tab}
+          href={`/dashboard/projects/${projectId}?tab=${tab}`}
+          className={tab === active ? styles.tabActive : undefined}
+          aria-current={tab === active ? 'page' : undefined}
+        >
+          <Icon name={icon} size={18} />
+          {label}
+        </Link>
+      ))}
     </nav>
   )
 }
@@ -104,9 +117,12 @@ export function StatusCards({
               </p>
             )}
           </div>
-          <a href="#github" className="button button-soft">
+          <Link
+            href={`/dashboard/projects/${project.id}?tab=github`}
+            className="button button-soft"
+          >
             Manage
-          </a>
+          </Link>
         </section>
       ) : null}
 
