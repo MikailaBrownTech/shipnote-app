@@ -210,3 +210,63 @@
     grid-column: 1 / -1;
   }
 }
+
+/* Scheduling through Buffer */
+
+.schedule,
+.review {
+  display: grid;
+  gap: 0.6rem;
+  min-width: 0;
+  margin-top: 0.4rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+
+.review h3 {
+  font-size: 1rem;
+}
+
+.review textarea[readonly] {
+  background: var(--surface);
+}
+
+.review select,
+.review input[type='datetime-local'] {
+  width: 100%;
+  min-height: 3rem;
+  padding: 0.5rem 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  color: var(--ink);
+  background: var(--surface);
+  font: inherit;
+}
+
+.review select:focus-visible,
+.review input[type='datetime-local']:focus-visible {
+  outline: 3px solid var(--blue-violet);
+  outline-offset: 2px;
+}
+
+.scheduledItem {
+  display: grid;
+  gap: 0.3rem;
+  padding: 0.7rem 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+
+/* The text that was sent: plain, wrapped, never overflowing. */
+.snapshot {
+  min-width: 0;
+  max-height: 8rem;
+  overflow: auto;
+  color: var(--ink-soft);
+  font-size: 0.9375rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
