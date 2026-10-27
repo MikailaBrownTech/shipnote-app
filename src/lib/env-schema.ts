@@ -26,6 +26,6 @@ export function parseEnv(source: Source): Env {
       : `${name} is invalid`
   })
   throw new Error(
-    `Invalid environment. Set these in .env.local (see .env.example):\n- ${problems.join('\n- ')}`,
+    `Invalid environment (names only, see .env.example). Locally set these in .env.local. On a host such as Vercel add them under Project Settings > Environment Variables and redeploy: NEXT_PUBLIC_* values are read at build time.\n- ${problems.join('\n- ')}`,
   )
 }
