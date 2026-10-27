@@ -5,7 +5,10 @@ import AccountDeletedPage from './page'
 
 async function render(search: Record<string, string | string[]> = {}) {
   const element: ReactElement = (
-    <AccountDeletedPage searchParams={Promise.resolve(search)} />
+    <AccountDeletedPage
+      params={Promise.resolve({})}
+      searchParams={Promise.resolve(search)}
+    />
   )
   const stream = await renderToReadableStream(element)
   await stream.allReady
