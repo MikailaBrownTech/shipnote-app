@@ -1,5 +1,9 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import {
+  sessionCookieOptions,
+  withSessionCookieOptions,
+} from '@/lib/cookie-options'
 import { env } from '@/lib/env'
 
 // Refreshes the session and returns the response that carries the new
@@ -14,6 +18,8 @@ export async function updateSession(request: NextRequest) {
     env.NEXT_PUBLIC_SUPABASE_URL,
     env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
     {
+      // Same flags as the server client, so a refresh here cannot weaken them.
+      cookieOptions: sessionCookieOptions(),
       cookies: {
         getAll: () => request.cookies.getAll(),
         setAll(cookiesToSet, headers) {
@@ -22,7 +28,7 @@ export async function updateSession(request: NextRequest) {
           })
           response = NextResponse.next({ request })
           cookiesToSet.forEach(({ name, value, options }) => {
-            response.cookies.set(name, value, options)
+            response.cookies.set(name, value, withSessionCookieOptions(options))
           })
           cacheHeaders = { ...cacheHeaders, ...headers }
           Object.entries(cacheHeaders).forEach(([key, value]) => {

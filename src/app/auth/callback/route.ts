@@ -4,7 +4,7 @@ import { callbackErrorCode, type SignInError } from '@/lib/auth-errors'
 import { clearAuthCookies } from '@/lib/auth-cookies'
 import { env } from '@/lib/env'
 import { checkGithubSignIn } from '@/lib/github-verified'
-import { NEXT_COOKIE, NEXT_COOKIE_PATH } from '@/lib/next-cookie'
+import { NEXT_COOKIE, nextCookieOptions } from '@/lib/next-cookie'
 import { safeNext } from '@/lib/safe-next'
 import { createClient } from '@/lib/supabase/server'
 import { getClientIp } from '@/server/client-ip'
@@ -64,7 +64,11 @@ export async function GET(request: NextRequest) {
   // re-sign-in. Either way it goes through safeNext().
   const store = await cookies()
   const next = searchParams.get('next') ?? store.get(NEXT_COOKIE)?.value
-  store.delete({ name: NEXT_COOKIE, path: NEXT_COOKIE_PATH })
+  store.set(NEXT_COOKIE, '', {
+    ...nextCookieOptions(),
+    maxAge: 0,
+    expires: new Date(0),
+  })
 
   return redirectTo(safeNext(next ?? null))
 }
