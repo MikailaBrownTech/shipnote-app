@@ -6,7 +6,7 @@ const script = fileURLToPath(new URL('./check-env.mjs', import.meta.url))
 
 function run(env: Record<string, string>) {
   const result = spawnSync(process.execPath, [script], {
-    env: { PATH: process.env.PATH ?? '', ...env } as NodeJS.ProcessEnv,
+    env: { NODE_ENV: 'test', PATH: process.env.PATH ?? '', ...env },
     encoding: 'utf8',
   })
   return { code: result.status, out: result.stdout }
