@@ -121,6 +121,19 @@
   font-weight: 600;
 }
 
+/* Stage badges. Two classes, so they win over the global .pill colour. */
+.badge.idea {
+  background: var(--tint-amber);
+}
+
+.badge.inProgress {
+  background: var(--tint-azure);
+}
+
+.badge.shipped {
+  background: color-mix(in srgb, #2dd4bf 28%, white);
+}
+
 /* Form */
 
 .formWrap {

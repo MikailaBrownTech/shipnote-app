@@ -17,7 +17,7 @@ export function DeleteProject({ id }: { id: string }) {
     return (
       <button
         type="button"
-        className="button button-light"
+        className="button button-soft"
         onClick={() => {
           setConfirming(true)
         }}

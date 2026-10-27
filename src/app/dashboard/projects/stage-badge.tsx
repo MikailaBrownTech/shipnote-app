@@ -1,13 +1,18 @@
 import { STAGE_LABELS, type Stage } from '@/lib/project-schema'
+import styles from './projects.module.css'
 
 const tones: Record<Stage, string> = {
-  idea: 'on-amber',
-  in_progress: 'on-azure',
-  shipped: 'on-violet',
+  idea: styles.idea,
+  in_progress: styles.inProgress,
+  shipped: styles.shipped,
 }
 
 export function StageBadge({ stage }: { stage: Stage }) {
-  return <span className={`pill ${tones[stage]}`}>{STAGE_LABELS[stage]}</span>
+  return (
+    <span className={`pill ${styles.badge} ${tones[stage]}`}>
+      {STAGE_LABELS[stage]}
+    </span>
+  )
 }
 
 // Rendered in UTC so the server and any later client render agree.
