@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
+  isGithubEnabled,
   isSender,
   parseAdminEnv,
   parseAlertsEnv,
+  parseGithubEnv,
   parseRateLimitEnv,
   serverConfigWarnings,
 } from './env-schema'
@@ -161,5 +163,96 @@ describe('serverConfigWarnings', () => {
       prod,
     )
     expect(warnings.join()).not.toContain(secret)
+  })
+})
+
+describe('parseGithubEnv', () => {
+  const pem = `-----BEGIN RSA PRIVATE KEY-----\n${'A'.repeat(120)}\n-----END RSA PRIVATE KEY-----\n`
+  const full = {
+    GITHUB_ENABLED: 'true',
+    GITHUB_APP_ID: '123456',
+    GITHUB_APP_SLUG: 'shipnote-dev',
+    GITHUB_APP_CLIENT_ID: 'Iv1.abcdef123456',
+    GITHUB_APP_CLIENT_SECRET: 'client-secret-value',
+    GITHUB_APP_PRIVATE_KEY: Buffer.from(pem).toString('base64'),
+  }
+
+  it('is null when the flag is off or unset', () => {
+    expect(parseGithubEnv({})).toBeNull()
+    expect(parseGithubEnv({ GITHUB_ENABLED: 'false' })).toBeNull()
+    expect(parseGithubEnv({ GITHUB_ENABLED: '' })).toBeNull()
+  })
+
+  it('needs no other variable while off', () => {
+    expect(
+      parseGithubEnv({ GITHUB_ENABLED: 'false', GITHUB_APP_ID: 'junk' }),
+    ).toBeNull()
+  })
+
+  it('rejects a flag that is neither true nor false', () => {
+    expect(() => parseGithubEnv({ GITHUB_ENABLED: 'yes' })).toThrow(
+      /GITHUB_ENABLED must be true or false/,
+    )
+  })
+
+  it('returns the settings and the decoded PEM when on and complete', () => {
+    const config = parseGithubEnv(full)
+    expect(config).toMatchObject({
+      appId: '123456',
+      slug: 'shipnote-dev',
+      clientId: 'Iv1.abcdef123456',
+    })
+    expect(config?.privateKeyPem).toBe(pem)
+  })
+
+  it.each([
+    'GITHUB_APP_ID',
+    'GITHUB_APP_SLUG',
+    'GITHUB_APP_CLIENT_ID',
+    'GITHUB_APP_CLIENT_SECRET',
+    'GITHUB_APP_PRIVATE_KEY',
+  ])('names %s when it is missing', (name) => {
+    expect(() => parseGithubEnv({ ...full, [name]: undefined })).toThrow(
+      new RegExp(`${name} is missing`),
+    )
+  })
+
+  it('refuses a private key that is not base64 of a PEM, without echoing it', () => {
+    const secret = 'plain-text-not-base64-pem-'.repeat(6)
+    let message = ''
+    try {
+      parseGithubEnv({ ...full, GITHUB_APP_PRIVATE_KEY: secret })
+    } catch (error) {
+      message = (error as Error).message
+    }
+    expect(message).toMatch(/GITHUB_APP_PRIVATE_KEY is invalid/)
+    expect(message).not.toContain(secret)
+  })
+
+  it('refuses the raw PEM (it must be base64)', () => {
+    expect(() =>
+      parseGithubEnv({ ...full, GITHUB_APP_PRIVATE_KEY: pem }),
+    ).toThrow(/GITHUB_APP_PRIVATE_KEY is invalid/)
+  })
+
+  it.each([
+    ['GITHUB_APP_ID', 'not-a-number'],
+    ['GITHUB_APP_SLUG', 'has spaces/and-slash'],
+    ['GITHUB_APP_SLUG', '../evil'],
+    ['GITHUB_APP_CLIENT_SECRET', 'short'],
+  ])('refuses a malformed %s', (name, value) => {
+    expect(() => parseGithubEnv({ ...full, [name]: value })).toThrow(
+      new RegExp(`${name} is invalid`),
+    )
+  })
+})
+
+describe('isGithubEnabled', () => {
+  it('is true only for the word true', () => {
+    expect(isGithubEnabled({ GITHUB_ENABLED: 'true' })).toBe(true)
+    expect(isGithubEnabled({ GITHUB_ENABLED: ' TRUE ' })).toBe(true)
+    for (const value of [undefined, '', 'false', '1', 'yes']) {
+      expect(isGithubEnabled({ GITHUB_ENABLED: value })).toBe(false)
+    }
   })
 })

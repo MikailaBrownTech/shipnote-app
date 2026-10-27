@@ -62,4 +62,45 @@ describe('check-env script', () => {
       /must not start with NEXT_PUBLIC_: NEXT_PUBLIC_UPSTASH_TOKEN/,
     )
   })
+
+  it('requires the GitHub variables only when GITHUB_ENABLED=true', () => {
+    const base = { ...publicVars, SUPABASE_SERVICE_ROLE_KEY: 'k' }
+    expect(run(base).code).toBe(0)
+    const on = run({ ...base, GITHUB_ENABLED: 'true' })
+    expect(on.code).toBe(1)
+    expect(on.out).toMatch(/MISSING GITHUB_APP_PRIVATE_KEY/)
+    expect(on.out).toMatch(/MISSING GITHUB_APP_CLIENT_SECRET/)
+  })
+
+  it('never prints a GitHub value', () => {
+    const { out } = run({
+      ...publicVars,
+      SUPABASE_SERVICE_ROLE_KEY: 'k',
+      GITHUB_ENABLED: 'true',
+      GITHUB_APP_ID: 'value-id',
+      GITHUB_APP_SLUG: 'value-slug',
+      GITHUB_APP_CLIENT_ID: 'value-client',
+      GITHUB_APP_CLIENT_SECRET: 'value-secret',
+      GITHUB_APP_PRIVATE_KEY: 'value-key',
+    })
+    for (const value of [
+      'value-id',
+      'value-slug',
+      'value-client',
+      'value-secret',
+      'value-key',
+    ]) {
+      expect(out).not.toContain(value)
+    }
+  })
+
+  it('flags a GitHub secret named with NEXT_PUBLIC_', () => {
+    const { code, out } = run({
+      ...publicVars,
+      SUPABASE_SERVICE_ROLE_KEY: 'k',
+      NEXT_PUBLIC_GITHUB_APP_PRIVATE_KEY: 'x',
+    })
+    expect(code).toBe(1)
+    expect(out).toMatch(/NEXT_PUBLIC_GITHUB_APP_PRIVATE_KEY/)
+  })
 })
