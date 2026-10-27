@@ -64,3 +64,19 @@ export function sinceDate(nowMs: number): string {
     .toISOString()
     .replace(/\.\d{3}Z$/, 'Z')
 }
+
+export type PostCommit = { sha: string; message: string }
+
+// The same [post] commits selectPostCommits would show, with their full
+// message and full sha, for building a draft. A draft may only use a commit
+// that this returns.
+export function postCommitsWithMessages(commits: readonly Raw[]): PostCommit[] {
+  const found: PostCommit[] = []
+  for (const commit of commits) {
+    if (!POST_TAG.test(commit.message)) continue
+    if (!SHA.test(commit.sha)) continue
+    found.push({ sha: commit.sha.toLowerCase(), message: commit.message })
+    if (found.length === MAX_COMMITS) break
+  }
+  return found
+}

@@ -81,11 +81,12 @@ const quoted = (items: readonly string[]) =>
   items.map((item) => `"${item}"`).join(', ')
 
 // `inputText` is everything the model was given (see inputText in
-// draft-input.ts).
+// draft-input.ts). For a saved draft the original input is no longer known, so
+// pass null: the number and name checks, which need it, are then skipped.
 export function checkDraft(input: {
   body: string
   stage: Stage
-  inputText: string
+  inputText: string | null
 }): DraftWarning[] {
   const { body, stage } = input
   const warnings: DraftWarning[] = []
@@ -98,8 +99,12 @@ export function checkDraft(input: {
     })
   }
 
-  const allowedNumbers = numbersIn(input.inputText)
-  const badNumbers = [...numbersIn(body)].filter((n) => !allowedNumbers.has(n))
+  const source = input.inputText
+  const allowedNumbers = numbersIn(source ?? '')
+  const badNumbers =
+    source === null
+      ? []
+      : [...numbersIn(body)].filter((n) => !allowedNumbers.has(n))
   if (badNumbers.length > 0) {
     warnings.push({
       code: 'unsupported_number',
@@ -107,7 +112,8 @@ export function checkDraft(input: {
     })
   }
 
-  const names = unsupportedNames(body, wordsIn(input.inputText)).slice(0, 8)
+  const names =
+    source === null ? [] : unsupportedNames(body, wordsIn(source)).slice(0, 8)
   if (names.length > 0) {
     warnings.push({
       code: 'unsupported_name',
