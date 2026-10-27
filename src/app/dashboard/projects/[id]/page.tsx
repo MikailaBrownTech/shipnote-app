@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { Suspense } from 'react'
 import { requireUser } from '@/lib/auth'
 import { parseGithubFlash } from '@/lib/github-flash'
+import { chooseTab } from '@/lib/project-tabs'
 import { githubIsEnabled } from '@/server/github-app'
 import styles from '../../dashboard.module.css'
 import { Icon } from '../../icons'
@@ -52,8 +53,15 @@ async function Project({
   const user = await requireUser()
   const project = await loadOwnProject(user.id, params)
   const githubOn = githubIsEnabled()
+  const query = await searchParams
   // Only a known code is shown, as fixed text; the raw value is never echoed.
-  const flash = githubOn ? parseGithubFlash((await searchParams).github) : null
+  const flash = githubOn ? parseGithubFlash(query.github) : null
+  // Only a tab from the fixed list is used; anything else is ignored.
+  const tab = chooseTab({
+    value: query.tab,
+    githubOn,
+    hasGithubMessage: flash !== null,
+  })
 
   if (!project) {
     return (
@@ -77,15 +85,21 @@ async function Project({
       </Link>
 
       <ProjectHeader project={project} />
-      <ProjectTabs githubOn={githubOn} />
+      <ProjectTabs projectId={project.id} active={tab} githubOn={githubOn} />
       <FlashNotice flash={flash} />
 
       <div className={shell.twoCol}>
-        <div id="overview" className={shell.stack}>
-          <StatusCards project={project} githubOn={githubOn} />
-          <ProgressPanel />
-          <GithubPanel userId={user.id} project={project} flash={null} />
-          <NotesCard project={project} />
+        <div className={shell.stack}>
+          {tab === 'overview' ? (
+            <>
+              <StatusCards project={project} githubOn={githubOn} />
+              <ProgressPanel />
+            </>
+          ) : null}
+          {tab === 'github' ? (
+            <GithubPanel userId={user.id} project={project} flash={null} />
+          ) : null}
+          {tab === 'notes' ? <NotesCard project={project} /> : null}
         </div>
         <aside
           className={pageStyles.rail}
