@@ -46,6 +46,8 @@ Names only. Put values in `.env.local` (gitignored). Never commit them.
 - `GITHUB_APP_ID`, `GITHUB_APP_SLUG`, `GITHUB_APP_CLIENT_ID`, `GITHUB_APP_CLIENT_SECRET`, `GITHUB_APP_PRIVATE_KEY`: required when `GITHUB_ENABLED=true`. The private key is the App's PEM file, base64-encoded onto one line. If one is missing or malformed the server refuses to start and the error names it. See "GitHub connection".
 - `AI_ENABLED`: `true` turns on draft generation. Default off; while it is off there is no Drafts tab, the actions answer with a not-found page and nothing else is read.
 - `ANTHROPIC_API_KEY`: required when `AI_ENABLED=true`. `ANTHROPIC_MODEL`: `claude-sonnet-5-5` (default) or `claude-haiku-5-5`; any other value stops the server at startup. `AI_MONTHLY_CAP_USD`: the most that all users together may spend in a UTC month (default `10`, up to 2 decimals). See "Draft generation".
+- `SCHEDULING_ENABLED`: `true` turns on scheduling drafts on LinkedIn through each user's own Buffer account. Default off; it is the kill switch (see "Scheduling on LinkedIn through Buffer").
+- `BUFFER_CLIENT_ID`, `BUFFER_CLIENT_SECRET`, `BUFFER_TOKEN_ENCRYPTION_KEY`: required when `SCHEDULING_ENABLED=true`. The key is base64 of 32 random bytes and seals every user's Buffer tokens. `BUFFER_TOKEN_KEY_VERSION` (default 1) and `BUFFER_TOKEN_ENCRYPTION_KEY_PREVIOUS` are only used while rotating the key.
 - `RESEND_API_KEY`, `EMAIL_FROM`, `DEVICE_HASH_SALT`: required when `ALERTS_ENABLED=true`. If one is missing the server refuses to start and the error names it. `EMAIL_FROM` is read from the environment, never hardcoded (`alerts@your-domain` or `Shipnote <alerts@your-domain>`). `DEVICE_HASH_SALT` must be at least 16 random characters.
 
 ## Deploying to Vercel
@@ -418,6 +420,105 @@ With a real key and Supabase project (none of these could be run while this was 
 
 PGlite is one connection, so the SQL tests prove the counting under a serialized burst but **not** real parallel locking; that rests on Postgres' documented advisory-lock behaviour. The checker cannot know whether a claim is true. Drafts are English only. No scheduling, no posting, no history beyond the last 10 drafts per project on screen.
 
+## Scheduling on LinkedIn through Buffer
+
+Off unless `SCHEDULING_ENABLED=true`. Every person connects **their own** Buffer account with OAuth. There is no shared Buffer account and no personal API key in the app. A signed-in user can take a draft, choose one of their LinkedIn channels in Buffer and a time, review the exact text, press Confirm, and have **Buffer** publish it then. They can cancel until Buffer publishes it, and disconnect at any time. **Shipnote never posts by itself and never schedules anything without that Confirm click.**
+
+### Setup (by hand)
+
+1. In Buffer, open your account's **Settings, API** and create an **App Client** (OAuth). Register this redirect URI exactly: `https://<your-domain>/dashboard/buffer/callback` (and `http://localhost:3000/dashboard/buffer/callback` for local testing, if Buffer allows it). Buffer's docs say the client gets a client id and, for a confidential client, a client secret.
+2. Make the encryption key, 32 random bytes in base64:
+
+   ```
+   node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+   ```
+
+3. Set these, server only, in Vercel and in `.env`: `SCHEDULING_ENABLED=true`, `BUFFER_CLIENT_ID`, `BUFFER_CLIENT_SECRET`, `BUFFER_TOKEN_ENCRYPTION_KEY`. Optional while rotating the key: `BUFFER_TOKEN_KEY_VERSION`, `BUFFER_TOKEN_ENCRYPTION_KEY_PREVIOUS`. A missing or malformed one stops the server at startup, naming the variable and never its value.
+4. Run the migration (below), then redeploy.
+
+### The kill switch, and cancelling posts directly in Buffer
+
+With `SCHEDULING_ENABLED` off (or unset) nothing works from Shipnote: no connecting, scheduling or cancelling, the Buffer panel and buttons are hidden, and the callback and every action answer with a not-found page. **Posts that are already scheduled are not touched**: they sit in Buffer and will still publish. To stop them, open Buffer, find the post in the channel's queue and delete it there (or turn the feature back on, open the project's Drafts tab and press Cancel schedule).
+
+### How it works
+
+- **Connect.** "Connect Buffer" sets a sealed, HttpOnly, secure, single-use cookie (ten minutes, limited to the callback path) holding a random `state`, the PKCE code verifier and the project it was clicked on, then sends the person to Buffer's authorization page (`auth.buffer.com/auth`, PKCE with S256, scopes `posts:read posts:write account:read offline_access`, `prompt=consent`). The callback requires the signed-in user, the cookie for that user, and the same `state` back; it exchanges the code with the verifier, reads the person's Buffer organization, and stores the tokens **sealed**. Any failure stores nothing. Redirects use the configured site URL and `safeNext`.
+- **Review.** "Schedule on LinkedIn" reads the saved draft, its SHA-256 hash and the person's LinkedIn channels from Buffer (nothing is scheduled). The review shows the exact saved text read-only, the checker's warnings, the channel and a date and time in the person's own time zone (converted on the server; between 10 minutes and 30 days ahead).
+- **Confirm.** The Confirm click sends the hash of the reviewed text. The server reads the draft again and refuses if its hash differs, writes a `scheduling` row first, calls Buffer **once** (`createPost`, `customScheduled`, the exact text as a GraphQL variable), then records the post id. A timeout or an unreadable answer is marked `failed` ("check Buffer") and is **never retried**. A second schedule for the same draft is refused by a partial unique index; at most 5 schedules are created per user per UTC day; each action is rate limited.
+- **Cancel.** Deletes the post at Buffer (`deletePost`), then marks the row `canceled`. If Buffer says it was already published, that is shown instead. Editing a draft after scheduling never changes the scheduled text (the row holds the snapshot).
+- **Statuses.** "Refresh status" asks Buffer about the project's scheduled posts (at most 10, rate limited) and records published or failed ones.
+- **Disconnect.** Offers to cancel the person's scheduled posts first, deletes Shipnote's saved tokens, and says plainly that **Buffer has no way for an app to revoke access, so the person must also remove Shipnote from the connected apps in their Buffer account settings.** A scheduled post that was not cancelled stays in Buffer.
+- **Switching Buffer account.** Buffer shows the account that is signed in to Buffer in that browser. To use a different one: disconnect in Shipnote, sign out of Buffer in the browser (or sign in to the other account at buffer.com), then connect again. The dashboard says this under the Buffer panel.
+- **Reconnect.** The access token lasts about an hour; it is refreshed before a call when it is about to expire (Buffer's refresh tokens are single-use, so one user refreshes one at a time in a process). If the refresh is refused or Buffer returns 401, the connection is marked `needs_reconnect` and the person sees "Reconnect Buffer".
+- **Deleting a Shipnote account.** Before the account is soft-deleted, on a best-effort basis (at most 20 seconds of Buffer calls): their scheduled posts are cancelled in Buffer, their stored tokens are deleted and their pending schedules are marked canceled. A failure never blocks the deletion. The goodbye page then tells them to remove Shipnote from Buffer's connected apps, and how many scheduled posts could not be cancelled and may still publish.
+- **Deleting a project** keeps its schedules (the project link is set to null) but the project page no longer lists them: **cancel scheduled posts before deleting a project**, or cancel them in Buffer.
+
+### Tables and functions
+
+`buffer_connections` (one row per user: the two tokens as ciphertext, the key version, expiry, scopes, organization id, state) and `scheduled_posts` (the exact text sent and its hash, channel, time, Buffer post id, status `scheduling`, `scheduled`, `canceled`, `failed` or `published`, a short fixed failure code). `buffer_connections` has row-level security enabled and forced with **no grant and no policy for any user role**: tokens are unreadable by `anon` and `authenticated`, directly or through any view. `buffer_connection_status()` gives the signed-in user only the state and connect time. Users can read their own `scheduled_posts` rows and nothing else; every write goes through a narrow service-role function (`save_buffer_connection`, `read_buffer_connection`, `update_buffer_tokens`, `mark_buffer_needs_reconnect`, `delete_buffer_connection`, `create_scheduled_post`, `mark_post_scheduled`, `finish_scheduled_post`). The service role key is still used in exactly one module, `src/server/supabase-admin.ts`.
+
+### Token vault and key rotation
+
+Tokens are sealed with AES-256-GCM (Node's built-in `crypto`), a random 12-byte nonce for every value, and the **user id as additional authenticated data**, so a sealed value copied to another user's row fails to open. They are opened only inside `src/server/buffer.ts`, for one call, and never returned to the browser, logged, put in an error or a test snapshot. Each row stores `key_version`.
+
+To rotate the key:
+
+1. Generate a new key (command above).
+2. Set `BUFFER_TOKEN_ENCRYPTION_KEY` to the **new** key, `BUFFER_TOKEN_ENCRYPTION_KEY_PREVIOUS` to the **old** one, and `BUFFER_TOKEN_KEY_VERSION` to the old version plus one (the first key is version 1). Deploy.
+3. Existing tokens still open (the stored version picks the key) and are re-sealed with the new key the next time they are refreshed. Connect attempts in flight (ten minutes) fail once and can be started again.
+4. Check what is left: `select key_version, count(*) from public.buffer_connections group by 1;`. Rows still on the old version belong to people who have not used Buffer since; wait, or ask them to reconnect.
+5. Remove `BUFFER_TOKEN_ENCRYPTION_KEY_PREVIOUS`. Only one previous key is supported: rotating twice before step 4 is finished makes the oldest tokens unopenable, and those people just reconnect.
+
+If the key leaks, rotate it and treat everyone as needing to reconnect (delete the rows: `delete from public.buffer_connections;`), and remove Shipnote's access from the Buffer App Client.
+
+### What is sent to Buffer, stored and not stored
+
+Sent to Buffer: the OAuth code and verifier (to Buffer's token endpoint), the person's own access token (as a bearer token to `api.buffer.com`), and for a schedule the exact post text, the channel id and the time. Only `api.buffer.com` (the one GraphQL endpoint) and `auth.buffer.com/token` are on the outbound allowlist. Stored: the sealed tokens and expiry, the Buffer organization id, and for each schedule the text snapshot, its hash, the channel id and label, the time and the Buffer post id. **Never stored or logged:** plain tokens, the OAuth code, the PKCE verifier, the state, the client secret, Buffer response bodies, or post text outside the `scheduled_posts` row.
+
+### Migration
+
+`supabase/migrations/20261031000100_buffer_scheduling.sql`, run in the SQL Editor right before merging. It is **additive**: two new tables, a helper and the functions above. Nothing existing changes, and the code on `main` does not use any of it. Needs Postgres 15 or newer (`ON DELETE SET NULL (column)`), which current Supabase projects use.
+
+### Read Buffer's terms before inviting users
+
+I read Buffer's developer docs and Terms of Use on 2026-10-27. Things worth reading yourself before inviting people: the API terms forbid benchmarks and stress tests, automated queries beyond the documented use, using undocumented features, and building a substantially similar service; they may require "powered by" attribution and approval for using Buffer's name and logos (Shipnote only says "Buffer" in plain text, with no logo); Buffer may change or suspend the API. App clients have their own rate limits (documented as 100 requests per 15 minutes plus 10 per authorized user, and 500 per day plus 25 per user, at the time of reading), and Buffer applies **daily posting limits per channel** and plan limits to each person's account, which Shipnote shows as "your Buffer plan or channel limit has been reached".
+
+### Manual tests you must run
+
+With a real Buffer App Client and Supabase project (none of these could be run while this was built):
+
+1. Set the variables, run the migration, open the dashboard: a Buffer panel with Connect Buffer. With `SCHEDULING_ENABLED` off it is gone, and `/dashboard/buffer/callback` is a 404.
+2. Connect. You land back on the dashboard (or the project you started from) with "Buffer connected." Check in the SQL Editor that `access_token_enc` is ciphertext and your plain token appears nowhere.
+3. Open a draft, Schedule on LinkedIn: your LinkedIn channels are listed. Choose one and a time 15 minutes ahead, read the review, Confirm. Check Buffer shows the post at that time with exactly that text.
+4. Cancel schedule: the post disappears from Buffer. Schedule again, then edit the draft: the scheduled text does not change.
+5. Let one publish. Press Refresh status: it shows Published.
+6. Try a time in the past, one 31 days away, a second schedule of the same draft, and a sixth schedule in a day. Each is refused with a plain message.
+7. In Buffer, remove Shipnote from connected apps, then try to schedule: you are asked to reconnect.
+8. Disconnect with "Cancel my scheduled posts" ticked: the posts vanish from Buffer and the tokens are gone.
+9. Sign in as a second user and connect a different Buffer account: each person sees only their own channels and schedules.
+10. Delete an account that has a connection and a scheduled post: the goodbye page tells you to remove Shipnote from Buffer, and the post was cancelled.
+11. In the SQL Editor, as `authenticated`, `select * from buffer_connections` is refused.
+
+### Threat model: scheduling through Buffer
+
+| Threat                                       | What stops it                                                                                                                                                                                                                          |
+| -------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A stolen token (database leak, backup, logs) | Tokens are AES-256-GCM sealed with a key that is not in the database, bound to the user id; no user role can read the table; nothing is logged; they last about an hour and refresh tokens are single-use. Rotation steps are above.   |
+| OAuth state forgery or replay (login CSRF)   | A sealed, single-use, ten-minute cookie bound to the signed-in user, a random `state` that must come back from Buffer, and PKCE. A replayed or forged callback has no cookie, or the wrong one, and stores nothing.                    |
+| Mixing up users                              | Every Buffer call loads the token of the user id it was given; the token is sealed to that id; every database function filters by user id; a record that is not yours is a not-found. Tested: user A's token is never sent for user B. |
+| A leaked client secret or encryption key     | Server only (never `NEXT_PUBLIC_`), validated at startup, never logged or in the repo. Rotate the key as above; rotate the App Client secret in Buffer.                                                                                |
+| The wrong post or time                       | The review shows the exact saved text, the channel and the time; the server converts the local time itself and re-checks the window; the hash of the reviewed text must match the saved draft at Confirm.                              |
+| A duplicate post                             | The row is written first; one call, no retry; an unknown result is marked failed and the person is told to check Buffer; a partial unique index allows one active schedule per draft; a daily cap of 5.                                |
+| Unreviewed text                              | Scheduling is only possible through the Confirm click with the reviewed hash; the text is sent as a GraphQL variable, unchanged, from the database row, never from the form.                                                           |
+| Text that tries to change the Buffer request | The post text is sent only as a GraphQL variable (never spliced into the query) and is not interpreted.                                                                                                                                |
+| Posts left behind when someone leaves        | Disconnect offers to cancel first; account deletion cancels at Buffer on a best-effort basis, deletes the tokens whatever happens, and the goodbye page says what to do in Buffer. Buffer has no revoke call, which is said on screen. |
+| A soft-deleted account                       | `requireUser()` refuses it; the policies and the functions refuse it; its stored token cannot be read back.                                                                                                                            |
+| The feature misbehaving in production        | The `SCHEDULING_ENABLED` kill switch turns off every entry point at once; already scheduled posts stay in Buffer and can be cancelled there.                                                                                           |
+
+### Limits for now
+
+One organization per Buffer account (the first one is used); text posts only (no images, links preview or first comment); LinkedIn channels only; no editing of a scheduled post (cancel and schedule again); refresh tokens are guarded by an in-process lock, so two server instances refreshing the same user at the same moment could still spend a token twice, in which case the person reconnects; PGlite is one connection, so the SQL tests prove the unique index and the daily cap under a serialized burst, not real parallel locking.
+
 ## SQL tests
 
 `supabase/tests/` runs the migrations in [PGlite](https://pglite.dev) (real Postgres compiled to WASM, in-process) from `pnpm test`. It needs no Docker or Postgres install.
@@ -435,6 +536,7 @@ PGlite is one connection, so the SQL tests prove the counting under a serialized
 - `src/server/projects.ts`: project reads and writes through the signed-in user's Supabase client (no service role). `src/lib/project-schema.ts` holds the Zod schemas that mirror the database limits. `src/app/dashboard/projects/`: the screens and server actions.
 - `src/server/outbound.ts`: the one place server code makes an outbound HTTP request, with a host allowlist. `src/server/github.ts` is the only module that talks to GitHub; `github-connect.ts` (ownership check), `github-state.ts` (signed cookie), `github-projects.ts` (picker, link, commit check) and `github-app.ts` (what pages call) and `github-import.ts` (the repo list and README prefill for "Start from a GitHub repo") sit on top of it. `src/app/dashboard/github/` holds the connect action and the callback route.
 - Drafts: `src/server/anthropic.ts` is the only module that talks to Anthropic; `draft-generation.ts` runs one draft; `drafts.ts` reads and edits a user's own drafts; `src/lib/draft-*.ts` and `ai-models.ts` are pure (input caps, prompt, output validation, checker, prices); `src/app/dashboard/projects/draft-*.ts(x)` are the actions and the Drafts tab.
+- Scheduling: `src/server/buffer.ts` is the only module that talks to Buffer; `token-vault.ts` seals and opens tokens; `buffer-state.ts` is the sealed OAuth state cookie with PKCE; `scheduling.ts` holds the rules (connect, schedule, cancel, refresh, disconnect, deletion cleanup); `scheduled-posts.ts` reads a user's own rows; `src/lib/schedule-time.ts` converts and checks the picked time; `src/app/dashboard/buffer/` has the actions, the callback route and the dashboard panel; `src/app/dashboard/projects/schedule-controls.tsx` is the review and cancel UI.
 - `src/server/`: everything that uses a secret (service role, Redis, email). Pages and actions call `delete-account.ts`, `sign-in-limits.ts` and `sign-in-alert.ts`, not the lower-level modules.
 - `supabase/migrations/`, `supabase/snippets/`, `supabase/tests/`: schema, helper SQL and SQL tests.
 
@@ -458,6 +560,8 @@ This project uses a recent Next.js with `cacheComponents` on. Anything reading c
 - That the unique-index migration applies on your project's data (see the duplicate check above), and that PostgREST reports its violation (SQLSTATE 23505) when two requests race to link the same repository; the app then says the project was created but not linked.
 - **Everything about the real Anthropic API.** No key was used while this was built; every response in the tests is mocked. In particular: that the request body is accepted as sent (the `thinking` setting per model, no `temperature`); that `usage` has the fields read; that the prices in `src/lib/ai-models.ts` still match the bill; that the real answers are plain text that pass the output checks; that the drafts are actually good (use `pnpm draft:compare`).
 - **The drafts migration and the limits, on the real project.** That it applies in the SQL Editor; that PostgREST returns `SN010` and `SN011` in `error.code`; that parallel requests cannot pass the daily limit or the monthly cap (the PGlite tests are one connection); that the Drafts tab works end to end in a browser, including the checkboxes, the clipboard copy and the "Used in a draft" tag. The pages were rendered in tests; the buttons were never clicked.
+- **Everything about real Buffer behaviour.** No Buffer App Client existed while this was built, so every Buffer response in the tests is mocked. In particular: that third-party OAuth is open to your account (one third-party write-up said it was not enabled yet; Buffer's own docs say it is); the exact token-exchange parameters and redirect-URI rules; that the `prompt=consent` parameter is accepted; real token and refresh-token lifetimes; that `account { organizations { id } }` and `channels(input: { organizationId })` return what is read (field and type names were taken from Buffer's reference, not run); the service name that Buffer uses for LinkedIn (compared as `linkedin`, ignoring case); the exact `DeletePostInput`/`PostInput` fields (`id` is assumed) and the `DeletePostSuccess` name; the post status values (`scheduled`, `sent`, `error` as documented; anything else is read as "other"); what Buffer does with a post at its due time; the error shapes for plan and channel limits (`LimitReachedError`); and that Buffer returns `state` unchanged.
+- **The Buffer migration and flows, on the real project.** That it applies in the SQL Editor; that PostgREST returns `SN020` to `SN024` in `error.code`; that the status function and the cascade behave as the PGlite tests show; that connect, review, confirm, cancel, refresh, disconnect and account deletion work end to end in a browser. The pages were rendered in tests; the buttons, the date picker and the review form were never clicked.
 - The secret check is a set of patterns tested against made-up keys, not against real ones, and it is basic by design.
 - That the base64-encoded PEM works with `crypto.createSign` for the key GitHub issues (it should: PKCS#1 and PKCS#8 are both accepted), and that GitHub accepts the JWT (`iss` is the App ID; GitHub also allows the client ID).
 - That the GitHub migration applies cleanly in the real SQL Editor. `ON DELETE SET NULL (installation_id)` needs Postgres 15 or newer, which current Supabase projects use; PGlite (Postgres 17) ran it in the tests.
