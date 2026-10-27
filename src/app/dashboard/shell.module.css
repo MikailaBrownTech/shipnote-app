@@ -156,27 +156,6 @@
   line-height: 1.4;
 }
 
-/* Page head: title and subtitle on the left, account on the right. */
-
-.pageHead {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem 1.5rem;
-  margin-bottom: 1.75rem;
-}
-
-.pageHead h1 {
-  font-size: clamp(2rem, 6vw, 2.75rem);
-  overflow-wrap: anywhere;
-}
-
-.pageHead p {
-  margin-top: 0.35rem;
-  color: var(--ink-soft);
-}
-
 /* Stat tiles */
 
 .tiles {
@@ -344,4 +323,143 @@
 /* The count sits beside the heading; the button goes to the far side. */
 .panelHead p {
   margin-right: auto;
+}
+
+/* Page intro: back pill, title with an accent word, subtitle. */
+
+.intro {
+  display: grid;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.back {
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  gap: 0.5rem;
+  min-height: 2.5rem;
+  padding: 0.4rem 1rem;
+  border-radius: 999px;
+  color: var(--blue-violet);
+  background: var(--tint-violet);
+  font-size: 0.9375rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+@media (hover: hover) {
+  .back:hover {
+    box-shadow: var(--shadow-card);
+  }
+}
+
+.introRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem 1.5rem;
+}
+
+.introText {
+  min-width: 0;
+}
+
+.introText h1 {
+  font-size: clamp(2.25rem, 7vw, 3.5rem);
+  overflow-wrap: anywhere;
+}
+
+.introText p {
+  margin-top: 0.5rem;
+  color: var(--ink-soft);
+  font-size: 1.0625rem;
+}
+
+.accent {
+  color: var(--blue-violet);
+}
+
+/* Main column plus a rail, as on the dashboard. */
+
+.twoCol {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.25rem;
+}
+
+@media (min-width: 72rem) {
+  .twoCol {
+    grid-template-columns: minmax(0, 1fr) 20rem;
+    align-items: start;
+  }
+}
+
+.railCard {
+  padding: 1.25rem;
+  border-radius: var(--radius-lg);
+}
+
+.pictureCard {
+  background: linear-gradient(
+    160deg,
+    var(--tint-violet),
+    color-mix(in srgb, var(--neon-pink) 12%, white)
+  );
+}
+
+.pictureCard h2 {
+  margin-top: 0.75rem;
+  font-size: 1.375rem;
+}
+
+.pictureCard p {
+  margin-top: 0.5rem;
+  color: var(--ink-soft);
+  font-size: 0.9375rem;
+}
+
+.illustration {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.tipsCard {
+  background: color-mix(in srgb, #2dd4bf 12%, white);
+}
+
+.tipsCard h2 {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1.0625rem;
+}
+
+.tipsCard ul {
+  display: grid;
+  gap: 0.6rem;
+  margin-top: 0.9rem;
+  list-style: none;
+}
+
+.tipsCard li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  font-size: 0.9375rem;
+  line-height: 1.4;
+}
+
+.tick {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 1.4rem;
+  height: 1.4rem;
+  margin-top: 0.05rem;
+  border-radius: 50%;
+  color: #fff;
+  background: #1fb59f;
 }
