@@ -220,7 +220,10 @@ The whole feature is **off unless `GITHUB_ENABLED=true`**. With it unset the app
 
 ### What it does
 
-1. **Connect GitHub** (project page): sets a signed, short-lived cookie, then sends the person to the App's install page on github.com. After they install, GitHub returns them to `/dashboard/github/callback`, where the server verifies they own the installation (see "How ownership is verified") and stores one row in `public.github_installations`.
+1. **Connect GitHub** (the dashboard home or a project page): sets a signed, short-lived cookie, then sends the person to the App's install page on github.com. After they install, GitHub returns them to `/dashboard/github/callback`, where the server verifies they own the installation (see "How ownership is verified") and stores one row in `public.github_installations`. The dashboard shows a "Connect GitHub" panel until then, and afterwards "Connected as <account>" with a Disconnect option and a link to the projects.
+
+   **Where they land afterwards.** A success returns to `/dashboard` with the message "GitHub connected", or to the project they pressed the button on. A failure always returns to `/dashboard` with a plain message. The message is a code from a fixed list in the `?github=` query value (`src/lib/github-flash.ts`); any other value is ignored, and no text from GitHub or from the URL is ever shown. The state cookie holds only the **project id** (or nothing, from the dashboard): never a path. On success the callback re-checks that the project is the signed-in user's, builds the path itself, and passes it through `safeNext`.
+
 2. **Choose a repository** (`/dashboard/projects/<id>/repo`): lists the repositories the installation can see, taken from GitHub. The chosen one is saved only if it is on that list.
 3. **Check for [post] commits**: mints a read-only token for that one repository, fetches the commits of the last 30 days (up to 100), keeps those whose message contains `[post]` (any case), and shows at most 20 with a short sha, the first line of the message, the date and a link to the commit on GitHub.
 4. **Unlink repository** and **Disconnect GitHub**: unlink clears the project's repository. Disconnect removes the user's installation row in Shipnote; it does **not** uninstall the App on GitHub (the page says so, and where to do it: github.com/settings/installations). Projects that used it keep their repository name and show **Reconnect GitHub**.
@@ -259,7 +262,7 @@ Then:
 
 GitHub's docs warn that the `installation_id` in a redirect "can be spoofed" and must not be trusted on its own. So the callback does not trust it:
 
-1. The request must carry the signed cookie set when this user pressed Connect (HMAC, bound to their user id, expires in 10 minutes, single use). GitHub's docs say the `state` parameter is **not** returned when the OAuth step happens during installation, so the cookie is the check; if `state` does come back it must match too.
+1. The request must carry the signed cookie set when this user pressed Connect (HMAC, bound to their user id, expires in 10 minutes, single use; it carries no path, only the id of the project they started from, if any). GitHub's docs say the `state` parameter is **not** returned when the OAuth step happens during installation, so the cookie is the check; if `state` does come back it must match too.
 2. The one-time `code` is exchanged for a **user token** (`POST https://github.com/login/oauth/access_token`).
 3. With that token the server asks GitHub who the person is (`GET /user`) and which installations of this App they can access (`GET /user/installations`).
 4. If the URL carried an `installation_id`, it must be on that list. If it did not, the server uses the one personal installation of that GitHub user. Anything else is refused and nothing is stored.
