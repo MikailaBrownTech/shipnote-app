@@ -85,3 +85,59 @@ export function parseAlertsEnv(source: Source) {
   }
   return parseGroup(alertsSchema, source)
 }
+
+export type ConfigContext = {
+  // A running production server (not the build, not development).
+  production: boolean
+  // Deployed as a Vercel production deployment.
+  vercelProduction: boolean
+}
+
+// Problems worth shouting about at startup that do not stop the server. Each
+// line names variables only, never values.
+export function serverConfigWarnings(
+  source: Source,
+  context: ConfigContext,
+): string[] {
+  const warnings: string[] = []
+  const has = (name: string) => Boolean(source[name])
+
+  if (context.production) {
+    if (!has('SUPABASE_SERVICE_ROLE_KEY')) {
+      warnings.push(
+        'SUPABASE_SERVICE_ROLE_KEY is not set: every signed-in page and action will refuse requests until it is.',
+      )
+    }
+    const url = has('UPSTASH_REDIS_REST_URL')
+    const token = has('UPSTASH_REDIS_REST_TOKEN')
+    if (!url && !token) {
+      warnings.push(
+        'UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN are not set: sign-in rate limiting is OFF.',
+      )
+    } else if (!url || !token) {
+      warnings.push(
+        `${url ? 'UPSTASH_REDIS_REST_TOKEN' : 'UPSTASH_REDIS_REST_URL'} is not set: sign-in rate limiting is OFF until both Upstash variables are set.`,
+      )
+    }
+  }
+
+  if (context.vercelProduction) {
+    const site = source.NEXT_PUBLIC_SITE_URL ?? ''
+    let host = ''
+    let https = false
+    try {
+      const parsed = new URL(site)
+      host = parsed.hostname
+      https = parsed.protocol === 'https:'
+    } catch {
+      // Unparseable: the public env check already reports it.
+    }
+    if (site && (!https || host === 'localhost' || host === '127.0.0.1')) {
+      warnings.push(
+        'NEXT_PUBLIC_SITE_URL is not the production https URL: sign-in redirects and cookies will point at the wrong origin.',
+      )
+    }
+  }
+
+  return warnings
+}

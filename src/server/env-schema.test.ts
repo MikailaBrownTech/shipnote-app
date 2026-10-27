@@ -4,6 +4,7 @@ import {
   parseAdminEnv,
   parseAlertsEnv,
   parseRateLimitEnv,
+  serverConfigWarnings,
 } from './env-schema'
 
 describe('parseAdminEnv', () => {
@@ -80,5 +81,85 @@ describe('parseAlertsEnv', () => {
     )
     expect(isSender('not-an-address')).toBe(false)
     expect(isSender('a@example.com')).toBe(true)
+  })
+})
+
+describe('serverConfigWarnings', () => {
+  const configured = {
+    SUPABASE_SERVICE_ROLE_KEY: 'k',
+    UPSTASH_REDIS_REST_URL: 'https://r.test',
+    UPSTASH_REDIS_REST_TOKEN: 't',
+    NEXT_PUBLIC_SITE_URL: 'https://shipnote.test',
+  }
+  const prod = { production: true, vercelProduction: true }
+
+  it('is quiet when everything is set', () => {
+    expect(serverConfigWarnings(configured, prod)).toEqual([])
+  })
+
+  it('is quiet outside production, even with nothing set', () => {
+    expect(
+      serverConfigWarnings({}, { production: false, vercelProduction: false }),
+    ).toEqual([])
+  })
+
+  it('says loudly that rate limiting is off when Upstash is unset', () => {
+    const warnings = serverConfigWarnings(
+      {
+        ...configured,
+        UPSTASH_REDIS_REST_URL: '',
+        UPSTASH_REDIS_REST_TOKEN: '',
+      },
+      prod,
+    )
+    expect(warnings).toHaveLength(1)
+    expect(warnings[0]).toMatch(/rate limiting is OFF/)
+  })
+
+  it('names the missing half of Upstash', () => {
+    const warnings = serverConfigWarnings(
+      { ...configured, UPSTASH_REDIS_REST_TOKEN: undefined },
+      prod,
+    )
+    expect(warnings).toEqual([
+      expect.stringMatching(/UPSTASH_REDIS_REST_TOKEN is not set/),
+    ])
+  })
+
+  it('flags a missing service role key', () => {
+    const warnings = serverConfigWarnings(
+      { ...configured, SUPABASE_SERVICE_ROLE_KEY: undefined },
+      prod,
+    )
+    expect(warnings).toEqual([
+      expect.stringMatching(/SUPABASE_SERVICE_ROLE_KEY is not set/),
+    ])
+  })
+
+  it.each(['http://shipnote.test', 'https://localhost:3000'])(
+    'flags a non-production site URL on a Vercel production deploy (%s)',
+    (site) => {
+      const warnings = serverConfigWarnings(
+        { ...configured, NEXT_PUBLIC_SITE_URL: site },
+        prod,
+      )
+      expect(warnings).toEqual([
+        expect.stringMatching(/NEXT_PUBLIC_SITE_URL is not the production/),
+      ])
+      expect(warnings.join()).not.toContain(site)
+    },
+  )
+
+  it('never prints a value', () => {
+    const secret = 'sekrit-value-123'
+    const warnings = serverConfigWarnings(
+      {
+        ...configured,
+        UPSTASH_REDIS_REST_URL: secret,
+        UPSTASH_REDIS_REST_TOKEN: '',
+      },
+      prod,
+    )
+    expect(warnings.join()).not.toContain(secret)
   })
 })
