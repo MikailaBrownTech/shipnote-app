@@ -22,6 +22,16 @@ vi.mock('next/navigation', () => ({
 vi.mock('@/lib/auth', () => ({ requireUser }))
 vi.mock('@/server/projects', () => ({ listProjects, getProject }))
 vi.mock('@/app/dashboard/account-menu', () => ({ AccountMenu: () => null }))
+// GitHub is off in these tests, as it is by default.
+vi.mock('@/server/github-app', () => ({ githubIsEnabled: () => false }))
+vi.mock('@/server/github-projects', () => ({ listInstallations: vi.fn() }))
+vi.mock('../github/actions', () => ({ connectGithubAction: vi.fn() }))
+vi.mock('./github-actions', () => ({
+  linkRepoAction: vi.fn(),
+  unlinkRepoAction: vi.fn(),
+  disconnectGithubAction: vi.fn(),
+  checkCommitsAction: vi.fn(),
+}))
 vi.mock('./actions', () => ({
   createProjectAction: vi.fn(),
   updateProjectAction: vi.fn(),
@@ -186,6 +196,12 @@ describe('project page', () => {
     const { html } = await render(<ProjectPage {...idParams(ID)} />)
     expect(html).not.toContain('<script>alert(1)')
     expect(html).toContain('&lt;script&gt;alert(1)&lt;/script&gt;')
+  })
+
+  it('shows no GitHub card or button while the feature is off', async () => {
+    getProject.mockResolvedValue({ ok: true, value: project() })
+    const { html } = await render(<ProjectPage {...idParams(ID)} />)
+    expect(html).not.toMatch(/GitHub/i)
   })
 
   it('keeps the project name out of the page title', async () => {

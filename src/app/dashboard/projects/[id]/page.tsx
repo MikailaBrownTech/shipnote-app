@@ -2,12 +2,14 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { Suspense } from 'react'
 import { requireUser } from '@/lib/auth'
+import { parseGithubFlash } from '@/lib/github-flash'
 import styles from '../../dashboard.module.css'
 import { Icon } from '../../icons'
 import { PageIntro } from '../../page-intro'
 import { DetailRail } from '../../rail'
 import shell from '../../shell.module.css'
 import { DeleteProject } from '../delete-project'
+import { GithubPanel } from '../github-panel'
 import { loadOwnProject } from '../load-project'
 import projectStyles from '../projects.module.css'
 import { StageBadge, Updated } from '../stage-badge'
@@ -18,12 +20,13 @@ export const metadata: Metadata = { title: 'Project' }
 
 export default function ProjectPage({
   params,
+  searchParams,
 }: PageProps<'/dashboard/projects/[id]'>) {
   return (
     <main className={styles.main}>
       {/* Reads the session and the id, so it sits behind Suspense. */}
       <Suspense fallback={<p aria-live="polite">Loading your project</p>}>
-        <Project params={params} />
+        <Project params={params} searchParams={searchParams} />
       </Suspense>
     </main>
   )
@@ -32,11 +35,15 @@ export default function ProjectPage({
 // The proxy also redirects, but this page checks the user itself.
 async function Project({
   params,
+  searchParams,
 }: {
   params: PageProps<'/dashboard/projects/[id]'>['params']
+  searchParams: PageProps<'/dashboard/projects/[id]'>['searchParams']
 }) {
   const user = await requireUser()
   const project = await loadOwnProject(user.id, params)
+  // Only a known code is shown, as fixed text; the raw value is never echoed.
+  const flash = parseGithubFlash((await searchParams).github)
 
   if (!project) {
     return (
@@ -65,30 +72,33 @@ async function Project({
       />
 
       <div className={shell.twoCol}>
-        {/* Everything below is rendered as plain text. */}
-        <article className={`card ${projectStyles.detail}`}>
-          {project.summary ? (
-            <p className={projectStyles.summary}>{project.summary}</p>
-          ) : null}
+        <div className={shell.stack}>
+          {/* Everything below is rendered as plain text. */}
+          <article className={`card ${projectStyles.detail}`}>
+            {project.summary ? (
+              <p className={projectStyles.summary}>{project.summary}</p>
+            ) : null}
 
-          <h2 className={projectStyles.notesTitle}>Notes</h2>
-          {project.notes ? (
-            <div className={projectStyles.notes}>{project.notes}</div>
-          ) : (
-            <p className={projectStyles.notesEmpty}>No notes yet.</p>
-          )}
+            <h2 className={projectStyles.notesTitle}>Notes</h2>
+            {project.notes ? (
+              <div className={projectStyles.notes}>{project.notes}</div>
+            ) : (
+              <p className={projectStyles.notesEmpty}>No notes yet.</p>
+            )}
 
-          <div className={projectStyles.detailActions}>
-            <Link
-              href={`/dashboard/projects/${project.id}/edit`}
-              className="button"
-            >
-              <Icon name="edit" size={18} />
-              Edit project
-            </Link>
-            <DeleteProject id={project.id} />
-          </div>
-        </article>
+            <div className={projectStyles.detailActions}>
+              <Link
+                href={`/dashboard/projects/${project.id}/edit`}
+                className="button"
+              >
+                <Icon name="edit" size={18} />
+                Edit project
+              </Link>
+              <DeleteProject id={project.id} />
+            </div>
+          </article>
+          <GithubPanel userId={user.id} project={project} flash={flash} />
+        </div>
         <DetailRail />
       </div>
     </>

@@ -9,6 +9,7 @@ export const GITHUB_FLASH = [
   'org', // an organization installation, not supported yet
   'taken', // that installation is connected to another Shipnote account
   'limited',
+  'repo', // the chosen repository is not available through the connection
   'unavailable', // GitHub is down or slow
   'failed',
   'linked',
@@ -50,6 +51,10 @@ export const GITHUB_FLASH_MESSAGES: Record<
   limited: {
     tone: 'bad',
     text: 'Too many attempts. Try again in a few minutes.',
+  },
+  repo: {
+    tone: 'bad',
+    text: 'That repository is not available through your GitHub connection. Nothing was saved.',
   },
   unavailable: {
     tone: 'bad',

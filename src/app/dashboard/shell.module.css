@@ -463,3 +463,10 @@
   color: #fff;
   background: #1fb59f;
 }
+
+/* A column of cards. */
+.stack {
+  display: grid;
+  gap: 1.25rem;
+  min-width: 0;
+}
