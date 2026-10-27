@@ -22,25 +22,139 @@ const errorMessages: Record<SignInError, string> = {
   failed: 'Something went wrong. Try again.',
 }
 
+const features = [
+  {
+    title: 'Drafts from your work',
+    body: 'Turn project docs and tagged commits into post drafts.',
+    tone: 'violet',
+    icon: <path d="M13 2 4 14h7l-1 8 9-12h-7z" />,
+  },
+  {
+    title: 'Review & edit',
+    body: 'Change anything in a draft until it sounds like you.',
+    tone: 'rose',
+    icon: (
+      <>
+        <path d="M12 20h9" />
+        <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" />
+      </>
+    ),
+  },
+  {
+    title: 'Share what you shipped',
+    body: 'Copy the draft and post it yourself. Shipnote never posts for you.',
+    tone: 'teal',
+    icon: (
+      <>
+        <rect x="9" y="3" width="11" height="14" rx="2" />
+        <path d="M5 8H4a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-1" />
+      </>
+    ),
+  },
+] as const
+
 export default function SignInPage({ searchParams }: PageProps<'/sign-in'>) {
   return (
     <main className={`page ${styles.main}`}>
-      <Link href="/" className="wordmark">
+      <div className={styles.blobs} aria-hidden="true" />
+
+      <Link href="/" className={`wordmark ${styles.brand}`}>
         Shipnote
       </Link>
-      <div className={styles.titleBox}>
-        <h1>Sign in</h1>
+
+      {/* The form comes first in reading order; the grid puts it on the right. */}
+      <section className={styles.card} aria-labelledby="sign-in-title">
+        <Link href="/" className="wordmark">
+          Shipnote
+        </Link>
+        <h1 id="sign-in-title">Sign in</h1>
         <p className={styles.lead}>
           Shipnote is in early access. Use GitHub, or ask for a link by email.
         </p>
-      </div>
 
-      {/* Reads cookies and searchParams, so it sits behind Suspense. */}
-      <Suspense fallback={null}>
-        <SignInNotice searchParams={searchParams} />
-      </Suspense>
+        {/* Reads cookies and searchParams, so it sits behind Suspense. */}
+        <Suspense fallback={null}>
+          <SignInNotice searchParams={searchParams} />
+        </Suspense>
 
-      <SignInForm />
+        <SignInForm />
+      </section>
+
+      <section className={styles.hero} aria-labelledby="hero-title">
+        <h2 id="hero-title" className={styles.headline}>
+          Turn your <span className={styles.blue}>GitHub activity</span> into
+          LinkedIn <span className={styles.pink}>posts.</span>
+        </h2>
+        <p className={styles.sub}>
+          Shipnote drafts LinkedIn posts from your project docs and the commits
+          you tag. You edit a draft and copy it. Nothing is posted for you.
+        </p>
+
+        <ul className={styles.features}>
+          {features.map((feature) => (
+            <li key={feature.title}>
+              <span className={`${styles.icon} ${styles[feature.tone]}`}>
+                <svg
+                  viewBox="0 0 24 24"
+                  width="22"
+                  height="22"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  {feature.icon}
+                </svg>
+              </span>
+              <div>
+                <h3>{feature.title}</h3>
+                <p>{feature.body}</p>
+              </div>
+            </li>
+          ))}
+        </ul>
+
+        {/* A made-up preview, so nothing here is a real customer or repo. */}
+        <div className={styles.preview} aria-hidden="true">
+          <div className={styles.window}>
+            <div className={styles.dots}>
+              <i />
+              <i />
+              <i />
+            </div>
+            <div className={styles.windowBody}>
+              <nav>
+                <b>Shipnote</b>
+                <span className={styles.active}>Dashboard</span>
+                <span>Drafts</span>
+                <span>Settings</span>
+              </nav>
+              <div className={styles.drafts}>
+                <b>Drafts</b>
+                <div className={`${styles.draft} ${styles.d1}`}>
+                  CSV export for usage reports
+                  <small>Draft · ready to edit</small>
+                </div>
+                <div className={`${styles.draft} ${styles.d2}`}>
+                  Reports load in 2 seconds
+                  <small>Draft · ready to edit</small>
+                </div>
+                <div className={`${styles.draft} ${styles.d3}`}>
+                  Fixed the timezone bug
+                  <small>Draft · ready to edit</small>
+                </div>
+              </div>
+            </div>
+          </div>
+          <p className={styles.script}>
+            From code
+            <br />
+            to connections.
+          </p>
+        </div>
+      </section>
     </main>
   )
 }
