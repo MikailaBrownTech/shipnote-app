@@ -2,6 +2,7 @@ import 'server-only'
 import { env } from '@/lib/env'
 import { getAlertsEnv } from './env'
 import { buildSignInAlert, type AlertMethod } from './email-template'
+import { outboundFetch } from './outbound'
 import type { BrowserFamily } from '@/lib/device'
 
 // The only module that talks to the email provider (Resend).
@@ -14,7 +15,7 @@ async function send(message: Message, idempotencyKey: string) {
   const config = getAlertsEnv()
   if (!config) throw new Error('Alerts are not enabled')
 
-  const response = await fetch(ENDPOINT, {
+  const response = await outboundFetch(ENDPOINT, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${config.RESEND_API_KEY}`,
@@ -22,7 +23,6 @@ async function send(message: Message, idempotencyKey: string) {
       'Idempotency-Key': idempotencyKey,
     },
     body: JSON.stringify({ from: config.EMAIL_FROM, ...message }),
-    signal: AbortSignal.timeout(5000),
   })
   // Only the status goes into the error: the body could echo the address.
   if (!response.ok) {
