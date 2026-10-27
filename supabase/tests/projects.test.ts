@@ -197,7 +197,7 @@ describe('anon', () => {
 
 describe('the limit of 5 projects', () => {
   it('allows 5 and refuses the 6th with a distinct error', async () => {
-    for (let i = 1; i <= 5; i += 1) await insert(A, { name: `P${i}` })
+    for (let i = 1; i <= 5; i += 1) await insert(A, { name: `P${String(i)}` })
     await expect(insert(A, { name: 'P6' })).rejects.toMatchObject({
       code: 'SN001',
       message: expect.stringContaining('project_limit_reached') as string,
@@ -206,12 +206,12 @@ describe('the limit of 5 projects', () => {
   })
 
   it('is per user', async () => {
-    for (let i = 1; i <= 5; i += 1) await insert(A, { name: `P${i}` })
+    for (let i = 1; i <= 5; i += 1) await insert(A, { name: `P${String(i)}` })
     await expect(insert(B, { name: 'B1' })).resolves.toBeDefined()
   })
 
   it('frees a slot when a project is deleted', async () => {
-    for (let i = 1; i <= 5; i += 1) await insert(A, { name: `P${i}` })
+    for (let i = 1; i <= 5; i += 1) await insert(A, { name: `P${String(i)}` })
     await asUser(A, () =>
       db.query("delete from public.projects where name = 'P1'"),
     )
@@ -219,7 +219,7 @@ describe('the limit of 5 projects', () => {
   })
 
   it('also binds the service role, since it is a trigger', async () => {
-    for (let i = 1; i <= 5; i += 1) await seed(A, `P${i}`)
+    for (let i = 1; i <= 5; i += 1) await seed(A, `P${String(i)}`)
     await expect(
       asRole(db, 'service_role', () =>
         db.query(
