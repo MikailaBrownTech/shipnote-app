@@ -260,14 +260,28 @@ export async function createInstallationToken(
 }
 
 const reposSchema = z.object({
-  repositories: z.array(z.object({ full_name: z.string() })),
+  repositories: z.array(
+    z.object({
+      full_name: z.string(),
+      name: z.string().optional(),
+      description: z.string().nullable().optional(),
+    }),
+  ),
 })
 
-// The repositories this installation can see. Only well-formed names are kept.
-export async function listInstallationRepos(
+export type RepoInfo = {
+  fullName: string
+  name: string
+  // GitHub's own one-line description, or null.
+  description: string | null
+}
+
+// The repositories this installation can see, with the name and description
+// GitHub gives for each. Only well-formed names are kept.
+export async function listInstallationRepoInfo(
   installationToken: string,
-): Promise<string[]> {
-  const names: string[] = []
+): Promise<RepoInfo[]> {
+  const found: RepoInfo[] = []
   for (let page = 1; page <= 5; page += 1) {
     const response = await send(
       `${API}/installation/repositories?per_page=100&page=${String(page)}`,
@@ -280,11 +294,100 @@ export async function listInstallationRepos(
     )
     const body = await json(response, reposSchema)
     for (const repo of body.repositories) {
-      if (isRepoFullName(repo.full_name)) names.push(repo.full_name)
+      if (!isRepoFullName(repo.full_name)) continue
+      found.push({
+        fullName: repo.full_name,
+        name: repo.name ?? splitRepo(repo.full_name).repo,
+        description: repo.description ?? null,
+      })
     }
     if (body.repositories.length < 100) break
   }
-  return names
+  return found
+}
+
+// Just the names, for the places that only need to know which repositories
+// exist.
+export async function listInstallationRepos(
+  installationToken: string,
+): Promise<string[]> {
+  return (await listInstallationRepoInfo(installationToken)).map(
+    (repo) => repo.fullName,
+  )
+}
+
+// At most this much of a README is read, whatever its size. It is far more than
+// the 12,000 characters the notes can hold.
+export const README_MAX_BYTES = 256 * 1024
+
+export type ReadmeResult =
+  | { found: false }
+  // cut is true when the README was longer than what was read.
+  | { found: true; text: string; cut: boolean }
+
+// Reads at most `max` bytes of a response body. A partial character at the cut
+// is dropped, not turned into a replacement character.
+async function readCapped(
+  response: Response,
+  max: number,
+): Promise<{ text: string; cut: boolean }> {
+  const decoder = new TextDecoder('utf-8', { fatal: false })
+  if (!response.body)
+    return { text: decoder.decode(await response.arrayBuffer()), cut: false }
+
+  const reader = response.body.getReader()
+  let text = ''
+  let read = 0
+  let cut = false
+  for (;;) {
+    const { done, value } = await reader.read()
+    if (done) break
+    const room = max - read
+    if (value.byteLength > room) {
+      text += decoder.decode(value.subarray(0, room), { stream: true })
+      cut = true
+      await reader.cancel()
+      break
+    }
+    read += value.byteLength
+    text += decoder.decode(value, { stream: true })
+  }
+  // Without cut, flush; with cut, the incomplete tail is left out on purpose.
+  if (!cut) text += decoder.decode()
+  return { text, cut }
+}
+
+// The repository's README, as plain text, through GitHub's README endpoint
+// (GET /repos/{owner}/{repo}/readme) and nothing else: no other file, no diff,
+// no file list. The token should be the one limited to this repository. The
+// text is untrusted. It is returned to the caller and not stored, logged or
+// put in an error here.
+export async function fetchReadme(
+  installationToken: string,
+  fullName: string,
+): Promise<ReadmeResult> {
+  if (!isRepoFullName(fullName)) throw new GithubError('not_found')
+  const { owner, repo } = splitRepo(fullName)
+  const response = await send(
+    `${API}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/readme`,
+    {
+      headers: {
+        ...apiHeaders,
+        // The file as it is, not JSON with base64 inside.
+        Accept: 'application/vnd.github.raw+json',
+        Authorization: `Bearer ${installationToken}`,
+      },
+    },
+    [404],
+  )
+  // No README is not an error.
+  if (response.status === 404) return { found: false }
+  try {
+    const { text, cut } = await readCapped(response, README_MAX_BYTES)
+    return { found: true, text, cut }
+  } catch {
+    throw new GithubError('unavailable')
+  }
 }
 
 const commitsSchema = z.array(
