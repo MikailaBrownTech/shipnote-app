@@ -385,7 +385,7 @@ describe('creating jobs', () => {
     const id = (await createJob(A, projectA)) ?? ''
     await finish(id, A, 'failed', 'queue_unavailable')
     expect(await createJob(A, projectA, SHA1, DELIVERY2)).toBe(id)
-    expect((await row(id))?.status).toBe('queued')
+    expect((await row(id)).status).toBe('queued')
   })
 
   it('other failed or finished jobs are never re-armed', async () => {
@@ -393,7 +393,7 @@ describe('creating jobs', () => {
     await claim(A, projectA)
     await finish(id, A, 'failed', 'commit_not_found')
     expect(await createJob(A, projectA, SHA1, DELIVERY2)).toBeNull()
-    expect((await row(id))?.status).toBe('failed')
+    expect((await row(id)).status).toBe('failed')
   })
 })
 
@@ -402,7 +402,7 @@ describe('claiming jobs', () => {
     const id = await createJob(A, projectA)
     expect(await claim(A, projectA)).toBe(id)
     expect(await claim(A, projectA)).toBeNull()
-    expect((await row(id ?? ''))?.status).toBe('running')
+    expect((await row(id ?? '')).status).toBe('running')
   })
 
   it('a burst of claims gives exactly one winner', async () => {
@@ -504,7 +504,7 @@ describe('finishing jobs', () => {
   it('another user cannot finish my job', async () => {
     const id = (await createJob(A, projectA)) ?? ''
     expect(await finish(id, B, 'failed', 'x')).toBe(false)
-    expect((await row(id))?.status).toBe('queued')
+    expect((await row(id)).status).toBe('queued')
   })
 
   it('refuses an unknown status and a reason that is not a short fixed code', async () => {
