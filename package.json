@@ -9,6 +9,7 @@
     "lint": "eslint",
     "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
+    "check:env": "node scripts/check-env.mjs",
     "format": "prettier --write ."
   },
   "dependencies": {
