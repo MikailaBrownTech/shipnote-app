@@ -71,6 +71,7 @@ export async function linkRepoAction(
   if (result === 'not_in_list' || result === 'no_installation') {
     done(id, 'repo')
   }
+  if (result === 'already_linked') done(id, 'repotaken')
   if (result === 'rate_limited' || result === 'unavailable') {
     done(id, 'unavailable')
   }

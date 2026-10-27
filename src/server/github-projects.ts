@@ -13,7 +13,7 @@ import {
   listInstallationRepos,
   listRecentCommits,
 } from './github'
-import { getProject } from './projects'
+import { getProject, listProjects } from './projects'
 import {
   linkProjectRepo,
   removeGithubInstallation,
@@ -99,11 +99,29 @@ export async function listRepoChoices(userId: string): Promise<RepoChoices> {
   return groups.length > 0 ? { status: 'ok', groups } : { status: 'none' }
 }
 
+// Which repositories the user's projects are already linked to, by lower-cased
+// name (GitHub treats names as case-insensitive), with the project that holds
+// each. null if the projects could not be read.
+export async function linkedRepos(
+  userId: string,
+): Promise<Map<string, string> | null> {
+  const projects = await listProjects(userId)
+  if (!projects.ok) return null
+  const linked = new Map<string, string>()
+  for (const project of projects.value) {
+    if (project.repoFullName) {
+      linked.set(project.repoFullName.toLowerCase(), project.id)
+    }
+  }
+  return linked
+}
+
 export type LinkResult =
   | 'linked'
   | 'not_in_list' // the repository is not one this installation can see
   | 'no_installation' // not one of the user's installations
   | 'not_found' // no such project of theirs
+  | 'already_linked' // another of the user's projects already uses this repository
   | 'rate_limited'
   | 'unavailable'
   | 'failed'
@@ -128,6 +146,16 @@ export async function linkRepo(input: {
   const project = await getProject(input.userId, input.projectId)
   if (!project.ok) {
     return project.reason === 'not_found' ? 'not_found' : 'failed'
+  }
+
+  // The same repository cannot be linked to two of the user's projects (the
+  // database enforces it too). Linking a project to its own repository again
+  // is fine.
+  const linked = await linkedRepos(input.userId)
+  if (linked === null) return 'failed'
+  const holder = linked.get(input.repoFullName.toLowerCase())
+  if (holder !== undefined && holder !== input.projectId) {
+    return 'already_linked'
   }
 
   let repos: string[]

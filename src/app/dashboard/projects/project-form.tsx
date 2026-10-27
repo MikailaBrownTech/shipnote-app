@@ -25,6 +25,9 @@ const notices: Record<Exclude<ProjectFormState['status'], 'idle'>, string> = {
   limited: 'Too many attempts. Try again in a few minutes.',
   limit: `You have reached the ${String(PROJECT_LIMITS.perUser)} project limit.`,
   failed: 'We could not save your project. Try again.',
+  repo: 'That repository cannot be used. Choose it again with Start from a GitHub repo, or clear it and save without one.',
+  repo_taken: 'That repository is already linked to another of your projects.',
+  repo_unavailable: 'GitHub is not responding. Try again in a moment.',
 }
 
 const stageInfo: Record<Stage, { icon: IconName; blurb: string }> = {
@@ -65,11 +68,15 @@ export function ProjectForm({
   initial,
   submitLabel,
   cancelHref,
+  github,
 }: {
   action: Action
   initial: FormValues
   submitLabel: string
   cancelHref: string
+  // The repository this project is being started from, if any. Sent as two
+  // hidden fields that the server checks again before saving.
+  github?: { installationId: number; repoFullName: string }
 }) {
   const [state, run, pending] = useActionState(action, {
     status: 'idle',
@@ -90,6 +97,16 @@ export function ProjectForm({
 
   return (
     <form action={run} className={styles.form} noValidate>
+      {github ? (
+        <>
+          <input
+            type="hidden"
+            name="github_installation"
+            value={String(github.installationId)}
+          />
+          <input type="hidden" name="github_repo" value={github.repoFullName} />
+        </>
+      ) : null}
       <Row icon="note" tone={styles.tonePurple}>
         <label htmlFor={`${id}-name`}>
           Project name{' '}

@@ -12,6 +12,7 @@ const createInstallationToken = vi.fn()
 const listInstallationRepos = vi.fn()
 const listRecentCommits = vi.fn()
 const getProject = vi.fn()
+const listProjects = vi.fn()
 const linkProjectRepo = vi.fn()
 const unlinkProjectRepo = vi.fn()
 const removeGithubInstallation = vi.fn()
@@ -43,7 +44,7 @@ vi.mock('./github', () => ({
   listRecentCommits,
   GithubError,
 }))
-vi.mock('./projects', () => ({ getProject }))
+vi.mock('./projects', () => ({ getProject, listProjects }))
 vi.mock('./supabase-admin', () => ({
   linkProjectRepo,
   unlinkProjectRepo,
@@ -79,6 +80,7 @@ beforeEach(() => {
   listInstallationRepos.mockResolvedValue(['octo/hello', 'octo/other'])
   listRecentCommits.mockResolvedValue([])
   getProject.mockResolvedValue(linked())
+  listProjects.mockResolvedValue({ ok: true, value: [] })
   linkProjectRepo.mockResolvedValue(true)
   unlinkProjectRepo.mockResolvedValue(true)
   removeGithubInstallation.mockResolvedValue(true)
@@ -200,6 +202,26 @@ describe('linkRepo', () => {
     )
     expect(createInstallationToken).not.toHaveBeenCalled()
     expect(linkProjectRepo).not.toHaveBeenCalled()
+  })
+
+  it('REJECTS a repository another of the user’s projects already uses', async () => {
+    listProjects.mockResolvedValue({
+      ok: true,
+      value: [
+        { id: 'other-project', repoFullName: 'Octo/Hello', installationId: 42 },
+      ],
+    })
+    expect(await linkRepo(input)).toBe('already_linked')
+    expect(createInstallationToken).not.toHaveBeenCalled()
+    expect(linkProjectRepo).not.toHaveBeenCalled()
+  })
+
+  it('lets a project be linked again to the repository it already has', async () => {
+    listProjects.mockResolvedValue({
+      ok: true,
+      value: [{ id: PROJECT, repoFullName: 'octo/hello', installationId: 42 }],
+    })
+    expect(await linkRepo(input)).toBe('linked')
   })
 
   it('a project that is not the user’s is not found, and nothing is called on GitHub', async () => {

@@ -15,6 +15,7 @@ const LIMITS = {
   projectUpdate: { tokens: 60, window: '15 m' },
   githubSetup: { tokens: 10, window: '15 m' },
   githubRepos: { tokens: 30, window: '15 m' },
+  githubPrefill: { tokens: 20, window: '15 m' },
   githubLink: { tokens: 30, window: '15 m' },
   githubCommits: { tokens: 20, window: '10 m' },
 } as const

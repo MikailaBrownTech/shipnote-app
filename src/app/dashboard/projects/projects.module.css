@@ -610,3 +610,38 @@
   height: 1.1rem;
   accent-color: var(--blue-violet);
 }
+
+/* "Start from a GitHub repo" on the new-project page */
+
+.startCard {
+  display: grid;
+  gap: 0.9rem;
+  padding: clamp(1.1rem, 3vw, 1.5rem);
+  border-radius: var(--radius-lg);
+}
+
+.startForm {
+  display: grid;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+.startForm label {
+  font-weight: 700;
+}
+
+.select {
+  width: 100%;
+  min-height: 3rem;
+  padding: 0.6rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  color: var(--ink);
+  background: var(--surface);
+  font: inherit;
+}
+
+.select:focus {
+  border-color: var(--blue-violet);
+  box-shadow: 0 0 0 1px var(--blue-violet);
+}
