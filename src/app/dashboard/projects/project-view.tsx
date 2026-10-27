@@ -45,15 +45,20 @@ export function ProjectTabs({
   projectId,
   active,
   githubOn,
+  aiOn = false,
 }: {
   projectId: string
   active: ProjectTab
   githubOn: boolean
+  aiOn?: boolean
 }) {
   const tabs: { tab: ProjectTab; label: string; icon: IconName }[] = [
     { tab: 'overview', label: 'Overview', icon: 'home' },
     ...(githubOn
       ? [{ tab: 'github' as const, label: 'GitHub', icon: 'github' as const }]
+      : []),
+    ...(aiOn
+      ? [{ tab: 'drafts' as const, label: 'Drafts', icon: 'bolt' as const }]
       : []),
     { tab: 'notes', label: 'Notes', icon: 'note' },
   ]
@@ -144,7 +149,7 @@ export function StatusCards({
 
 // What the product will do, said plainly: drafts are not built yet, and the
 // person always edits and posts themselves.
-export function ProgressPanel() {
+export function ProgressPanel({ aiOn = false }: { aiOn?: boolean }) {
   const steps: { n: number; title: string; text: string }[] = [
     {
       n: 1,
@@ -153,8 +158,10 @@ export function ProgressPanel() {
     },
     {
       n: 2,
-      title: 'Drafts (coming soon)',
-      text: 'Shipnote will turn your technical work into a post draft.',
+      title: aiOn ? 'Write a draft' : 'Drafts (coming soon)',
+      text: aiOn
+        ? 'Open the Drafts tab to turn your work into a first draft.'
+        : 'Shipnote will turn your technical work into a post draft.',
     },
     {
       n: 3,
@@ -170,7 +177,11 @@ export function ProgressPanel() {
         </span>
         <div>
           <h2>Turn your progress into LinkedIn content</h2>
-          <p>Drafts are not available yet. Here is how it will work.</p>
+          <p>
+            {aiOn
+              ? 'Here is how it works.'
+              : 'Drafts are not available yet. Here is how it will work.'}
+          </p>
         </div>
       </div>
       <ol className={styles.steps}>

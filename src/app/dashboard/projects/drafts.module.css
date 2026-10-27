@@ -1,0 +1,212 @@
+/* The Drafts tab. Boxy, phone-friendly, plain text. */
+
+.workshop {
+  display: grid;
+  gap: 1.25rem;
+  min-width: 0;
+}
+
+.card {
+  display: grid;
+  gap: 0.9rem;
+  min-width: 0;
+  padding: 1.25rem;
+}
+
+.card h2 {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1.125rem;
+}
+
+.help {
+  color: var(--ink-soft);
+  font-size: 0.9375rem;
+}
+
+.optional {
+  color: var(--ink-soft);
+  font-weight: 600;
+}
+
+.notice {
+  padding: 0.8rem 1rem;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+}
+
+.check {
+  display: grid;
+  justify-items: start;
+}
+
+.form,
+.editor {
+  display: grid;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+.editorLabel {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 700;
+}
+
+.form textarea,
+.editor textarea {
+  width: 100%;
+  padding: 0.7rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  color: var(--ink);
+  background: var(--surface);
+  font: inherit;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.form textarea:focus-visible,
+.editor textarea:focus-visible,
+.recent summary:focus-visible,
+.commit:focus-within {
+  outline: 3px solid var(--blue-violet);
+  outline-offset: 2px;
+}
+
+.counter {
+  color: var(--ink-soft);
+  font-size: 0.875rem;
+}
+
+.counterOff {
+  color: #8a5a00;
+  font-weight: 650;
+}
+
+.warnings {
+  padding: 0.8rem 1rem;
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--neon-pink);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  font-size: 0.9375rem;
+}
+
+.warningsTitle {
+  margin-bottom: 0.3rem;
+  font-weight: 700;
+}
+
+.warnings ul {
+  display: grid;
+  gap: 0.3rem;
+  padding-left: 1.1rem;
+}
+
+.buttons {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.left {
+  color: var(--ink-soft);
+  font-size: 0.9375rem;
+  font-weight: 650;
+}
+
+.commits {
+  display: grid;
+  gap: 0.5rem;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.commits legend {
+  margin-bottom: 0.4rem;
+  font-weight: 700;
+}
+
+.commit {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.25rem 0.75rem;
+  padding: 0.6rem 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  font-size: 0.9375rem;
+}
+
+.commit input {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.sha {
+  color: var(--blue-violet);
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+/* A commit title is untrusted text: it wraps and never overflows. */
+.commitTitle {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.tag {
+  display: inline-block;
+  padding: 0.1rem 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--tint-azure);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.recent {
+  display: grid;
+  gap: 0.6rem;
+  list-style: none;
+}
+
+.recent details {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+
+.recent summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.7rem 0.9rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.recent details > .editor {
+  padding: 0 0.9rem 0.9rem;
+}
+
+@media (max-width: 39.99rem) {
+  .commit {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .commitTitle {
+    grid-column: 1 / -1;
+  }
+}

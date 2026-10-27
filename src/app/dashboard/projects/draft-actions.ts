@@ -15,11 +15,7 @@ import {
   generateDraft,
   type GenerateFailure,
 } from '@/server/draft-generation'
-import {
-  deleteDraft,
-  markDraftCopied,
-  updateDraftBody,
-} from '@/server/drafts'
+import { deleteDraft, markDraftCopied, updateDraftBody } from '@/server/drafts'
 import { getProject } from '@/server/projects'
 import { rateLimit } from '@/server/rate-limit'
 
