@@ -20,6 +20,7 @@ const LIMITS = {
   githubCommits: { tokens: 20, window: '10 m' },
   draftGenerate: { tokens: 6, window: '10 m' },
   draftEdit: { tokens: 60, window: '15 m' },
+  autoDraftWebhook: { tokens: 60, window: '1 m' },
   bufferConnect: { tokens: 10, window: '15 m' },
   bufferSchedule: { tokens: 10, window: '15 m' },
   bufferCancel: { tokens: 30, window: '15 m' },
