@@ -1,4 +1,4 @@
-import { NextResponse, type NextRequest } from 'next/server'
+import { connection, NextResponse, type NextRequest } from 'next/server'
 import { requireUser } from '@/lib/auth'
 import { withFlash, type GithubFlash } from '@/lib/github-flash'
 import { env } from '@/lib/env'
@@ -40,6 +40,10 @@ function back(path: string, flash: GithubFlash) {
 }
 
 export async function GET(request: NextRequest) {
+  // Always a per-request response. Without this, a build with the feature off
+  // could prerender the 404 below as a static file.
+  await connection()
+
   if (!githubIsEnabled()) return new NextResponse(null, { status: 404 })
 
   const user = await requireUser()

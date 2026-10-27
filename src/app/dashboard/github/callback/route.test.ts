@@ -9,6 +9,10 @@ const verifyInstallation = vi.fn()
 const saveVerifiedInstallation = vi.fn()
 
 vi.mock('server-only', () => ({}))
+vi.mock('next/server', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('next/server')>()),
+  connection: vi.fn(),
+}))
 vi.mock('@/lib/env', () => ({
   env: { NEXT_PUBLIC_SITE_URL: 'https://shipnote.test' },
 }))
