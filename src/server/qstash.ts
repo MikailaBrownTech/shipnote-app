@@ -21,10 +21,19 @@ export type QstashFailure =
 
 export class QstashError extends Error {
   readonly kind: QstashFailure
-  constructor(kind: QstashFailure) {
+  // HTTP status and QStash's own short error text, for the log only.
+  readonly status: number | null
+  readonly detail: string | null
+  constructor(
+    kind: QstashFailure,
+    status: number | null = null,
+    detail: string | null = null,
+  ) {
     super(`QStash request failed: ${kind}`)
     this.name = 'QstashError'
     this.kind = kind
+    this.status = status
+    this.detail = detail
   }
 }
 
@@ -33,6 +42,24 @@ export class QstashError extends Error {
 // exact string, so publishing and verifying must use the same function.
 export function queueUrl(): string {
   return new URL('/api/queue/draft', env.NEXT_PUBLIC_SITE_URL).href
+}
+
+// QStash answers a refusal with {"error": "..."}: a short sentence about the
+// request (a bad destination, a limit). It holds no secret and none of our
+// data, but only the first 200 printable characters are kept.
+async function errorText(response: Response): Promise<string | null> {
+  try {
+    const body: unknown = JSON.parse((await response.text()).slice(0, 2000))
+    const text =
+      typeof body === 'object' && body !== null && 'error' in body
+        ? body.error
+        : null
+    return typeof text === 'string'
+      ? text.replace(/[^ -~]/g, ' ').slice(0, 200)
+      : null
+  } catch {
+    return null
+  }
 }
 
 export async function publishAutoDraftJob(job: AutoDraftJob): Promise<void> {
@@ -63,10 +90,16 @@ export async function publishAutoDraftJob(job: AutoDraftJob): Promise<void> {
     throw new QstashError('unavailable')
   }
   if (response.ok) return
-  if (response.status === 401 || response.status === 403) {
-    throw new QstashError('auth')
+  const { status } = response
+  const detail =
+    (await errorText(response))?.replaceAll(
+      settings.qstashToken,
+      '[removed]',
+    ) ?? null
+  if (status === 401 || status === 403) {
+    throw new QstashError('auth', status, detail)
   }
-  if (response.status === 429) throw new QstashError('rate_limited')
-  if (response.status >= 500) throw new QstashError('unavailable')
-  throw new QstashError('rejected')
+  if (status === 429) throw new QstashError('rate_limited', status, detail)
+  if (status >= 500) throw new QstashError('unavailable', status, detail)
+  throw new QstashError('rejected', status, detail)
 }

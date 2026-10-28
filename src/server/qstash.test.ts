@@ -116,6 +116,22 @@ describe('publishAutoDraftJob', () => {
     expect(await kindOf(publishAutoDraftJob(job))).toBe(kind)
   })
 
+  it('keeps the status and the short error text for the log, without the token', async () => {
+    outboundFetch.mockResolvedValue(
+      new Response(`{"error":"invalid destination url ${TOKEN}"}`, {
+        status: 400,
+      }),
+    )
+    const error: unknown = await publishAutoDraftJob(job).catch(
+      (e: unknown) => e,
+    )
+    expect(error).toMatchObject({
+      kind: 'rejected',
+      status: 400,
+      detail: 'invalid destination url [removed]',
+    })
+  })
+
   it('a network failure is unavailable and nothing is retried', async () => {
     outboundFetch.mockRejectedValue(new Error('network'))
     expect(await kindOf(publishAutoDraftJob(job))).toBe('unavailable')
