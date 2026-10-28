@@ -64,7 +64,7 @@ describe('complete', () => {
       'anthropic-version': '2023-06-01',
       'content-type': 'application/json',
     })
-    expect(init.timeoutMs).toBe(30_000)
+    expect(init.timeoutMs).toBe(40_000)
   })
 
   it('sends one user message, capped output, no sampling parameters, and thinking off', async () => {

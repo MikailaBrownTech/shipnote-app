@@ -78,6 +78,7 @@ vi.mock('./draft-actions', () => ({
 }))
 
 const { default: ProjectPage } = await import('./[id]/page')
+const projectPageConfig = await import('./[id]/page')
 
 const USER = '6f1c3a9e-1b2d-4c3e-8f4a-5b6c7d8e9f01'
 const ID = '11111111-2222-4333-8444-555555555555'
@@ -665,6 +666,12 @@ describe('with automatic drafts off', () => {
     expect(html).not.toContain('>Auto</span>')
     expect(readAutoDraft).not.toHaveBeenCalled()
     expect(listAutoJobs).not.toHaveBeenCalled()
+  })
+})
+
+describe('how long Generate draft may take', () => {
+  it('the project page gives its Server Actions 60 seconds, enough for GitHub and one Claude call', () => {
+    expect(projectPageConfig.maxDuration).toBe(60)
   })
 })
 

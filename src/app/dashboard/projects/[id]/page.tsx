@@ -30,6 +30,12 @@ import {
 // page title.
 export const metadata: Metadata = { title: 'Project' }
 
+// How long the Server Actions on this page may run, in seconds (Next.js takes it
+// from the page). Generate draft reads commits from GitHub, then waits for one
+// Claude call of up to 40 seconds, so the platform default is too short. It is
+// the same limit as the automatic draft worker.
+export const maxDuration = 60
+
 export default function ProjectPage({
   params,
   searchParams,
