@@ -73,6 +73,17 @@ const points = [
     tone: 'on-amber',
   },
   {
+    title: 'Schedule when you want',
+    body: 'Connect your own Buffer account to schedule a draft you have approved.',
+    icon: (
+      <>
+        <circle cx="12" cy="12" r="9" />
+        <path d="M12 7v5l3 2" />
+      </>
+    ),
+    tone: 'on-pink',
+  },
+  {
     title: 'Only what you pick',
     body: 'Commits without [post] are left alone.',
     icon: (
@@ -113,6 +124,7 @@ export default function Home() {
             Shipnote
           </Link>
           <nav aria-label="Page sections" className={styles.links}>
+            <a href="#features">Features</a>
             <a href="#example">Example</a>
             <a href="#how">How it works</a>
           </nav>
@@ -138,7 +150,20 @@ export default function Home() {
               </p>
               <div className={styles.actions}>
                 <Link href="/sign-in" className="button">
-                  Sign in
+                  Get started for free
+                  <svg
+                    viewBox="0 0 24 24"
+                    width="18"
+                    height="18"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M5 12h14M13 6l6 6-6 6" />
+                  </svg>
                 </Link>
                 <a href="#example" className="button button-soft">
                   See an example
@@ -231,7 +256,11 @@ export default function Home() {
         </main>
       </div>
 
-      <section className={`page ${styles.points}`} aria-label="Why Shipnote">
+      <section
+        id="features"
+        className={`page ${styles.points}`}
+        aria-label="Why Shipnote"
+      >
         <ul>
           {points.map((point) => (
             <li key={point.title}>
@@ -328,7 +357,7 @@ export default function Home() {
           </h2>
           <p>Shipnote is in early access, invite only.</p>
           <Link href="/sign-in" className="button button-amber">
-            Sign in
+            Get started for free
           </Link>
         </div>
       </section>

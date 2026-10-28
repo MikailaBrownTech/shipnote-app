@@ -18,7 +18,13 @@ function current(pathname: string) {
 describe('dashboard sidebar', () => {
   it('lists only pages that exist, plus sign out', () => {
     const html = renderToStaticMarkup(<SidebarView pathname="/dashboard" />)
-    for (const label of ['Dashboard', 'New project', 'Account', 'Sign out']) {
+    for (const label of [
+      'Dashboard',
+      'Posts',
+      'New project',
+      'Account',
+      'Sign out',
+    ]) {
       expect(html).toContain(label)
     }
     for (const missing of ['Generate', 'Calendar', 'Analytics', 'Upgrade']) {
@@ -30,6 +36,10 @@ describe('dashboard sidebar', () => {
     expect(current('/dashboard')).toEqual(['Dashboard'])
     expect(current(`/dashboard/projects/${ID}`)).toEqual(['Dashboard'])
     expect(current(`/dashboard/projects/${ID}/edit`)).toEqual(['Dashboard'])
+  })
+
+  it('marks Posts on the posts page', () => {
+    expect(current('/dashboard/posts')).toEqual(['Posts'])
   })
 
   it('marks New project and Account on their own pages', () => {
