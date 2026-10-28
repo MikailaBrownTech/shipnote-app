@@ -22,7 +22,15 @@ export type CurrentUser = {
 //    sessions. It costs one round trip per call and fails closed.
 export async function getCurrentUser(): Promise<CurrentUser | null> {
   const supabase = await createClient()
-  const { data, error } = await supabase.auth.getClaims()
+  let result
+  try {
+    result = await supabase.auth.getClaims()
+  } catch {
+    // A cookie the library cannot read throws instead of returning an error.
+    // It is not a session.
+    return null
+  }
+  const { data, error } = result
   const claims = data?.claims
   if (error || !claims?.sub) return null
 

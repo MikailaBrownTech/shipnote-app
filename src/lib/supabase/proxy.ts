@@ -41,8 +41,17 @@ export async function updateSession(request: NextRequest) {
 
   // Verifies the signed token. Do not run code between creating the client
   // and this call, and never trust getSession() on the server.
-  const { data } = await supabase.auth.getClaims()
-  const signedIn = Boolean(data?.claims.sub)
+  let signedIn = false
+  try {
+    const { data } = await supabase.auth.getClaims()
+    signedIn = Boolean(data?.claims.sub)
+  } catch {
+    // A cookie the library cannot even read (a token with an odd algorithm, or
+    // not a token at all) throws instead of returning an error. It is not a
+    // session. Left uncaught it would fail every page for that browser, public
+    // ones too, since this runs on all of them.
+    signedIn = false
+  }
 
   if (!signedIn && request.nextUrl.pathname.startsWith('/dashboard')) {
     const redirect = NextResponse.redirect(
