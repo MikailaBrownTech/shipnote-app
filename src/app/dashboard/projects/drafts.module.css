@@ -285,3 +285,133 @@
   margin-bottom: 0.5rem;
   font-size: 1rem;
 }
+
+/* The tone picker on the Generate form: a card for each tone. */
+
+.tonePicker {
+  display: grid;
+  gap: 0.6rem;
+  min-width: 0;
+  border: 0;
+}
+
+.toneGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.6rem;
+}
+
+@media (min-width: 36rem) {
+  .toneGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 64rem) {
+  .toneGrid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.toneCard {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 0.15rem 0.6rem;
+  min-height: 4.25rem;
+  padding: 0.7rem 0.8rem;
+  border: 2px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  cursor: pointer;
+  transition:
+    border-color 140ms ease,
+    background-color 140ms ease,
+    box-shadow 140ms ease;
+}
+
+/* The radio button is the real control, but only its card is seen. */
+.toneCard input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.toneCard strong {
+  font-size: 0.9375rem;
+}
+
+.toneCard .toneText {
+  grid-column: 2;
+  color: var(--ink-soft);
+  font-size: 0.8125rem;
+  line-height: 1.35;
+}
+
+.toneDot {
+  grid-row: span 2;
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  color: var(--ink);
+  font-size: 0.875rem;
+  font-weight: 800;
+}
+
+.toneSaved {
+  color: #fff;
+  background: linear-gradient(135deg, var(--blue-violet), var(--neon-pink));
+}
+
+.tone_professional {
+  background: var(--tint-violet);
+}
+
+.tone_academic {
+  background: var(--tint-azure);
+}
+
+.tone_casual {
+  background: var(--tint-orange);
+}
+
+.tone_friendly {
+  background: var(--tint-amber);
+}
+
+.tone_direct {
+  background: var(--tint-pink);
+}
+
+.tone_storyteller {
+  background: color-mix(in srgb, var(--blue-violet) 28%, var(--tint-pink));
+}
+
+.tone_humble {
+  background: color-mix(in srgb, #2dd4bf 30%, white);
+}
+
+@media (hover: hover) {
+  .toneCard:hover {
+    border-color: color-mix(in srgb, var(--blue-violet) 45%, var(--line));
+  }
+}
+
+.toneCard:has(input:checked) {
+  border-color: var(--blue-violet);
+  background: color-mix(in srgb, var(--blue-violet) 8%, var(--surface));
+  box-shadow: 0 8px 20px -12px
+    color-mix(in srgb, var(--blue-violet) 70%, transparent);
+}
+
+.toneCard:has(input:focus-visible) {
+  outline: 3px solid var(--blue-violet);
+  outline-offset: 2px;
+}

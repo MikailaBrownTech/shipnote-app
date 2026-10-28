@@ -179,3 +179,29 @@ export async function listActiveSchedules(
   const rows = z.array(postRow).safeParse(data)
   return rows.success ? rows.data.map(toPost) : null
 }
+
+// The user's schedules that fall in [from, to), earliest first, for the
+// calendar. Canceled ones are left out. null if they could not be read.
+export async function listSchedulesBetween(
+  userId: string,
+  fromIso: string,
+  toIso: string,
+  limit = 200,
+): Promise<ScheduledPost[] | null> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('scheduled_posts')
+    .select(COLUMNS)
+    .eq('user_id', userId)
+    .gte('scheduled_for', fromIso)
+    .lt('scheduled_for', toIso)
+    .neq('status', 'canceled')
+    .order('scheduled_for', { ascending: true })
+    .limit(limit)
+  if (error) {
+    note(error.code)
+    return null
+  }
+  const rows = z.array(postRow).safeParse(data)
+  return rows.success ? rows.data.map(toPost) : null
+}

@@ -69,11 +69,72 @@ describe('listInstallationRepoInfo', () => {
         ],
       }),
     )
+    const blank = {
+      isPrivate: false,
+      language: null,
+      stars: 0,
+      forks: 0,
+      openIssues: 0,
+      updatedAt: null,
+    }
     expect(await listInstallationRepoInfo(TOKEN)).toEqual([
-      { fullName: 'octo/hello', name: 'hello', description: 'A greeting' },
-      { fullName: 'octo/bare', name: 'bare', description: null },
-      { fullName: 'octo/nodesc', name: 'nodesc', description: null },
+      {
+        fullName: 'octo/hello',
+        name: 'hello',
+        description: 'A greeting',
+        ...blank,
+        isPrivate: true,
+      },
+      { fullName: 'octo/bare', name: 'bare', description: null, ...blank },
+      { fullName: 'octo/nodesc', name: 'nodesc', description: null, ...blank },
     ])
+  })
+
+  it('keeps the language, counts and last push GitHub reports for a repository', async () => {
+    outboundFetch.mockResolvedValue(
+      json(200, {
+        repositories: [
+          {
+            full_name: 'octo/hello',
+            name: 'hello',
+            description: null,
+            private: false,
+            language: 'TypeScript',
+            stargazers_count: 12,
+            forks_count: 4,
+            open_issues_count: 2,
+            pushed_at: '2026-10-27T10:00:00Z',
+            updated_at: '2026-10-20T10:00:00Z',
+          },
+          {
+            full_name: 'octo/old',
+            name: 'old',
+            updated_at: '2026-10-20T10:00:00Z',
+          },
+        ],
+      }),
+    )
+    const [first, second] = await listInstallationRepoInfo(TOKEN)
+    expect(first).toMatchObject({
+      language: 'TypeScript',
+      stars: 12,
+      forks: 4,
+      openIssues: 2,
+      updatedAt: '2026-10-27T10:00:00Z',
+    })
+    // With no push time, the last update is used.
+    expect(second.updatedAt).toBe('2026-10-20T10:00:00Z')
+  })
+
+  it('refuses a count that is not a whole number', async () => {
+    outboundFetch.mockResolvedValue(
+      json(200, {
+        repositories: [{ full_name: 'octo/hello', stargazers_count: -1 }],
+      }),
+    )
+    await expect(listInstallationRepoInfo(TOKEN)).rejects.toBeInstanceOf(
+      GithubError,
+    )
   })
 
   it('works out the name from the full name when GitHub omits it', async () => {

@@ -265,6 +265,15 @@ const reposSchema = z.object({
       full_name: z.string(),
       name: z.string().optional(),
       description: z.string().nullable().optional(),
+      // Repository details GitHub returns in the same answer (Metadata
+      // permission). All optional: a missing one is shown as unknown.
+      private: z.boolean().optional(),
+      language: z.string().nullable().optional(),
+      stargazers_count: z.number().int().nonnegative().optional(),
+      forks_count: z.number().int().nonnegative().optional(),
+      open_issues_count: z.number().int().nonnegative().optional(),
+      pushed_at: z.string().nullable().optional(),
+      updated_at: z.string().nullable().optional(),
     }),
   ),
 })
@@ -274,6 +283,14 @@ export type RepoInfo = {
   name: string
   // GitHub's own one-line description, or null.
   description: string | null
+  isPrivate: boolean
+  // The main language GitHub reports, or null.
+  language: string | null
+  stars: number
+  forks: number
+  openIssues: number
+  // When the repository was last pushed to (or changed), or null.
+  updatedAt: string | null
 }
 
 // The repositories this installation can see, with the name and description
@@ -299,6 +316,12 @@ export async function listInstallationRepoInfo(
         fullName: repo.full_name,
         name: repo.name ?? splitRepo(repo.full_name).repo,
         description: repo.description ?? null,
+        isPrivate: repo.private ?? false,
+        language: repo.language ?? null,
+        stars: repo.stargazers_count ?? 0,
+        forks: repo.forks_count ?? 0,
+        openIssues: repo.open_issues_count ?? 0,
+        updatedAt: repo.pushed_at ?? repo.updated_at ?? null,
       })
     }
     if (body.repositories.length < 100) break

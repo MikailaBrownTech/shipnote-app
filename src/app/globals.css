@@ -234,15 +234,10 @@ a {
 
 .wordmark::before {
   content: '';
-  width: 1.75rem;
-  height: 1.75rem;
+  width: 1.9rem;
+  height: 1.9rem;
   border-radius: 0.5rem;
-  background: linear-gradient(
-    135deg,
-    var(--blue-violet),
-    var(--neon-pink) 70%,
-    var(--blaze-orange)
-  );
+  background: url('/logo-mark.png') center / cover no-repeat;
 }
 
 @media (prefers-reduced-motion: reduce) {

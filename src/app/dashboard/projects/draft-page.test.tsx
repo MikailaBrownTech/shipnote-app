@@ -171,11 +171,29 @@ describe('with AI on', () => {
     expect(html).not.toMatch(/Schedule|Post now|Publish/i)
   })
 
-  it('offers a tone for this post only, defaulting to the saved tone', async () => {
+  it('offers a tone for this post only, as cards, defaulting to the saved tone', async () => {
     const plain = await render()
     expect(plain.html).toContain('Tone for this post')
-    expect(plain.html).toContain('Your saved tone (Professional)')
-    expect(plain.html.match(/<option value="[a-z]+">/g)).toHaveLength(7)
+    const radios = [
+      ...plain.html.matchAll(/<input[^>]*name="tone"[^>]*>/g),
+    ].map((m) => m[0])
+    // The saved tone, then the seven tones.
+    expect(radios).toHaveLength(8)
+    expect(radios[0]).toContain('value=""')
+    expect(radios[0]).toContain('checked=""')
+    expect(radios.slice(1).filter((tag) => tag.includes('checked'))).toEqual([])
+    for (const label of [
+      'Professional',
+      'Academic',
+      'Casual',
+      'Friendly',
+      'Direct',
+      'Storyteller',
+      'Humble',
+    ]) {
+      expect(plain.html).toContain('<strong>' + label + '</strong>')
+    }
+    expect(plain.html).toContain('Currently Professional.')
     expect(plain.html).toContain(
       'Only for this draft. It does not change your saved voice.',
     )
@@ -190,14 +208,15 @@ describe('with AI on', () => {
       signoff: '',
     })
     const saved = await render()
-    expect(saved.html).toContain('Your saved tone (Casual)')
+    expect(saved.html).toContain('Currently Casual.')
   })
 
-  it('still offers the dropdown if the saved tone cannot be read', async () => {
+  it('still offers the picker if the saved tone cannot be read', async () => {
     readVoice.mockResolvedValue('failed')
     const { html } = await render()
     expect(html).toContain('Tone for this post')
-    expect(html).not.toContain('Your saved tone (')
+    expect(html).toContain('Uses the tone you saved on the Voice page.')
+    expect(html).not.toContain('Currently ')
   })
 
   it('offers to check commits when a repository is linked', async () => {

@@ -23,8 +23,11 @@ vi.mock('@/server/github-state', () => ({ startState }))
 vi.mock('@/server/github-projects', () => ({ disconnectGithub }))
 vi.mock('@/server/rate-limit', () => ({ rateLimit }))
 
-const { connectGithubAction, disconnectGithubFromDashboardAction } =
-  await import('./actions')
+const {
+  connectGithubAction,
+  disconnectGithubFromDashboardAction,
+  syncGithubAction,
+} = await import('./actions')
 
 const USER = '6f1c3a9e-1b2d-4c3e-8f4a-5b6c7d8e9f01'
 const PROJECT = '11111111-2222-4333-8444-555555555555'
@@ -188,5 +191,24 @@ describe('disconnectGithubFromDashboardAction', () => {
     await expect(
       disconnectGithubFromDashboardAction(form({ installation: '42' })),
     ).rejects.toThrow('redirect:/dashboard?github=failed')
+  })
+})
+
+describe('syncGithubAction', () => {
+  it('needs a session first', async () => {
+    requireUser.mockRejectedValue(new Error('redirect:/sign-in'))
+    await expect(syncGithubAction()).rejects.toThrow('redirect:/sign-in')
+    expect(revalidatePath).not.toHaveBeenCalled()
+  })
+
+  it('is a not-found page while GitHub is off', async () => {
+    githubIsEnabled.mockReturnValue(false)
+    await expect(syncGithubAction()).rejects.toThrow('not-found')
+    expect(revalidatePath).not.toHaveBeenCalled()
+  })
+
+  it('asks for a fresh render of the GitHub page and nothing else', async () => {
+    await syncGithubAction()
+    expect(revalidatePath).toHaveBeenCalledExactlyOnceWith('/dashboard/github')
   })
 })

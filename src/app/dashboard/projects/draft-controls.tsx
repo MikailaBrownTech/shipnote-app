@@ -424,21 +424,38 @@ export function DraftWorkshop({
             maxLength={500}
             placeholder="What should this post be about? What did you learn?"
           />
-          <label htmlFor="draft-tone" className={styles.editorLabel}>
-            Tone for this post{' '}
-            <span className={styles.optional}>(optional)</span>
-          </label>
-          <select id="draft-tone" name="tone" defaultValue="">
-            <option value="">
-              Your saved tone
-              {savedTone ? ` (${TONES[savedTone].label})` : ''}
-            </option>
-            {TONE_IDS.map((id) => (
-              <option key={id} value={id}>
-                {TONES[id].label}
-              </option>
-            ))}
-          </select>
+          <fieldset className={styles.tonePicker}>
+            <legend className={styles.editorLabel}>
+              Tone for this post{' '}
+              <span className={styles.optional}>(optional)</span>
+            </legend>
+            <div className={styles.toneGrid}>
+              <label className={styles.toneCard}>
+                <input type="radio" name="tone" value="" defaultChecked />
+                <span className={`${styles.toneDot} ${styles.toneSaved}`}>
+                  <Icon name="check" size={14} />
+                </span>
+                <strong>Your saved tone</strong>
+                <span className={styles.toneText}>
+                  {savedTone
+                    ? `Currently ${TONES[savedTone].label}.`
+                    : 'Uses the tone you saved on the Voice page.'}
+                </span>
+              </label>
+              {TONE_IDS.map((id) => (
+                <label key={id} className={styles.toneCard}>
+                  <input type="radio" name="tone" value={id} />
+                  <span className={`${styles.toneDot} ${styles[`tone_${id}`]}`}>
+                    {TONES[id].label.slice(0, 1)}
+                  </span>
+                  <strong>{TONES[id].label}</strong>
+                  <span className={styles.toneText}>
+                    {TONES[id].description}
+                  </span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
           <p className={styles.help}>
             Only for this draft. It does not change your saved voice.{' '}
             <Link href="/dashboard/settings/voice">Change your voice</Link>
