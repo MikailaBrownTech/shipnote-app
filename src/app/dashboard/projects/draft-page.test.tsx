@@ -13,6 +13,9 @@ const draftsLeftToday = vi.fn()
 const listRecentDrafts = vi.fn()
 const coveredShas = vi.fn()
 const schedulingIsEnabled = vi.fn()
+const autoDraftsOn = vi.fn()
+const readAutoDraft = vi.fn()
+const listAutoJobs = vi.fn()
 const getConnectionStatus = vi.fn()
 const listProjectSchedules = vi.fn()
 
@@ -32,6 +35,13 @@ vi.mock('@/server/projects', () => ({ getProject }))
 vi.mock('@/server/draft-generation', () => ({ aiIsEnabled, draftsLeftToday }))
 vi.mock('@/server/drafts', () => ({ listRecentDrafts, coveredShas }))
 vi.mock('@/server/scheduling', () => ({ schedulingIsEnabled }))
+vi.mock('@/server/auto-drafts', () => ({
+  autoDraftsOn,
+  readAutoDraft,
+  listAutoJobs,
+  setAutoDraft: vi.fn(),
+}))
+vi.mock('./auto-draft-actions', () => ({ setAutoDraftAction: vi.fn() }))
 vi.mock('@/server/scheduled-posts', () => ({
   getConnectionStatus,
   listProjectSchedules,
@@ -121,6 +131,9 @@ beforeEach(() => {
   listRecentDrafts.mockResolvedValue([])
   coveredShas.mockResolvedValue([])
   schedulingIsEnabled.mockReturnValue(false)
+  autoDraftsOn.mockReturnValue(false)
+  readAutoDraft.mockResolvedValue(false)
+  listAutoJobs.mockResolvedValue([])
   getConnectionStatus.mockResolvedValue({ state: 'none', connectedAt: null })
   listProjectSchedules.mockResolvedValue([])
   getProject.mockResolvedValue({ ok: true, value: project() })
@@ -431,5 +444,164 @@ describe('with scheduling off', () => {
     expect(html).not.toMatch(/Buffer|Schedule on LinkedIn|Scheduled posts/)
     expect(getConnectionStatus).not.toHaveBeenCalled()
     expect(listProjectSchedules).not.toHaveBeenCalled()
+  })
+})
+
+describe('with automatic drafts on', () => {
+  const SHA_A = 'a1b2c3d4'.padEnd(40, 'e')
+  const job = (over: Record<string, unknown> = {}) => ({
+    id: 'job-1',
+    commitSha: SHA_A,
+    status: 'skipped',
+    reason: 'daily_limit',
+    draftId: null,
+    createdAt: '2026-11-03T10:00:00Z',
+    ...over,
+  })
+
+  beforeEach(() => {
+    autoDraftsOn.mockReturnValue(true)
+    readAutoDraft.mockResolvedValue(false)
+    listAutoJobs.mockResolvedValue([])
+  })
+
+  it('shows the switch, off, with a plain explanation', async () => {
+    const { html, errors } = await render()
+    expect(errors).toEqual([])
+    expect(html).toContain('Automatic drafts')
+    expect(html).toContain('Draft automatically when I push a commit with')
+    expect(html).toContain('Off by default.')
+    expect(html).toContain('Only the commit message is used')
+    expect(html).toContain('uses one of your 10 drafts for the day')
+    expect(html).toContain('automatic drafts are tagged Auto')
+    expect(html).toContain('Turn on automatic drafts')
+    expect(html).not.toContain('Turn off automatic drafts')
+  })
+
+  it('offers to turn it off when it is on', async () => {
+    readAutoDraft.mockResolvedValue(true)
+    const { html } = await render()
+    expect(html).toContain('Turn off automatic drafts')
+    expect(html).not.toContain('Turn on automatic drafts')
+  })
+
+  it('cannot be turned on without a linked repository, and says why', async () => {
+    getProject.mockResolvedValue({
+      ok: true,
+      value: project({ repoFullName: null, installationId: null }),
+    })
+    const { html } = await render()
+    expect(html).toContain(
+      'Link a repository on the GitHub tab to turn this on.',
+    )
+    expect(html).toMatch(
+      /<button[^>]*disabled=""[^>]*>Turn on automatic drafts/,
+    )
+  })
+
+  it('lists skipped and failed commits with a short sha and a plain reason', async () => {
+    listAutoJobs.mockResolvedValue([
+      job(),
+      job({
+        id: 'job-2',
+        commitSha: 'f'.repeat(40),
+        status: 'failed',
+        reason: 'commit_not_found',
+      }),
+      job({
+        id: 'job-3',
+        commitSha: '1'.repeat(40),
+        status: 'done',
+        reason: null,
+        draftId: 'd',
+      }),
+      job({
+        id: 'job-4',
+        commitSha: '2'.repeat(40),
+        status: 'queued',
+        reason: null,
+      }),
+    ])
+    const { html } = await render()
+    expect(html).toContain('Commits that did not make a draft')
+    expect(html).toContain('<code>a1b2c3d</code>')
+    expect(html).toContain('You had already used your 10 drafts for the day.')
+    expect(html).toContain('<code>fffffff</code>')
+    expect(html).toContain('GitHub could not find the commit.')
+    expect(html).toContain('Skipped')
+    expect(html).toContain('Failed')
+    expect(html).not.toContain('<code>1111111</code>')
+    expect(html).not.toContain('<code>2222222</code>')
+  })
+
+  it('shows only a short sha and a fixed reason, never the whole sha', async () => {
+    listAutoJobs.mockResolvedValue([job()])
+    const { html } = await render()
+    expect(html).not.toContain(SHA_A)
+  })
+
+  it('an unknown reason code is shown generically, never as given', async () => {
+    listAutoJobs.mockResolvedValue([
+      job({ reason: '<script>alert(1)</script>' }),
+    ])
+    const { html } = await render()
+    expect(html).not.toContain('<script>alert')
+    expect(html).toContain('Something went wrong.')
+  })
+
+  it('tags a draft that a push wrote with Auto', async () => {
+    listRecentDrafts.mockResolvedValue([
+      draft(),
+      draft({
+        id: '88888888-2222-4333-8444-555555555555',
+        body: 'Written by a push',
+      }),
+    ])
+    listAutoJobs.mockResolvedValue([
+      job({
+        status: 'done',
+        reason: null,
+        draftId: '88888888-2222-4333-8444-555555555555',
+      }),
+    ])
+    const { html } = await render()
+    const tags = [...html.matchAll(/<span class="[^"]*">Auto<\/span>/g)]
+    expect(tags.length).toBeGreaterThanOrEqual(1)
+    const items = html.split('<li><details>').slice(1)
+    expect(items).toHaveLength(2)
+    expect(items.filter((item) => item.includes('>Auto</span>'))).toHaveLength(
+      1,
+    )
+  })
+
+  it('asks only for this user and this project', async () => {
+    await render()
+    expect(readAutoDraft).toHaveBeenCalledWith(USER, ID)
+    expect(listAutoJobs).toHaveBeenCalledWith(USER, ID, 20)
+  })
+
+  it('shows no card when the switch cannot be read', async () => {
+    readAutoDraft.mockResolvedValue(null)
+    const { html } = await render()
+    expect(html).not.toContain('Automatic drafts')
+  })
+
+  it('shows no card when the jobs cannot be read', async () => {
+    listAutoJobs.mockResolvedValue(null)
+    const { html } = await render()
+    expect(html).not.toContain('Automatic drafts')
+  })
+})
+
+describe('with automatic drafts off', () => {
+  it('shows no switch, no card and no Auto tag, and reads nothing', async () => {
+    autoDraftsOn.mockReturnValue(false)
+    listRecentDrafts.mockResolvedValue([draft()])
+    const { html } = await render()
+    expect(html).not.toContain('Automatic drafts')
+    expect(html).not.toContain('Turn on automatic drafts')
+    expect(html).not.toContain('>Auto</span>')
+    expect(readAutoDraft).not.toHaveBeenCalled()
+    expect(listAutoJobs).not.toHaveBeenCalled()
   })
 })

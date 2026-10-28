@@ -15,6 +15,14 @@ const listRecentDrafts = vi.fn()
 const coveredShas = vi.fn()
 
 vi.mock('server-only', () => ({}))
+// Automatic drafts are off in these tests, as they are by default.
+vi.mock('@/server/auto-drafts', () => ({
+  autoDraftsOn: () => false,
+  readAutoDraft: vi.fn(),
+  listAutoJobs: vi.fn(),
+  setAutoDraft: vi.fn(),
+}))
+vi.mock('./auto-draft-actions', () => ({ setAutoDraftAction: vi.fn() }))
 // Scheduling is off in these tests, as it is by default.
 vi.mock('@/server/scheduling', () => ({ schedulingIsEnabled: () => false }))
 vi.mock('@/server/scheduled-posts', () => ({

@@ -27,6 +27,8 @@ const OPTIONAL = [
   'SCHEDULING_ENABLED', // defaults to false
   'BUFFER_TOKEN_KEY_VERSION', // defaults to 1
   'BUFFER_TOKEN_ENCRYPTION_KEY_PREVIOUS', // only while rotating the key
+  'AUTO_DRAFTS_ENABLED', // defaults to false
+  'QSTASH_URL', // defaults to https://qstash.upstash.io
 ]
 // Required only while ALERTS_ENABLED=true.
 const WHEN_ALERTS = ['RESEND_API_KEY', 'EMAIL_FROM', 'DEVICE_HASH_SALT']
@@ -37,6 +39,13 @@ const WHEN_SCHEDULING = [
   'BUFFER_CLIENT_ID',
   'BUFFER_CLIENT_SECRET',
   'BUFFER_TOKEN_ENCRYPTION_KEY',
+]
+// Required only while AUTO_DRAFTS_ENABLED=true.
+const WHEN_AUTO_DRAFTS = [
+  'GITHUB_WEBHOOK_SECRET',
+  'QSTASH_TOKEN',
+  'QSTASH_CURRENT_SIGNING_KEY',
+  'QSTASH_NEXT_SIGNING_KEY',
 ]
 // Required only while GITHUB_ENABLED=true.
 const WHEN_GITHUB = [
@@ -51,6 +60,8 @@ const isSet = (name) => Boolean(process.env[name]?.trim())
 const alertsOn = process.env.ALERTS_ENABLED?.trim().toLowerCase() === 'true'
 const githubOn = process.env.GITHUB_ENABLED?.trim().toLowerCase() === 'true'
 const aiOn = process.env.AI_ENABLED?.trim().toLowerCase() === 'true'
+const autoDraftsOn =
+  process.env.AUTO_DRAFTS_ENABLED?.trim().toLowerCase() === 'true'
 const schedulingOn =
   process.env.SCHEDULING_ENABLED?.trim().toLowerCase() === 'true'
 
@@ -66,6 +77,7 @@ const known = new Set([
   ...WHEN_GITHUB,
   ...WHEN_AI,
   ...WHEN_SCHEDULING,
+  ...WHEN_AUTO_DRAFTS,
 ])
 
 let failed = false
@@ -103,6 +115,17 @@ section(
   WHEN_SCHEDULING,
   { required: schedulingOn },
 )
+section(
+  `Server-only, required only when AUTO_DRAFTS_ENABLED=true (currently ${autoDraftsOn ? 'on' : 'off'})`,
+  WHEN_AUTO_DRAFTS,
+  { required: autoDraftsOn },
+)
+if (autoDraftsOn && !(githubOn && aiOn)) {
+  console.log(
+    '\nAUTO_DRAFTS_ENABLED needs GITHUB_ENABLED and AI_ENABLED to be true as well.',
+  )
+  failed = true
+}
 
 const upstash = ['UPSTASH_REDIS_REST_URL', 'UPSTASH_REDIS_REST_TOKEN']
 const upstashSet = upstash.filter(isSet).length
@@ -130,7 +153,7 @@ if (drift.length > 0) {
 const leaked = Object.keys(process.env).filter(
   (name) =>
     name.startsWith('NEXT_PUBLIC_') &&
-    /SERVICE_ROLE|SECRET|TOKEN|SALT|RESEND|UPSTASH|PRIVATE_KEY|GITHUB_APP|ANTHROPIC|BUFFER/.test(
+    /SERVICE_ROLE|SECRET|TOKEN|SALT|RESEND|UPSTASH|PRIVATE_KEY|GITHUB_APP|ANTHROPIC|BUFFER|WEBHOOK|QSTASH/.test(
       name,
     ),
 )

@@ -13,6 +13,7 @@ import {
   type GenerateState,
 } from './draft-actions'
 import { checkCommitsAction, type CommitState } from './github-actions'
+import { AutoDraftCard, type AutoJobView } from './auto-draft-controls'
 import styles from './drafts.module.css'
 import {
   ScheduledPostsList,
@@ -43,6 +44,16 @@ export type DraftView = {
   body: string
   status: 'draft' | 'copied'
   createdAt: string
+  // Written by a push, not by the Generate button.
+  auto?: boolean
+}
+
+// The automatic drafts switch and its skipped or failed jobs, present only while
+// automatic drafts are on.
+export type AutoView = {
+  enabled: boolean
+  canEnable: boolean
+  jobs: AutoJobView[]
 }
 
 const REFUSALS: Record<
@@ -176,6 +187,7 @@ function DraftEditor({
     <div className={styles.editor}>
       <label htmlFor={`draft-${draft.id}`} className={styles.editorLabel}>
         {label}
+        {draft.auto ? <span className={styles.tag}>Auto</span> : null}
         {copied ? <span className={styles.tag}>Copied</span> : null}
       </label>
       <textarea
@@ -253,6 +265,7 @@ export function DraftWorkshop({
   covered,
   recent,
   scheduling,
+  auto,
 }: {
   projectId: string
   // A repository is linked and connected.
@@ -264,6 +277,8 @@ export function DraftWorkshop({
   recent: DraftView[]
   // null while scheduling is off.
   scheduling: SchedulingView | null
+  // null while automatic drafts are off.
+  auto: AutoView | null
 }) {
   const [commitState, checkCommits, checking] = useActionState(
     checkCommitsAction.bind(null, projectId),
@@ -483,6 +498,9 @@ export function DraftWorkshop({
                 <details>
                   <summary>
                     {formatDate(draft.createdAt)}
+                    {draft.auto ? (
+                      <span className={styles.tag}>Auto</span>
+                    ) : null}
                     {draft.status === 'copied' ? (
                       <span className={styles.tag}>Copied</span>
                     ) : null}
@@ -502,6 +520,15 @@ export function DraftWorkshop({
           </ul>
         )}
       </section>
+
+      {auto ? (
+        <AutoDraftCard
+          projectId={projectId}
+          enabled={auto.enabled}
+          canEnable={auto.canEnable}
+          jobs={auto.jobs}
+        />
+      ) : null}
 
       {scheduling ? (
         <ScheduledPostsList projectId={projectId} posts={scheduling.posts} />

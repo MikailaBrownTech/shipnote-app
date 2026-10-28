@@ -185,3 +185,26 @@ describe('repository names', () => {
     )
   })
 })
+
+describe('hasPostTag', () => {
+  it('sees [post] in any case, anywhere in the message', async () => {
+    const { hasPostTag } = await import('./github-commits')
+    expect(hasPostTag('Add export [post]')).toBe(true)
+    expect(hasPostTag('[POST] first line')).toBe(true)
+    expect(hasPostTag('title\n\nbody with [Post] inside')).toBe(true)
+  })
+
+  it('does not see anything else', async () => {
+    const { hasPostTag } = await import('./github-commits')
+    for (const message of [
+      'post',
+      '[posts]',
+      '(post)',
+      '[ post ]',
+      'ghost',
+      '',
+    ]) {
+      expect(hasPostTag(message)).toBe(false)
+    }
+  })
+})

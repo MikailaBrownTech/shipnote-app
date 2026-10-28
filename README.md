@@ -48,6 +48,8 @@ Names only. Put values in `.env.local` (gitignored). Never commit them.
 - `ANTHROPIC_API_KEY`: required when `AI_ENABLED=true`. `ANTHROPIC_MODEL`: `claude-sonnet-5-5` (default) or `claude-haiku-5-5`; any other value stops the server at startup. `AI_MONTHLY_CAP_USD`: the most that all users together may spend in a UTC month (default `10`, up to 2 decimals). See "Draft generation".
 - `SCHEDULING_ENABLED`: `true` turns on scheduling drafts on LinkedIn through each user's own Buffer account. Default off; it is the kill switch (see "Scheduling on LinkedIn through Buffer").
 - `BUFFER_CLIENT_ID`, `BUFFER_CLIENT_SECRET`, `BUFFER_TOKEN_ENCRYPTION_KEY`: required when `SCHEDULING_ENABLED=true`. The key is base64 of 32 random bytes and seals every user's Buffer tokens. `BUFFER_TOKEN_KEY_VERSION` (default 1) and `BUFFER_TOKEN_ENCRYPTION_KEY_PREVIOUS` are only used while rotating the key.
+- `AUTO_DRAFTS_ENABLED`: `true` turns on automatic drafts from `[post]` commits (it needs `GITHUB_ENABLED` and `AI_ENABLED` on too). Default off; it is the kill switch (see "Automatic drafts from `[post]` commits").
+- `GITHUB_WEBHOOK_SECRET`, `QSTASH_TOKEN`, `QSTASH_CURRENT_SIGNING_KEY`, `QSTASH_NEXT_SIGNING_KEY`: required when `AUTO_DRAFTS_ENABLED=true`. `QSTASH_URL` is optional (your account's regional address; only the three known QStash hosts are accepted).
 - `RESEND_API_KEY`, `EMAIL_FROM`, `DEVICE_HASH_SALT`: required when `ALERTS_ENABLED=true`. If one is missing the server refuses to start and the error names it. `EMAIL_FROM` is read from the environment, never hardcoded (`alerts@your-domain` or `Shipnote <alerts@your-domain>`). `DEVICE_HASH_SALT` must be at least 16 random characters.
 
 ## Deploying to Vercel
@@ -519,6 +521,110 @@ With a real Buffer App Client and Supabase project (none of these could be run w
 
 One organization per Buffer account (the first one is used); text posts only (no images, links preview or first comment); LinkedIn channels only; no editing of a scheduled post (cancel and schedule again); refresh tokens are guarded by an in-process lock, so two server instances refreshing the same user at the same moment could still spend a token twice, in which case the person reconnects; PGlite is one connection, so the SQL tests prove the unique index and the daily cap under a serialized burst, not real parallel locking.
 
+## Automatic drafts from `[post]` commits
+
+Off unless `AUTO_DRAFTS_ENABLED=true` (and `GITHUB_ENABLED` and `AI_ENABLED` are on too). When a person turns on **Draft automatically when I push a commit with [post]** for a project (off by default), a push to its linked repository that contains a commit with `[post]` creates a draft by itself, with the **same pipeline, limits and checks as the Generate button**. The draft is tagged **Auto**. The person still edits and posts it; Shipnote never posts.
+
+```
+git push ([post] commit) → GitHub signed webhook → verify signature, dedupe
+  → publish a small job (ids only) to QStash
+  → QStash signed callback → verify signature, claim job once
+  → same pipeline as Generate → draft tagged "Auto"
+```
+
+### The two public doors
+
+Both are public addresses, so neither does any work until the request proves where it came from. The order is the point: **size, then signature, then parsing, then work.**
+
+- **`POST /api/webhooks/github`** (GitHub's webhook). 404 while the feature is off. A declared length over 1 MB is a 413 before anything is read. The `X-Hub-Signature-256` header must be well formed (`sha256=` and 64 lower-case hex characters; the old SHA-1 header is never used). The HMAC-SHA256 of the **raw body bytes** is compared in constant time (`timingSafeEqual`). A missing or wrong signature is a 401 with **no database write** and no body. Only then is the body parsed. Anything but a `push` event (a `ping`, for one) is acknowledged and ignored. The `X-GitHub-Delivery` id is recorded once. The installation id in the payload (GitHub signed it) finds the user and project in our own database; **no user or owner id from the payload is ever used.** Pushes for unlinked repositories, projects with the switch off, deleted accounts, branches other than the default branch, and branch deletions are ignored. Commits whose message contains `[post]` (any case) are taken, merge commits are skipped (by message here, by real parents in the worker), at most 5 per push (the newest). Each commit gets one job and one QStash message. Rate limited per installation (fail open).
+- **`POST /api/queue/draft`** (QStash's callback). 404 while off. The `Upstash-Signature` JWT is verified against the raw body, with the current **and** next signing key: HS256 only, issuer `Upstash`, `sub` equal to this exact URL, not expired, and the `body` claim equal to the SHA-256 of the raw body. Missing or invalid is a 401 with no work. Only then is the body read: it must be exactly `{projectId, userId, commitSha, deliveryId}` (strict Zod), otherwise it is refused as non-retryable. Then the job is **claimed once** in Postgres (queued to running, atomically); a duplicate delivery gets success and does nothing.
+
+### The worker pipeline
+
+After the claim: the project is read again with a narrow service-role function that returns it only if it still belongs to the job's user, has the switch on, is linked and the account is not deleted. The commit is fetched again **by sha** with a one-repository, read-only installation token, and must still contain `[post]` and not be a merge commit. Then the same pipeline as Generate: `findSecrets`, reservation (10 per user per UTC day, the monthly cap), one Claude call, output validation, completion.
+
+| Outcome                                                                                             | Job status                                               | What QStash is told                                                         |
+| --------------------------------------------------------------------------------------------------- | -------------------------------------------------------- | --------------------------------------------------------------------------- |
+| Draft written                                                                                       | `done` (with the draft)                                  | 200                                                                         |
+| Daily limit or monthly cap reached                                                                  | `skipped` (`daily_limit` or `monthly_cap`)               | 200, so no retry                                                            |
+| Commit no longer `[post]`, a merge commit, project or switch changed, account deleted               | `skipped`                                                | 200                                                                         |
+| Unknown sha, installation or repository gone, a secret found, unusable draft, nothing to write from | `failed` (fixed reason code)                             | 489 with `Upstash-NonRetryable-Error: true`                                 |
+| Claude, GitHub or the database temporarily failing                                                  | back to `queued` (the slot is released if one was taken) | 503, so QStash retries (up to 3 times); on the last try the job is `failed` |
+| Duplicate delivery of a claimed or finished job                                                     | unchanged                                                | 200                                                                         |
+
+Automatic drafts are **not** extra drafts: each one uses one of the person's 10 for the day and the monthly cap, and when the day is used up new commits are skipped, not saved for later.
+
+### What I must configure
+
+**GitHub App** (Settings, Developer settings, your App):
+
+1. Turn **Webhook, Active** on. **Webhook URL:** `https://<your-domain>/api/webhooks/github`. **Webhook secret:** a long random string (for example `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`); put the same value in `GITHUB_WEBHOOK_SECRET`.
+2. Under **Subscribe to events**, tick **Push**. (It is available with the Contents read permission the App already has.) Nothing else is needed; other events are ignored anyway.
+3. Save. Use **Advanced, Recent deliveries** to see each delivery, its response code, and to **Redeliver**.
+
+**Upstash QStash** (console.upstash.com, QStash):
+
+1. Copy `QSTASH_TOKEN`, `QSTASH_CURRENT_SIGNING_KEY` and `QSTASH_NEXT_SIGNING_KEY` from the QStash tab. If your account uses a regional address, set `QSTASH_URL` to it (`https://qstash-us-east-1.upstash.io` or `https://qstash-eu-central-1.upstash.io`); otherwise leave it empty (`https://qstash.upstash.io`).
+2. Nothing is registered with QStash ahead of time: Shipnote publishes each job with the callback address `https://<NEXT_PUBLIC_SITE_URL>/api/queue/draft`.
+
+**Vercel / Cloudflare:** both callbacks come from the internet with no cookies. Anything that blocks them stops the feature: Vercel Deployment Protection or Standard Protection on that deployment (use the production domain, which is public), a Cloudflare or other WAF bot rule, and any basic-auth gate. Use the production domain in `NEXT_PUBLIC_SITE_URL`; QStash cannot reach `localhost`.
+
+**Variables** (server only): `AUTO_DRAFTS_ENABLED`, `GITHUB_WEBHOOK_SECRET`, `QSTASH_TOKEN`, `QSTASH_CURRENT_SIGNING_KEY`, `QSTASH_NEXT_SIGNING_KEY`, and optionally `QSTASH_URL`. They are required only while the feature is on.
+
+### The kill switch
+
+`AUTO_DRAFTS_ENABLED=false` (or unset) makes both routes answer 404 and hides the switch. Jobs already in QStash then get a 404, are retried three times, and end in QStash's dead letter queue; their rows stay `queued`. No draft is written while it is off. Existing drafts and the per-project switch values are kept, so turning it back on resumes for new pushes only.
+
+### Rotating the secrets
+
+- **QStash signing keys.** In the Upstash console rotate the keys (the "next" key becomes the "current" one and a new "next" is made), then set `QSTASH_CURRENT_SIGNING_KEY` to the new current and `QSTASH_NEXT_SIGNING_KEY` to the new next, and redeploy. Both keys are always accepted, so callbacks signed in the gap still verify.
+- **GitHub webhook secret.** GitHub accepts one secret at a time. Set the new value in Vercel and redeploy, then change it in the App's settings straight away. Deliveries in between fail with 401 (visible in Recent deliveries); redeliver them.
+- **QStash token.** Create a new token in the console, set `QSTASH_TOKEN`, redeploy, then revoke the old one.
+
+If a secret leaks, rotate it as above. A leaked webhook secret lets someone create jobs only for projects whose installation and repository they name, and only for commits that GitHub then confirms by sha and that still say `[post]`; a leaked signing key lets someone call the worker, which still re-checks everything and claims each job once.
+
+### Tables and functions
+
+`projects.auto_draft` (the switch; the owner can change only this column; changing the linked repository turns it off), `webhook_deliveries` (delivery ids; no user access) and `auto_draft_jobs` (one row per project and commit, with a status and a fixed reason code; users can read their own). Every write goes through a narrow service-role function with a fixed `search_path` (`record_webhook_delivery`, `finish_webhook_delivery`, `resolve_auto_draft_target`, `create_auto_draft_job`, `claim_auto_draft_job`, `release_auto_draft_job`, `finish_auto_draft_job`, `read_project_for_auto_draft`), all excluding soft-deleted accounts. Nothing in these tables holds a commit message, payload, signature, token or draft text. Old delivery ids are never needed after a day or two; to tidy: `delete from public.webhook_deliveries where received_at < now() - interval '30 days';`.
+
+### Migration
+
+`supabase/migrations/20261101000100_auto_drafts.sql`, run in the SQL Editor right before merging. It is **additive**: one column with a default, two tables, a trigger on `projects` and the functions above. The code on `main` does not use any of it. Needs the drafts, GitHub and Buffer migrations to have run already.
+
+### Manual tests you must run
+
+With a real GitHub App, QStash and Supabase project (none of these could be run while this was built):
+
+1. Set the variables, run the migration, redeploy. In GitHub, **Recent deliveries** should show a green `ping` (200) after you save the webhook. A wrong secret shows 401.
+2. Open a project with a linked repository, Drafts tab: the Automatic drafts card is **off**. Turn it on.
+3. Push a commit whose message contains `[post]` to the default branch. Within a minute a draft appears on the Drafts tab with the **Auto** tag. In GitHub Recent deliveries the push shows 202.
+4. In Upstash, the message shows delivered with a 200 from `/api/queue/draft`.
+5. Redeliver the same delivery from GitHub: 200, no second draft. Push a second `[post]` commit: a second draft.
+6. Push a commit without `[post]`, a commit to another branch, and a merge: no draft. Push 8 `[post]` commits at once: 5 drafts at most.
+7. Turn the switch off and push a `[post]` commit: no draft. Unlink the repository: the switch turns itself off.
+8. Use up the 10 drafts for the day (Generate or pushes), then push once more: no draft, and the card lists the commit as **Skipped** with "You had already used your 10 drafts for the day."
+9. Call the endpoints without a signature: `curl -i -X POST https://<domain>/api/webhooks/github -d '{}'` and `curl -i -X POST https://<domain>/api/queue/draft -d '{}'` both answer 401 and nothing appears in the tables.
+10. Set `AUTO_DRAFTS_ENABLED=false` and redeploy: both addresses answer 404 and the card is gone.
+11. Check the Vercel logs for a push: no commit text, body, signature or key appears.
+
+### Threat model: automatic drafts
+
+| Threat                                                     | What stops it                                                                                                                                                                                                                                                                                          |
+| ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| A forged webhook (someone posts a fake push)               | The HMAC-SHA256 of the raw body must match `X-Hub-Signature-256`, compared in constant time, before anything is parsed or written. Without the webhook secret a valid signature cannot be made. A bad one is a 401 with no writes.                                                                     |
+| A replayed or redelivered webhook                          | The delivery id is recorded once; a processed delivery is skipped. A delivery that did not finish is worked again, and job creation is idempotent: one job per project and commit, enforced by a unique constraint.                                                                                    |
+| A forged queue callback                                    | The `Upstash-Signature` JWT must verify with the current or next signing key, be for this exact URL, be unexpired, and carry the hash of the raw body. A different URL, a tampered body, an expired token or another algorithm fails with a 401 before the body is read.                               |
+| Someone discovers the URLs                                 | They are public by necessity and do nothing without a signature: 401 with no body, no writes, no AI call.                                                                                                                                                                                              |
+| Spend abuse (many pushes, many commits, loops)             | At most 5 jobs per push, one per commit; the same 10 per user per UTC day and monthly cap as Generate, enforced in Postgres; limits reached are skipped, not retried; the switch is off by default; a brake per installation.                                                                          |
+| A cross-user job (a message naming another user's project) | The job is claimed by user, project and sha together, so another user's message claims nothing. The project, its repository and its installation are read for that user only, and the token is limited to that one repository and read-only. The user comes from our database, never from the payload. |
+| A hostile commit message                                   | It is untrusted data in delimited blocks, never instructions; `findSecrets` runs before anything is sent; the output is validated and checked, exactly as for Generate. Commit text never goes through QStash, the logs or the job tables.                                                             |
+| Leaked keys or secrets                                     | Server only, validated at startup, never logged or in the repo; rotation steps above; each key alone is not enough to read data or write a draft for someone else.                                                                                                                                     |
+| A soft-deleted account                                     | The functions that resolve, create, claim and read refuse it; a deleted user's queued job is ended as skipped.                                                                                                                                                                                         |
+
+### Limits for now
+
+Only the default branch counts (like the manual list). A push with more than 2048 commits, or a body over 1 MB, is not handled (shown as a failed delivery). A commit more than 30 days old is still fetched by sha, but the manual list would not show it. Organization installations, other event types, notifications and week-over-week cursors are out of scope. PGlite is one connection, so the SQL tests prove duplicate and claim handling under a serialized burst, not real parallel locking. A job left `running` by a crash can be claimed again after ten minutes. Rows for jobs killed by the kill switch stay `queued`.
+
 ## SQL tests
 
 `supabase/tests/` runs the migrations in [PGlite](https://pglite.dev) (real Postgres compiled to WASM, in-process) from `pnpm test`. It needs no Docker or Postgres install.
@@ -537,6 +643,7 @@ One organization per Buffer account (the first one is used); text posts only (no
 - `src/server/outbound.ts`: the one place server code makes an outbound HTTP request, with a host allowlist. `src/server/github.ts` is the only module that talks to GitHub; `github-connect.ts` (ownership check), `github-state.ts` (signed cookie), `github-projects.ts` (picker, link, commit check) and `github-app.ts` (what pages call) and `github-import.ts` (the repo list and README prefill for "Start from a GitHub repo") sit on top of it. `src/app/dashboard/github/` holds the connect action and the callback route.
 - Drafts: `src/server/anthropic.ts` is the only module that talks to Anthropic; `draft-generation.ts` runs one draft; `drafts.ts` reads and edits a user's own drafts; `src/lib/draft-*.ts` and `ai-models.ts` are pure (input caps, prompt, output validation, checker, prices); `src/app/dashboard/projects/draft-*.ts(x)` are the actions and the Drafts tab.
 - Scheduling: `src/server/buffer.ts` is the only module that talks to Buffer; `token-vault.ts` seals and opens tokens; `buffer-state.ts` is the sealed OAuth state cookie with PKCE; `scheduling.ts` holds the rules (connect, schedule, cancel, refresh, disconnect, deletion cleanup); `scheduled-posts.ts` reads a user's own rows; `src/lib/schedule-time.ts` converts and checks the picked time; `src/app/dashboard/buffer/` has the actions, the callback route and the dashboard panel; `src/app/dashboard/projects/schedule-controls.tsx` is the review and cancel UI.
+- Automatic drafts: `src/app/api/webhooks/github/route.ts` (GitHub) and `src/app/api/queue/draft/route.ts` (QStash) are the only public doors; `src/server/webhook-verify.ts` checks both signatures; `auto-draft-webhook.ts` handles a verified push; `qstash.ts` publishes a job; `auto-draft-worker.ts` runs one; `auto-drafts.ts` reads the switch and the jobs; the pipeline itself is `generateAutoDraft` in `draft-generation.ts`, sharing `produceDraft` with Generate; `src/lib/auto-draft-job.ts` holds the message schema and the reason wording.
 - `src/server/`: everything that uses a secret (service role, Redis, email). Pages and actions call `delete-account.ts`, `sign-in-limits.ts` and `sign-in-alert.ts`, not the lower-level modules.
 - `supabase/migrations/`, `supabase/snippets/`, `supabase/tests/`: schema, helper SQL and SQL tests.
 
@@ -562,6 +669,8 @@ This project uses a recent Next.js with `cacheComponents` on. Anything reading c
 - **The drafts migration and the limits, on the real project.** That it applies in the SQL Editor; that PostgREST returns `SN010` and `SN011` in `error.code`; that parallel requests cannot pass the daily limit or the monthly cap (the PGlite tests are one connection); that the Drafts tab works end to end in a browser, including the checkboxes, the clipboard copy and the "Used in a draft" tag. The pages were rendered in tests; the buttons were never clicked.
 - **Everything about real Buffer behaviour.** No Buffer App Client existed while this was built, so every Buffer response in the tests is mocked. In particular: that third-party OAuth is open to your account (one third-party write-up said it was not enabled yet; Buffer's own docs say it is); the exact token-exchange parameters and redirect-URI rules; that the `prompt=consent` parameter is accepted; real token and refresh-token lifetimes; that `account { organizations { id } }` and `channels(input: { organizationId })` return what is read (field and type names were taken from Buffer's reference, not run); the service name that Buffer uses for LinkedIn (compared as `linkedin`, ignoring case); the exact `DeletePostInput`/`PostInput` fields (`id` is assumed) and the `DeletePostSuccess` name; the post status values (`scheduled`, `sent`, `error` as documented; anything else is read as "other"); what Buffer does with a post at its due time; the error shapes for plan and channel limits (`LimitReachedError`); and that Buffer returns `state` unchanged.
 - **The Buffer migration and flows, on the real project.** That it applies in the SQL Editor; that PostgREST returns `SN020` to `SN024` in `error.code`; that the status function and the cascade behave as the PGlite tests show; that connect, review, confirm, cancel, refresh, disconnect and account deletion work end to end in a browser. The pages were rendered in tests; the buttons, the date picker and the review form were never clicked.
+- **Everything about real GitHub webhooks and QStash.** No GitHub App webhook and no QStash account existed while this was built, so every request in the tests is built by hand. In particular: that GitHub sends `X-Hub-Signature-256` and `X-GitHub-Delivery` exactly as documented and that a push payload has the fields read (`ref`, `deleted`, `repository.full_name`, `repository.default_branch`, `installation.id`, `commits[].id` and `.message`); that a push to a default branch always names it in `repository.default_branch`; that QStash's `Upstash-Signature` is the JWT described (HS256, claims `iss`, `sub`, `exp`, `nbf`, `body`) and that the `body` claim is base64url of the SHA-256 (padding is accepted either way, because the docs are not explicit); that `sub` is the URL exactly as published; that the publish endpoint takes the destination unencoded in the path and answers 200 or 202 (a deduplicated publish is 202 in the docs); the regional QStash host of your account; that status 489 with `Upstash-NonRetryable-Error: true` stops retries; that `Upstash-Retried` arrives as documented; real retry timing and timeouts; and that no Vercel or Cloudflare rule, or Deployment Protection, blocks GitHub or QStash.
+- **The automatic drafts migration and flows, on the real project.** That it applies in the SQL Editor; that the switch, the Auto tag and the skipped and failed list work in a browser (they were rendered on the server in tests; the button was never clicked); and that a route handler with `maxDuration = 60` is honoured on your Vercel plan (a Claude call can take up to 30 seconds).
 - The secret check is a set of patterns tested against made-up keys, not against real ones, and it is basic by design.
 - That the base64-encoded PEM works with `crypto.createSign` for the key GitHub issues (it should: PKCS#1 and PKCS#8 are both accepted), and that GitHub accepts the JWT (`iss` is the App ID; GitHub also allows the client ID).
 - That the GitHub migration applies cleanly in the real SQL Editor. `ON DELETE SET NULL (installation_id)` needs Postgres 15 or newer, which current Supabase projects use; PGlite (Postgres 17) ran it in the tests.

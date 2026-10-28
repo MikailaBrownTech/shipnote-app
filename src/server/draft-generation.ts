@@ -10,12 +10,18 @@ import {
 } from '@/lib/draft-input'
 import { validateDraftOutput, type OutputRejection } from '@/lib/draft-output'
 import { buildUserMessage, SYSTEM_PROMPT } from '@/lib/draft-prompt'
-import { postCommitsWithMessages, sinceDate } from '@/lib/github-commits'
+import {
+  hasPostTag,
+  postCommitsWithMessages,
+  sinceDate,
+} from '@/lib/github-commits'
+import type { Stage } from '@/lib/project-schema'
 import { findSecrets } from '@/lib/secret-scan'
 import { AnthropicError, complete } from './anthropic'
 import { aiEnabled, getAiEnv } from './env'
 import {
   createInstallationToken,
+  getCommit,
   GithubError,
   listRecentCommits,
 } from './github'
@@ -23,6 +29,7 @@ import { getProject } from './projects'
 import {
   completeGeneration,
   generationsUsedToday,
+  readProjectForAutoDraft,
   recordUnusableGeneration,
   releaseGeneration,
   reserveGeneration,
@@ -134,6 +141,38 @@ export async function generateDraft(input: {
     }
   }
 
+  return produceDraft({
+    userId: input.userId,
+    project,
+    commits,
+    note: input.note,
+    settings,
+    model,
+  })
+}
+
+type DraftProject = {
+  id: string
+  stage: Stage
+  name: string
+  summary: string | null
+  notes: string
+}
+
+// Everything after the commits are known: build the small input, refuse
+// secrets, take a generation slot, call Claude once, check the answer and store
+// it. Shared by the Generate button and the automatic path, so both have the
+// same limits and checks.
+async function produceDraft(input: {
+  userId: string
+  project: DraftProject
+  commits: { sha: string; message: string }[]
+  note: string
+  settings: NonNullable<ReturnType<typeof getAiEnv>>
+  model: NonNullable<ReturnType<typeof modelConfig>>
+}): Promise<GenerateResult> {
+  const { project, commits, settings, model } = input
+
   const data = buildDraftInput({
     stage: project.stage,
     name: project.name,
@@ -236,5 +275,102 @@ export async function generateDraft(input: {
       }),
     },
     left: left ?? 0,
+  }
+}
+
+// ---- The automatic path ----
+
+export type AutoFailure =
+  | 'disabled'
+  | 'project_gone' // not theirs any more, switch off, unlinked, or account deleted
+  | 'github_gone' // the installation or repository is gone: do not retry
+  | 'github_retry' // GitHub did not answer: try again later
+  | 'commit_not_found'
+  | 'no_tag' // the commit no longer says [post]
+  | 'merge_commit'
+  | 'secret'
+  | 'no_content'
+  | 'daily_limit'
+  | 'monthly_cap'
+  | 'provider' // Claude could not be reached: not counted, try again later
+  | 'invalid_output' // counted; not worth another try
+  | 'failed'
+
+export type AutoResult =
+  { ok: true; draftId: string } | { ok: false; reason: AutoFailure }
+
+const STAGES: readonly string[] = ['idea', 'in_progress', 'shipped']
+
+// One draft from one commit, for a push that was verified at the door. The
+// caller has claimed the job. The project is read again here (it must still
+// belong to the user with the switch on), the commit is fetched again by sha
+// with a one-repository read-only token, and then it is the same pipeline as the
+// Generate button: findSecrets, reservation, one call, validation, completion.
+export async function generateAutoDraft(input: {
+  userId: string
+  projectId: string
+  commitSha: string
+}): Promise<AutoResult> {
+  const settings = getAiEnv()
+  if (!settings) return { ok: false, reason: 'disabled' }
+  const model = modelConfig(settings.model)
+  if (!model) return { ok: false, reason: 'failed' }
+
+  const project = await readProjectForAutoDraft(input.userId, input.projectId)
+  if (project === 'failed') return { ok: false, reason: 'github_retry' }
+  if (project === null) return { ok: false, reason: 'project_gone' }
+  if (!STAGES.includes(project.stage)) return { ok: false, reason: 'failed' }
+
+  let commit
+  try {
+    const token = await createInstallationToken(
+      project.installationId,
+      project.repoFullName,
+    )
+    commit = await getCommit(token, project.repoFullName, input.commitSha)
+  } catch (error) {
+    if (error instanceof GithubError) {
+      if (error.kind === 'not_installed' || error.kind === 'denied') {
+        return { ok: false, reason: 'github_gone' }
+      }
+      if (error.kind === 'not_found') {
+        return { ok: false, reason: 'commit_not_found' }
+      }
+    }
+    // Rate limited, unreachable, or anything unexpected.
+    return { ok: false, reason: 'github_retry' }
+  }
+  if (commit.sha !== input.commitSha) {
+    return { ok: false, reason: 'commit_not_found' }
+  }
+  if (!hasPostTag(commit.message)) return { ok: false, reason: 'no_tag' }
+  if (commit.parentCount > 1) return { ok: false, reason: 'merge_commit' }
+
+  const result = await produceDraft({
+    userId: input.userId,
+    project: {
+      id: input.projectId,
+      stage: project.stage as Stage,
+      name: project.name,
+      summary: project.summary,
+      notes: project.notes ?? '',
+    },
+    commits: [{ sha: commit.sha, message: commit.message }],
+    note: '',
+    settings,
+    model,
+  })
+  if (result.ok) return { ok: true, draftId: result.draft.id }
+  switch (result.reason) {
+    case 'daily_limit':
+    case 'monthly_cap':
+    case 'provider':
+    case 'invalid_output':
+    case 'secret':
+    case 'no_content':
+    case 'disabled':
+      return { ok: false, reason: result.reason }
+    default:
+      return { ok: false, reason: 'failed' }
   }
 }

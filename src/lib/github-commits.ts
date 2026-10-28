@@ -17,6 +17,11 @@ export const WINDOW_DAYS = 30
 type Raw = { sha: string; message: string; date: string | null }
 
 const POST_TAG = /\[post\]/i
+
+// Whether a commit message carries the [post] tag (any case).
+export function hasPostTag(message: string): boolean {
+  return POST_TAG.test(message)
+}
 const SHA = /^[0-9a-f]{7,64}$/i
 
 // Counted in characters, not UTF-16 units, so an emoji is not split in half.

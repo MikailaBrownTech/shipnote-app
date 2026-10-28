@@ -270,3 +270,18 @@
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+
+/* Automatic drafts */
+
+.autoFacts {
+  display: grid;
+  gap: 0.3rem;
+  padding-left: 1.1rem;
+  color: var(--ink-soft);
+  font-size: 0.9375rem;
+}
+
+.subhead {
+  margin-bottom: 0.5rem;
+  font-size: 1rem;
+}

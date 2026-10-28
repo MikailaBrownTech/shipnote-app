@@ -2,6 +2,7 @@ import 'server-only'
 import {
   getAiEnv,
   getAlertsEnv,
+  getAutoDraftsEnv,
   getGithubEnv,
   getSchedulingEnv,
 } from './env'
@@ -11,13 +12,15 @@ import { serverConfigWarnings } from './env-schema'
 // the variable, if ALERTS_ENABLED=true and the email settings are incomplete,
 // GITHUB_ENABLED=true and the GitHub App settings are, or AI_ENABLED=true and
 // the Anthropic settings are, or SCHEDULING_ENABLED=true and the Buffer
-// settings are.
+// settings are, or AUTO_DRAFTS_ENABLED=true and the webhook and queue settings
+// are (or GitHub or AI are off).
 // Everything else that is misconfigured is logged once, names only.
 export function assertServerConfig() {
   getAlertsEnv()
   getGithubEnv()
   getAiEnv()
   getSchedulingEnv()
+  getAutoDraftsEnv()
 
   const warnings = serverConfigWarnings(
     {
