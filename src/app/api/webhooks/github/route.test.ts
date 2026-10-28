@@ -333,12 +333,13 @@ describe('a valid push', () => {
     }
   })
 
-  it('finds [post] in any case and anywhere in the message', async () => {
+  it('finds [post] in any case in the first line only', async () => {
     await call(
       push({
         commits: [
           commit(1, 'x [POST]'),
-          commit(2, 'title\n\nbody [Post] end'),
+          commit(2, 'title [Post]\n\nbody'),
+          commit(5, 'title\n\nbody [post] end'),
           commit(3, 'no tag here'),
           commit(4, '[posts] is not it'),
         ],
