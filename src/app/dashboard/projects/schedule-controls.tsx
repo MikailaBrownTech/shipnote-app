@@ -41,7 +41,10 @@ export function formatWhen(iso: string) {
   return Number.isNaN(date.getTime()) ? '' : `${dateFormat.format(date)} UTC`
 }
 
-const REVIEW_MESSAGES: Record<Exclude<ReviewState['status'], 'ok'>, string> = {
+const REVIEW_MESSAGES: Record<
+  Exclude<ReviewState['status'], 'ok' | 'secret'>,
+  string
+> = {
   not_found: 'That draft no longer exists.',
   limited: 'Too many attempts. Try again in a few minutes.',
   needs_reconnect: 'Buffer needs to be connected again.',
@@ -64,6 +67,8 @@ const REFUSALS: Record<
   too_far: 'Choose a time no more than 30 days from now.',
   text_changed:
     'The draft changed after you opened this review. Nothing was scheduled. Open the review again.',
+  secret:
+    'The draft looks like it contains a key or a token, so nothing was sent to Buffer. Remove it, save the draft and open the review again.',
   channel: 'That channel is not one of your LinkedIn channels in Buffer.',
   needs_reconnect: 'Buffer needs to be connected again. Nothing was scheduled.',
   daily_limit: 'You have scheduled 5 posts today. Try again tomorrow (UTC).',
@@ -149,6 +154,7 @@ export function ScheduleSection({
     start(async () => {
       const result = await startReviewAction(projectId, draftId)
       if (result.status === 'ok') setReview(result)
+      else if (result.status === 'secret') setMessage(result.message)
       else setMessage(REVIEW_MESSAGES[result.status])
     })
   }

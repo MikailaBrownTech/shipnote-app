@@ -271,6 +271,46 @@ describe('scheduleDraft: refusals before anything is written', () => {
   })
 })
 
+describe('scheduleDraft: a secret in the text', () => {
+  const key = ['sk', '-ant-', 'api03-', 'aB3xY9'.repeat(8)].join('')
+  const dirty = `${BODY}\nMy key is ${key}`
+
+  it('is refused even when the person reviewed exactly this text, and nothing is sent', async () => {
+    getDraft.mockResolvedValue({ id: DRAFT, body: dirty, projectId: PROJECT })
+    expect(
+      await scheduleDraft(request({ reviewedHash: bodyHash(dirty) })),
+    ).toEqual({
+      ok: false,
+      reason: 'secret',
+    })
+    expect(listLinkedInChannels).not.toHaveBeenCalled()
+    expect(createRow).not.toHaveBeenCalled()
+    expect(createAtBuffer).not.toHaveBeenCalled()
+  })
+
+  it('a secret added after the review is caught as a changed text first, and still sent nowhere', async () => {
+    getDraft.mockResolvedValue({ id: DRAFT, body: dirty, projectId: PROJECT })
+    expect(await scheduleDraft(request())).toEqual({
+      ok: false,
+      reason: 'text_changed',
+    })
+    expect(createAtBuffer).not.toHaveBeenCalled()
+  })
+
+  it('does not log the text or the key', async () => {
+    const spies = (['error', 'warn', 'info', 'log'] as const).map((m) =>
+      vi.spyOn(console, m).mockImplementation(() => undefined),
+    )
+    getDraft.mockResolvedValue({ id: DRAFT, body: dirty, projectId: PROJECT })
+    await scheduleDraft(request({ reviewedHash: bodyHash(dirty) }))
+    expect(JSON.stringify(spies.map((s) => s.mock.calls))).not.toContain(key)
+  })
+
+  it('a clean draft is scheduled as before', async () => {
+    expect((await scheduleDraft(request())).ok).toBe(true)
+  })
+})
+
 describe('scheduleDraft: when Buffer fails', () => {
   it.each([
     ['needs_reconnect', 'needs_reconnect'],

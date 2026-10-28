@@ -92,6 +92,8 @@ const article = (kind: string) => (/^[aeiou]/i.test(kind) ? 'an' : 'a')
 export function describeSecrets(
   findings: readonly SecretFinding[],
   where: string,
+  // What to do again once it is removed: "save", "copy", "open the review".
+  then = 'save',
 ): string {
   const shown = findings
     .slice(0, 3)
@@ -102,5 +104,18 @@ export function describeSecrets(
       ? (shown[0] ?? '')
       : `${shown.slice(0, -1).join(', ')} and ${shown[shown.length - 1] ?? ''}`
   const extra = more > 0 ? `, and ${String(more)} more` : ''
-  return `Possible secret in ${where}: ${list}${extra}. Remove it, then save again. This is a basic check and does not catch everything.`
+  return `Possible secret in ${where}: ${list}${extra}. Remove it, then ${then} again. This is a basic check and does not catch everything.`
+}
+
+// The message to show for a text that looks like it holds a secret, or null if it
+// does not. One function for the places that only need to know "is it clean, and
+// if not, what do I say": the draft save, copy and review, in the browser and on
+// the server.
+export function secretProblem(
+  text: string,
+  where: string,
+  then = 'save',
+): string | null {
+  const found = findSecrets(text)
+  return found.length > 0 ? describeSecrets(found, where, then) : null
 }

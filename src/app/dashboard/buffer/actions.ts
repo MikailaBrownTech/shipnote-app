@@ -24,6 +24,7 @@ import { getDraft } from '@/server/drafts'
 import { getProject } from '@/server/projects'
 import { rateLimit } from '@/server/rate-limit'
 import { getScheduledPost } from '@/server/scheduled-posts'
+import { secretProblem } from '@/lib/secret-scan'
 
 // Every action here calls requireUser() itself, answers with a not-found page
 // while SCHEDULING_ENABLED is off (the kill switch), checks its input with Zod,
@@ -113,6 +114,9 @@ export type ReviewState =
       warnings: DraftWarning[]
       channels: { id: string; label: string }[]
     }
+  // The saved text looks like it holds a key or a token: nothing was read from
+  // Buffer and nothing can be scheduled until it is removed.
+  | { status: 'secret'; message: string }
   | {
       status:
         | 'not_found'
@@ -148,6 +152,10 @@ export async function startReviewAction(
   if (draft === 'failed' || draft.projectId !== project.value.id) {
     return { status: draft === 'failed' ? 'failed' : 'not_found' }
   }
+
+  // Before anything is asked of Buffer.
+  const problem = secretProblem(draft.body, 'the draft', 'open the review')
+  if (problem !== null) return { status: 'secret', message: problem }
 
   const channels = await channelsFor(user.id)
   if (!channels.ok) return { status: channels.reason }

@@ -9,6 +9,7 @@ import { checkDraft } from '@/lib/draft-checker'
 import { MAX_DRAFT_CHARS } from '@/lib/draft-output'
 import { INPUT_LIMITS } from '@/lib/draft-input'
 import { countChars, projectId } from '@/lib/project-schema'
+import { secretProblem } from '@/lib/secret-scan'
 import { TONE_IDS } from '@/lib/voice-tones'
 import {
   aiIsEnabled,
@@ -127,7 +128,16 @@ export async function generateDraftAction(
 
 export type EditState =
   | { status: 'ok'; warnings: DraftWarning[] }
+  // The text looks like it holds a key or a token: nothing was saved. The message
+  // names the kind and the line, never the text.
+  | { status: 'secret'; message: string }
   | { status: 'invalid' | 'limited' | 'not_found' | 'failed' }
+
+// Blocked, never masked, like everywhere else text goes in or out.
+function secretIn(text: string, then: string): EditState | null {
+  const message = secretProblem(text, 'the draft', then)
+  return message === null ? null : { status: 'secret', message }
+}
 
 // Saves the person's edits to one of their own drafts. The warnings are worked
 // out again from the new text (the original input is not stored, so the number
@@ -142,6 +152,8 @@ export async function saveDraftAction(
   const text = bodyInput.safeParse(body)
   if (!text.success) return { status: 'invalid' }
   if (!(await rateLimit('draftEdit', user.id))) return { status: 'limited' }
+  const secret = secretIn(text.data, 'save')
+  if (secret) return secret
 
   const result = await updateDraftBody(user.id, id, text.data)
   if (result === 'not_found') return { status: 'not_found' }
@@ -171,6 +183,10 @@ export async function copyDraftAction(
   const text = bodyInput.safeParse(body)
   if (!text.success) return { status: 'invalid' }
   if (!(await rateLimit('draftEdit', user.id))) return { status: 'limited' }
+  // The browser checks before it copies, but only this check counts: a draft
+  // with a secret in it is not saved and is not marked copied.
+  const secret = secretIn(text.data, 'copy')
+  if (secret) return secret
 
   const saved = await updateDraftBody(user.id, id, text.data)
   if (saved === 'not_found') return { status: 'not_found' }

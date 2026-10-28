@@ -480,3 +480,32 @@ describe('refresh', () => {
     })
   })
 })
+
+describe('the review step refuses a draft with a secret in it', () => {
+  const key = ['sk', '-ant-', 'api03-', 'aB3xY9'.repeat(8)].join('')
+
+  it('says so, names the kind and line but not the text, and asks Buffer nothing', async () => {
+    getDraft.mockResolvedValue({
+      id: DRAFT,
+      projectId: PROJECT,
+      body: `Hello\nkey: ${key}`,
+    })
+    const result = await startReviewAction(PROJECT, DRAFT)
+    expect(result.status).toBe('secret')
+    const message = result.status === 'secret' ? result.message : ''
+    expect(message).toContain('Anthropic API key on line 2')
+    expect(message).toContain('open the review again')
+    expect(message).not.toContain(key)
+    expect(channelsFor).not.toHaveBeenCalled()
+    expect(scheduleDraft).not.toHaveBeenCalled()
+  })
+
+  it('a clean draft opens the review as before', async () => {
+    getDraft.mockResolvedValue({
+      id: DRAFT,
+      projectId: PROJECT,
+      body: 'A clean draft.',
+    })
+    expect((await startReviewAction(PROJECT, DRAFT)).status).toBe('ok')
+  })
+})

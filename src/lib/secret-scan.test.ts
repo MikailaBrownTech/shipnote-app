@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { describeSecrets, findSecrets } from './secret-scan'
+import { describeSecrets, findSecrets, secretProblem } from './secret-scan'
 
 // The fake keys are assembled at run time from pieces, so nothing that looks
 // like a real credential is written into the repository.
@@ -194,5 +194,52 @@ describe('describeSecrets', () => {
     expect(
       describeSecrets([{ kind: 'Slack token', line: 1 }], 'the summary'),
     ).toContain('in the summary')
+  })
+})
+
+describe('secretProblem', () => {
+  it('is null for clean text, empty text and ordinary writing', () => {
+    expect(secretProblem('', 'the draft')).toBeNull()
+    expect(
+      secretProblem('We shipped CSV export this week.', 'the draft'),
+    ).toBeNull()
+    expect(
+      secretProblem('Commit a3f9c21 fixed it. #BuildInPublic', 'the draft'),
+    ).toBeNull()
+  })
+
+  it('names the kind, the line and the place, and never the text', () => {
+    const key = anthropicKey()
+    const message = secretProblem(
+      `Line one\nthe key is ${key}\nline three`,
+      'the draft',
+    )
+    expect(message).toContain('Possible secret in the draft')
+    expect(message).toContain('Anthropic API key on line 2')
+    expect(message).not.toContain(key)
+    expect(message).not.toContain(key.slice(0, 12))
+  })
+
+  it('says what to do again, according to the action', () => {
+    const text = `token ${ghToken()}`
+    expect(secretProblem(text, 'the draft')).toContain(
+      'Remove it, then save again.',
+    )
+    expect(secretProblem(text, 'the draft', 'copy')).toContain(
+      'Remove it, then copy again.',
+    )
+    expect(secretProblem(text, 'the draft', 'open the review')).toContain(
+      'Remove it, then open the review again.',
+    )
+  })
+
+  it('says it is a basic check, so nobody takes silence as proof', () => {
+    expect(secretProblem(ghToken(), 'x')).toContain('basic check')
+  })
+
+  it('describeSecrets keeps its old wording when no action is given', () => {
+    expect(describeSecrets(findSecrets(ghToken()), 'the notes')).toContain(
+      'Remove it, then save again.',
+    )
   })
 })

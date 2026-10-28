@@ -254,6 +254,23 @@ Before **any** save of a project (create or edit), the name, summary and notes a
 
 **This is a basic check, not the full secret scanner.** It only knows the patterns above. It will miss plain passwords, unusual or new key formats, and anything split across lines, and it can flag example keys in documentation. Do not rely on it to keep secrets out; the help text on the form still says not to paste secrets or customer data. A fuller scanner is future work.
 
+### Where the secret check runs
+
+One function (`findSecrets`, with `secretProblem` for "is it clean, and if not what do I say") is used at every place text goes in, out or on to a third party. A hit **blocks**, never masks, with a message naming the kind and the line and never the text.
+
+| Where                                     | What is checked                                                       | When                                                                                                                                                                                                    |
+| ----------------------------------------- | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Project form                              | name, summary, notes                                                  | before the project is saved                                                                                                                                                                             |
+| "Start from a GitHub repo"                | the README text that would fill the notes                             | before it is offered                                                                                                                                                                                    |
+| Generating a draft (manual and automatic) | project name, summary, notes, the chosen commit messages and the note | before a slot is taken or anything is sent to Anthropic                                                                                                                                                 |
+| Voice settings                            | notes, samples, avoid words, sign-off                                 | before saving, and again before every draft                                                                                                                                                             |
+| **Saving an edited draft**                | the draft text                                                        | before it is saved                                                                                                                                                                                      |
+| **Copying a draft**                       | the draft text                                                        | in the browser before it reaches the clipboard, and on the server before it is saved or marked copied                                                                                                   |
+| **The schedule review**                   | the saved draft text                                                  | before anything is read from Buffer                                                                                                                                                                     |
+| **Scheduling on LinkedIn**                | the saved draft text                                                  | just before it is sent to Buffer. This is the check that counts: the review and the save check too, but a draft can reach this point by other routes (an older draft, a write straight to the database) |
+
+**Not covered.** The model's own answer is not scanned as it arrives (it can only repeat something that was in the scanned input), but it is scanned when it is saved after an edit, copied or scheduled. The check is the same basic one as above: it misses plain passwords and unusual formats, and flags example keys in documentation. A secret typed into a draft by hand is caught only if it matches a known pattern.
+
 ### Creating the GitHub App (by hand)
 
 Nothing here can be done from this repo. Use a **GitHub App**, not an OAuth app and not a personal access token. Create it at github.com/settings/apps/new (or under an organization you own) with:

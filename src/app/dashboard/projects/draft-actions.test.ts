@@ -376,3 +376,83 @@ describe('discard', () => {
     expect(await discardDraftAction(DRAFT, ID)).toEqual({ status: 'failed' })
   })
 })
+
+const fakeKey = () => ['sk', '-ant-', 'api03-', 'aB3xY9'.repeat(8)].join('')
+
+describe('a draft with a secret in it', () => {
+  const secretText = (key = fakeKey()) =>
+    `We shipped it.\nMy key is ${key}\nMore text.`
+
+  it('is not saved: blocked, never masked, with a message that names the kind and line', async () => {
+    const key = fakeKey()
+    const result = await saveDraftAction(DRAFT, ID, secretText(key))
+    expect(result.status).toBe('secret')
+    const message = result.status === 'secret' ? result.message : ''
+    expect(message).toContain('Anthropic API key on line 2')
+    expect(message).toContain('then save again')
+    expect(message).not.toContain(key)
+    expect(updateDraftBody).not.toHaveBeenCalled()
+    expect(getProject).not.toHaveBeenCalled()
+  })
+
+  it('is not saved or marked copied when copied, and the message says copy', async () => {
+    const key = fakeKey()
+    const result = await copyDraftAction(DRAFT, ID, secretText(key))
+    expect(result.status).toBe('secret')
+    const message = result.status === 'secret' ? result.message : ''
+    expect(message).toContain('then copy again')
+    expect(message).not.toContain(key)
+    expect(updateDraftBody).not.toHaveBeenCalled()
+    expect(markDraftCopied).not.toHaveBeenCalled()
+    expect(revalidatePath).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['a private key header', ['-----BEGIN ', 'PRIVATE KEY-----'].join('')],
+    ['a GitHub token', ['gh', 'p', '_', 'aB3xY9'.repeat(6)].join('')],
+    ['an AWS key id', ['AK', 'IA', 'A'.repeat(16)].join('')],
+    ['a Stripe key', ['sk', '_live_', 'aB3xY9'.repeat(4)].join('')],
+    ['a Slack token', ['xo', 'xb-', '1234567890-abcdef'].join('')],
+  ])('%s is refused on save and on copy', async (_label, secret) => {
+    expect((await saveDraftAction(DRAFT, ID, `Text ${secret}`)).status).toBe(
+      'secret',
+    )
+    expect((await copyDraftAction(DRAFT, ID, `Text ${secret}`)).status).toBe(
+      'secret',
+    )
+    expect(updateDraftBody).not.toHaveBeenCalled()
+  })
+
+  it('ordinary text that mentions keys, tokens or a sha is saved as before', async () => {
+    getProject.mockResolvedValue({ ok: true, value: { stage: 'idea' } })
+    for (const text of [
+      'We rotated an API key and a token this week.',
+      'Fixed in commit a3f9c21e5b.',
+      'The sk- prefix is short, sk-1234.',
+    ]) {
+      updateDraftBody.mockClear()
+      expect((await saveDraftAction(DRAFT, ID, text)).status).toBe('ok')
+      expect(updateDraftBody).toHaveBeenCalledOnce()
+    }
+  })
+
+  it('the rate limit still comes first, so checking is not free to hammer', async () => {
+    rateLimit.mockResolvedValue(false)
+    expect(await saveDraftAction(DRAFT, ID, secretText())).toEqual({
+      status: 'limited',
+    })
+    expect(await copyDraftAction(DRAFT, ID, secretText())).toEqual({
+      status: 'limited',
+    })
+  })
+
+  it('the secret is never logged', async () => {
+    const spies = (['error', 'warn', 'info', 'log'] as const).map((m) =>
+      vi.spyOn(console, m).mockImplementation(() => undefined),
+    )
+    const key = fakeKey()
+    await saveDraftAction(DRAFT, ID, secretText(key))
+    await copyDraftAction(DRAFT, ID, secretText(key))
+    expect(JSON.stringify(spies.map((s) => s.mock.calls))).not.toContain(key)
+  })
+})

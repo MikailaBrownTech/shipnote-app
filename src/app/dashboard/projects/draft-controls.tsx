@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useActionState, useState, useTransition } from 'react'
 import type { DraftWarning } from '@/lib/draft-checker'
 import { countWords, WORD_RANGE } from '@/lib/draft-rules'
+import { secretProblem } from '@/lib/secret-scan'
 import { TONE_IDS, TONES, type ToneId } from '@/lib/voice-tones'
 import { Icon } from '../icons'
 import { Pager, usePaged } from '../pager'
@@ -84,7 +85,10 @@ const REFUSALS: Record<
   failed: 'Something went wrong. Try again.',
 }
 
-const EDIT_MESSAGES: Record<Exclude<EditState['status'], 'ok'>, string> = {
+const EDIT_MESSAGES: Record<
+  Exclude<EditState['status'], 'ok' | 'secret'>,
+  string
+> = {
   invalid: 'The draft must be between 1 and 3,000 characters.',
   limited: 'Too many changes. Try again in a few minutes.',
   not_found: 'That draft no longer exists.',
@@ -146,7 +150,11 @@ function DraftEditor({
       setMessage(done)
       return true
     }
-    setMessage(EDIT_MESSAGES[result.status])
+    setMessage(
+      result.status === 'secret'
+        ? result.message
+        : EDIT_MESSAGES[result.status],
+    )
     if (result.status === 'not_found') onGone(draft.id)
     return false
   }
@@ -161,6 +169,12 @@ function DraftEditor({
   }
 
   function copy() {
+    // Nothing that looks like a key or a token goes on the clipboard.
+    const problem = secretProblem(body, 'the draft', 'copy')
+    if (problem !== null) {
+      setMessage(problem)
+      return
+    }
     start(async () => {
       // Copy first, while the click still counts as the person's action.
       try {
@@ -184,7 +198,11 @@ function DraftEditor({
       if (result.status === 'ok' || result.status === 'not_found') {
         onGone(draft.id)
       } else {
-        setMessage(EDIT_MESSAGES[result.status])
+        setMessage(
+          result.status === 'secret'
+            ? result.message
+            : EDIT_MESSAGES[result.status],
+        )
       }
     })
   }

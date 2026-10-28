@@ -2,6 +2,7 @@ import 'server-only'
 import { createHash } from 'node:crypto'
 import { env } from '@/lib/env'
 import { parseScheduleTime } from '@/lib/schedule-time'
+import { secretProblem } from '@/lib/secret-scan'
 import {
   authorizeUrl,
   BufferError,
@@ -170,6 +171,7 @@ export type ScheduleFailure =
   | 'too_soon'
   | 'too_far'
   | 'text_changed' // the draft differs from what was reviewed
+  | 'secret' // the draft looks like it holds a key or a token: nothing was sent
   | 'channel' // not one of the user's LinkedIn channels
   | 'needs_reconnect'
   | 'daily_limit' // 5 schedules created today
@@ -218,6 +220,10 @@ export async function scheduleDraft(input: {
   // the text the person looked at.
   const hash = bodyHash(draft.body)
   if (hash !== input.reviewedHash) return fail('text_changed')
+  // The last check before the text leaves for Buffer. The review and the save
+  // check too, but a draft can reach this point by other routes (an older draft, a
+  // write straight to the database), so this one is the one that counts.
+  if (secretProblem(draft.body, 'the draft') !== null) return fail('secret')
 
   // The channel must be one of this user's own LinkedIn channels.
   const channels = await channelsFor(input.userId, nowMs)
