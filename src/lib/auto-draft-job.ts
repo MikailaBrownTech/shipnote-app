@@ -26,7 +26,7 @@ export const QUEUE_RETRIES = 3
 
 // How a job is told apart in the queue: one message per project and commit.
 export function dedupeId(projectId: string, commitSha: string): string {
-  return `${projectId}:${commitSha}`
+  return `${projectId}_${commitSha}`
 }
 
 // Plain-language reasons for the Drafts tab. A reason is a fixed code that the
