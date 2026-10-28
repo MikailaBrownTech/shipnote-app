@@ -274,6 +274,26 @@ describe('with AI on', () => {
     expect(html).toContain('Generate draft')
   })
 
+  it('offers a LinkedIn preview under each draft, closed until asked for', async () => {
+    listRecentDrafts.mockResolvedValue([
+      draft({ body: 'A plain draft #BuildInPublic' }),
+      draft({
+        id: '88888888-2222-4333-8444-555555555555',
+        body: 'Another one',
+      }),
+    ])
+    const { html } = await render()
+    expect(html.match(/<summary>Preview on LinkedIn<\/summary>/g)).toHaveLength(
+      2,
+    )
+    // Closed to start with: no `open` attribute.
+    expect(html).not.toMatch(/<details[^>]*\sopen[ \s=>]/)
+    expect(html.match(/aria-label="LinkedIn post preview"/g)).toHaveLength(2)
+    // The preview shows the draft's own text, with hashtags marked.
+    expect(html).toMatch(/_hashtag_[^>]*>#BuildInPublic</)
+    expect(html).toContain('Your LinkedIn profile')
+  })
+
   it('lists recent drafts, with a Copied tag, as text in an editable box', async () => {
     listRecentDrafts.mockResolvedValue([
       draft(),

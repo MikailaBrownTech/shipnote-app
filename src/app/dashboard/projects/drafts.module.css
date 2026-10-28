@@ -415,3 +415,30 @@
   outline: 3px solid var(--blue-violet);
   outline-offset: 2px;
 }
+
+/* "Preview on LinkedIn" under a draft: closed until asked for. */
+
+.previewBox {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+
+.previewBox summary {
+  padding: 0.65rem 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.previewBox summary:focus-visible {
+  outline: 3px solid var(--blue-violet);
+  outline-offset: 2px;
+}
+
+.previewBox[open] {
+  padding-bottom: 0.9rem;
+}
+
+.previewBox[open] > :not(summary) {
+  margin: 0.25rem 0.9rem 0;
+}

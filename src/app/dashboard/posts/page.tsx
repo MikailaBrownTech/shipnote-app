@@ -25,6 +25,7 @@ import { syncDueSchedules } from '@/server/schedule-sync'
 import { listUserPosts } from '@/server/posts'
 import styles from '../dashboard.module.css'
 import { Icon } from '../icons'
+import { LinkedinPreview } from '../linkedin-preview'
 import { PageIntro } from '../page-intro'
 import projectStyles from '../projects/projects.module.css'
 import { DateText } from '../projects/stage-badge'
@@ -45,6 +46,20 @@ export default function PostsPage({
       </Suspense>
     </main>
   )
+}
+
+// "Oct 30, 10:00 AM", in UTC, for the line under the name in the preview.
+const whenFormat = new Intl.DateTimeFormat('en', {
+  month: 'short',
+  day: 'numeric',
+  hour: 'numeric',
+  minute: '2-digit',
+  timeZone: 'UTC',
+})
+
+function previewWhen(iso: string): string {
+  const ms = Date.parse(iso)
+  return Number.isNaN(ms) ? 'Scheduled' : whenFormat.format(ms)
 }
 
 const timeFormat = new Intl.DateTimeFormat('en', {
@@ -315,7 +330,14 @@ async function Posts({
                   </>
                 ) : null}
               </p>
-              <div className={postStyles.body}>{selected.body}</div>
+              <LinkedinPreview
+                body={selected.body}
+                when={
+                  selected.scheduledFor
+                    ? `${previewWhen(selected.scheduledFor)} UTC`
+                    : 'Now'
+                }
+              />
               <p className={postStyles.fine}>
                 {selected.body.length.toLocaleString('en')}/3,000
               </p>

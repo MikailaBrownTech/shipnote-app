@@ -6,6 +6,7 @@ import type { DraftWarning } from '@/lib/draft-checker'
 import { countWords, WORD_RANGE } from '@/lib/draft-rules'
 import { TONE_IDS, TONES, type ToneId } from '@/lib/voice-tones'
 import { Icon } from '../icons'
+import { LinkedinPreview } from '../linkedin-preview'
 import {
   copyDraftAction,
   discardDraftAction,
@@ -219,6 +220,10 @@ function DraftEditor({
         </span>
       </p>
       <Warnings warnings={warnings} />
+      <details className={styles.previewBox}>
+        <summary>Preview on LinkedIn</summary>
+        <LinkedinPreview body={body} />
+      </details>
       <div className={styles.buttons}>
         <button
           type="button"

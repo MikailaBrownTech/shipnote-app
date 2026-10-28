@@ -2,6 +2,7 @@
 
 import { useActionState, useState, useTransition } from 'react'
 import { Icon } from '../icons'
+import { LinkedinPreview } from '../linkedin-preview'
 import {
   cancelScheduleAction,
   confirmScheduleAction,
@@ -325,6 +326,9 @@ function ReviewForm({
         Text
       </label>
       <textarea id={`${id}-text`} readOnly value={review.text} rows={10} />
+
+      <p className={styles.editorLabel}>How it will look on LinkedIn</p>
+      <LinkedinPreview body={review.text} />
 
       {review.warnings.length > 0 ? (
         <div className={styles.warnings}>

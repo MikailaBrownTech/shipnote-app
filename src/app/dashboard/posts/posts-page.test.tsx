@@ -149,6 +149,25 @@ describe('the Posts page', () => {
     expect(preview).toContain(`/dashboard/projects/${PROJECT}?tab=drafts`)
   })
 
+  it('previews the selected post as it will look on LinkedIn', async () => {
+    const scheduled = await render()
+    const side = scheduled.html.split('aria-label="Post preview"')[1] ?? ''
+    expect(side).toContain('aria-label="LinkedIn post preview"')
+    expect(side).toContain('How we reduced incident response time')
+    expect(side).toContain('Your LinkedIn profile')
+    // A scheduled post shows when it goes out, in UTC.
+    expect(side).toContain('Oct 30, 10:00 AM UTC')
+    for (const action of ['Like', 'Comment', 'Repost', 'Send']) {
+      expect(side).toContain(action)
+    }
+    // A draft has no time yet.
+    const draft = await render({ sel: `d:${D1}` })
+    const draftSide = draft.html.split('aria-label="Post preview"')[1] ?? ''
+    expect(draftSide).toContain('aria-label="LinkedIn post preview"')
+    expect(draftSide).toContain('Now')
+    expect(draftSide).not.toContain('UTC')
+  })
+
   it('ignores a selection that is not one of the user’s rows', async () => {
     const { html } = await render({
       sel: `d:${'0'.repeat(8)}-0000-0000-0000-000000000000`,
