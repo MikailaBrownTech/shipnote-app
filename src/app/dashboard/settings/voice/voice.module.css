@@ -1,0 +1,161 @@
+/* The voice settings form: boxes and visible focus, readable on a phone. */
+
+.form {
+  display: grid;
+  gap: 1.25rem;
+  max-width: 46rem;
+}
+
+.group {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+  padding: clamp(1.1rem, 3vw, 1.5rem);
+  border-radius: var(--radius-lg);
+}
+
+.group h2,
+.group legend {
+  font-family: var(--font-display);
+  font-size: 1.375rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.hint {
+  color: var(--ink-soft);
+  font-size: 0.9375rem;
+}
+
+.tones {
+  display: grid;
+  gap: 0.75rem;
+}
+
+@media (min-width: 40rem) {
+  .tones {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.tone {
+  position: relative;
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.9rem 1rem 0.9rem 2.75rem;
+  border: 2px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  cursor: pointer;
+}
+
+.tone input {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  width: 1.25rem;
+  height: 1.25rem;
+  accent-color: var(--blue-violet);
+}
+
+.tone span {
+  color: var(--ink-soft);
+  font-size: 0.9375rem;
+}
+
+.tone em {
+  font-size: 0.9375rem;
+  font-style: italic;
+  overflow-wrap: anywhere;
+}
+
+.tone:has(input:focus-visible) {
+  outline: 3px solid var(--blue-violet);
+  outline-offset: 3px;
+}
+
+.toneOn {
+  border-color: var(--blue-violet);
+  background: color-mix(in srgb, var(--blue-violet) 7%, var(--surface));
+}
+
+.field {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.field label {
+  font-weight: 700;
+}
+
+.field small {
+  color: var(--ink-soft);
+  font-weight: 500;
+}
+
+.field input[type='text'],
+.field textarea {
+  width: 100%;
+  min-height: 3rem;
+  padding: 0.6rem 0.9rem;
+  border: 2px solid var(--line);
+  border-radius: var(--radius-sm);
+  color: var(--ink);
+  background: var(--surface);
+  font: inherit;
+  line-height: 1.5;
+}
+
+.field textarea {
+  resize: vertical;
+}
+
+.field input[aria-invalid='true'],
+.field textarea[aria-invalid='true'] {
+  border-color: var(--neon-pink);
+}
+
+.meta {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.counter {
+  color: var(--ink-soft);
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.over {
+  color: #b00040;
+  font-weight: 700;
+}
+
+.error {
+  color: #b00040;
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.status:empty {
+  display: none;
+}
+
+.notice {
+  padding: 0.8rem 1rem;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.fine {
+  max-width: 46rem;
+  margin-top: 1rem;
+  color: var(--ink-soft);
+  font-size: 0.875rem;
+}
