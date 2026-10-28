@@ -33,7 +33,7 @@ export async function DraftPanel({
   const autoOn = autoDraftsOn()
   const [recent, covered, left, connection, schedules, switchOn, jobs, voice] =
     await Promise.all([
-      listRecentDrafts(userId, project.id, 10),
+      listRecentDrafts(userId, project.id, 30),
       coveredShas(userId, project.id),
       draftsLeftToday(userId),
       schedulingOn ? getConnectionStatus() : null,

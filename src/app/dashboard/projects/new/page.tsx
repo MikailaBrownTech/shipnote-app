@@ -11,6 +11,7 @@ import { createProjectAction } from '../actions'
 import { ProjectForm } from '../project-form'
 import projectStyles from '../projects.module.css'
 import { loadStart, StartFromRepo } from './start-from-repo'
+import { PageSkeleton } from '../../skeleton'
 
 export const metadata: Metadata = { title: 'New project' }
 
@@ -20,7 +21,7 @@ export default function NewProjectPage({
   return (
     <main className={styles.main}>
       {/* Reads the session and the URL, so it sits behind Suspense. */}
-      <Suspense fallback={<p aria-live="polite">Loading</p>}>
+      <Suspense fallback={<PageSkeleton back form={4} side />}>
         <NewProject searchParams={searchParams} />
       </Suspense>
     </main>

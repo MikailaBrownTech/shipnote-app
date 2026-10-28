@@ -123,12 +123,15 @@ export function githubHref(view: {
   q?: string
   sort?: RepoSort
   repo?: string | null
+  // A page of the activity list; the first page is left out.
+  ap?: number
 }): string {
   const params = new URLSearchParams()
   if (view.tab && view.tab !== 'repositories') params.set('tab', view.tab)
   if (view.q) params.set('q', view.q)
   if (view.sort && view.sort !== 'updated') params.set('sort', view.sort)
   if (view.repo) params.set('repo', view.repo)
+  if (view.ap && view.ap > 1) params.set('ap', String(view.ap))
   const query = params.toString()
   return query ? `/dashboard/github?${query}` : '/dashboard/github'
 }

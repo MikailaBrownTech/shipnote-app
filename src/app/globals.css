@@ -91,6 +91,11 @@ a {
   outline-offset: 3px;
 }
 
+/* The hidden attribute always wins over a component's display style. */
+[hidden] {
+  display: none !important;
+}
+
 /* Surfaces */
 
 .card {

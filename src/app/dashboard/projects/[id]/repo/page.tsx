@@ -11,6 +11,7 @@ import { PageIntro } from '../../../page-intro'
 import { linkRepoAction } from '../../github-actions'
 import { loadOwnProject } from '../../load-project'
 import projectStyles from '../../projects.module.css'
+import { PageSkeleton } from '../../../skeleton'
 
 export const metadata: Metadata = { title: 'Choose repository' }
 
@@ -20,7 +21,7 @@ export default function ChooseRepoPage({
   return (
     <main className={styles.main}>
       {/* Reads the session and the id, so it sits behind Suspense. */}
-      <Suspense fallback={<p aria-live="polite">Loading your repositories</p>}>
+      <Suspense fallback={<PageSkeleton back rows={5} />}>
         <ChooseRepo params={params} />
       </Suspense>
     </main>

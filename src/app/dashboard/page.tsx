@@ -12,25 +12,14 @@ import { AccountMenu } from './account-menu'
 import { BufferDashboardPanel } from './buffer/dashboard-panel'
 import { GithubDashboardPanel } from './github/dashboard-panel'
 import styles from './dashboard.module.css'
-import { Icon, type IconName } from './icons'
+import { Icon } from './icons'
 import { PageIntro } from './page-intro'
-import { StageBadge, Updated } from './projects/stage-badge'
+import { ProjectRow } from './projects/project-row'
 import projectStyles from './projects/projects.module.css'
 import shell from './shell.module.css'
+import { PageSkeleton } from './skeleton'
 
 export const metadata: Metadata = { title: 'Dashboard' }
-
-const stageIcons: Record<Stage, IconName> = {
-  idea: 'bulb',
-  in_progress: 'bolt',
-  shipped: 'rocket',
-}
-
-const stageTones: Record<Stage, string> = {
-  idea: projectStyles.idea,
-  in_progress: projectStyles.inProgress,
-  shipped: projectStyles.shipped,
-}
 
 export default function DashboardPage({
   searchParams,
@@ -38,7 +27,7 @@ export default function DashboardPage({
   return (
     <main className={styles.main}>
       {/* Reads the session, so it sits behind Suspense. */}
-      <Suspense fallback={<p aria-live="polite">Loading your dashboard</p>}>
+      <Suspense fallback={<PageSkeleton tiles={4} rows={5} side />}>
         <Dashboard searchParams={searchParams} />
       </Suspense>
     </main>
@@ -138,6 +127,11 @@ async function Dashboard({
                 {projects.length} of {PROJECT_LIMITS.perUser}
               </p>
             ) : null}
+            {result.ok && projects.length > 0 ? (
+              <Link href="/dashboard/projects" className="button button-soft">
+                View all
+              </Link>
+            ) : null}
             {result.ok && projects.length > 0 && !full ? (
               <Link href="/dashboard/projects/new" className="button">
                 New project
@@ -170,32 +164,7 @@ async function Dashboard({
               ) : null}
               <ul className={projectStyles.rows}>
                 {projects.map((project) => (
-                  <li key={project.id} className={projectStyles.row}>
-                    <span
-                      className={`${projectStyles.rowIcon} ${projectStyles.iconTone} ${stageTones[project.stage]}`}
-                    >
-                      <Icon name={stageIcons[project.stage]} />
-                    </span>
-                    <div className={projectStyles.rowBody}>
-                      <h3>
-                        <Link href={`/dashboard/projects/${project.id}`}>
-                          {project.name}
-                        </Link>
-                      </h3>
-                      {project.summary ? (
-                        <p className={projectStyles.rowSummary}>
-                          {project.summary}
-                        </p>
-                      ) : null}
-                    </div>
-                    <div className={projectStyles.rowMeta}>
-                      <StageBadge stage={project.stage} />
-                      <Updated iso={project.updatedAt} />
-                    </div>
-                    <span className={projectStyles.chevron}>
-                      <Icon name="chevron" />
-                    </span>
-                  </li>
+                  <ProjectRow key={project.id} project={project} />
                 ))}
               </ul>
             </>

@@ -361,6 +361,23 @@ describe('the post preview', () => {
     expect(side).toContain('30/3,000')
   })
 
+  it('shows the post as it will look on LinkedIn, from the channel it goes to', async () => {
+    const { html } = await render()
+    const side = html.split('aria-label="Post preview"')[1] ?? ''
+    expect(side).toContain('aria-label="LinkedIn post preview"')
+    expect(side).toContain('<strong>My LinkedIn</strong>')
+    expect(side).toContain('10:00 AM UTC')
+    expect(side).toContain('Like')
+    expect(side).toContain('A close picture of how this may look on LinkedIn.')
+  })
+
+  it('a post with no channel name uses a plain stand-in', async () => {
+    listSchedulesBetween.mockResolvedValue([post({ channelLabel: null })])
+    const side =
+      (await render()).html.split('aria-label="Post preview"')[1] ?? ''
+    expect(side).toContain('<strong>Your LinkedIn profile</strong>')
+  })
+
   it('links to the post in Posts and to its project', async () => {
     const { html } = await render()
     const side = html.split('aria-label="Post preview"')[1] ?? ''

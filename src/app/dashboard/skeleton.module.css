@@ -1,0 +1,195 @@
+/* Grey shapes with a soft shimmer, in the same grid as the pages they stand in for. */
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.block {
+  display: block;
+  border-radius: var(--radius-sm);
+  background:
+    linear-gradient(
+        100deg,
+        transparent 30%,
+        color-mix(in srgb, var(--surface) 70%, transparent) 50%,
+        transparent 70%
+      )
+      0 0 / 200% 100% no-repeat,
+    color-mix(in srgb, var(--blue-violet) 9%, var(--surface));
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  from {
+    background-position: 200% 0;
+  }
+
+  to {
+    background-position: -100% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .block {
+    animation: none;
+  }
+}
+
+.page {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.intro {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.back {
+  width: 9rem;
+  height: 2.5rem;
+  border-radius: 999px;
+}
+
+.title {
+  width: min(18rem, 70%);
+  height: clamp(2.25rem, 7vw, 3rem);
+}
+
+.subtitle {
+  width: min(28rem, 90%);
+  height: 1.1rem;
+}
+
+.tabs {
+  display: flex;
+  gap: 0.6rem;
+  padding-bottom: 0.6rem;
+  border-bottom: 1px solid var(--line);
+  overflow: hidden;
+}
+
+.tab {
+  flex: none;
+  width: 6rem;
+  height: 1.6rem;
+}
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.9rem;
+}
+
+@media (min-width: 64rem) {
+  .tiles {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.tile {
+  height: 5.25rem;
+  border-radius: var(--radius);
+}
+
+.oneCol,
+.twoCol {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.25rem;
+}
+
+@media (min-width: 72rem) {
+  .twoCol {
+    grid-template-columns: minmax(0, 1fr) 20rem;
+    align-items: start;
+  }
+}
+
+.stack {
+  display: grid;
+  gap: 1.25rem;
+  min-width: 0;
+}
+
+.card {
+  display: grid;
+  gap: 1rem;
+  padding: clamp(1.1rem, 3vw, 1.5rem);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+}
+
+.cardTitle {
+  width: 10rem;
+  height: 1.6rem;
+}
+
+.rows {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+}
+
+.icon {
+  flex: none;
+  width: 2.75rem;
+  height: 2.75rem;
+}
+
+.lines {
+  display: grid;
+  flex: 1;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.lineWide {
+  width: 70%;
+  height: 1rem;
+}
+
+.lineShort {
+  width: 45%;
+  height: 0.8rem;
+}
+
+.field {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.label {
+  width: 7rem;
+  height: 0.9rem;
+}
+
+.input {
+  height: 3rem;
+}
+
+.textarea {
+  height: 6.5rem;
+}
+
+.sideCard {
+  height: 13rem;
+  border-radius: var(--radius-lg);
+}
+
+.sideCardShort {
+  height: 8rem;
+  border-radius: var(--radius-lg);
+}

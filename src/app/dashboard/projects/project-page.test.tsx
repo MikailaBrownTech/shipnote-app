@@ -137,7 +137,7 @@ describe('the project page', () => {
       for (const tab of ['overview', 'github', 'notes']) {
         const { html } = await render({ tab })
         expect(html).toContain('Back to projects')
-        expect(html).toContain('href="/dashboard#projects-title"')
+        expect(html).toContain('href="/dashboard/projects"')
         expect(html).toContain('<h1>Proposal Generator</h1>')
         expect(html).toContain('Project details')
         expect(html).toContain('Quick actions')

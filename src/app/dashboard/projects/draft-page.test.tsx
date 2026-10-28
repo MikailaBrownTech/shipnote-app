@@ -78,6 +78,7 @@ vi.mock('./draft-actions', () => ({
 }))
 
 const { default: ProjectPage } = await import('./[id]/page')
+const projectPageConfig = await import('./[id]/page')
 
 const USER = '6f1c3a9e-1b2d-4c3e-8f4a-5b6c7d8e9f01'
 const ID = '11111111-2222-4333-8444-555555555555'
@@ -273,6 +274,26 @@ describe('with AI on', () => {
     expect(html).toContain('Generate draft')
   })
 
+  it('offers a LinkedIn preview under each draft, closed until asked for', async () => {
+    listRecentDrafts.mockResolvedValue([
+      draft({ body: 'A plain draft #BuildInPublic' }),
+      draft({
+        id: '88888888-2222-4333-8444-555555555555',
+        body: 'Another one',
+      }),
+    ])
+    const { html } = await render()
+    expect(html.match(/<summary>Preview on LinkedIn<\/summary>/g)).toHaveLength(
+      2,
+    )
+    // Closed to start with: no `open` attribute.
+    expect(html).not.toMatch(/<details[^>]*\sopen[ \s=>]/)
+    expect(html.match(/aria-label="LinkedIn post preview"/g)).toHaveLength(2)
+    // The preview shows the draft's own text, with hashtags marked.
+    expect(html).toMatch(/_hashtag_[^>]*>#BuildInPublic</)
+    expect(html).toContain('Your LinkedIn profile')
+  })
+
   it('lists recent drafts, with a Copied tag, as text in an editable box', async () => {
     listRecentDrafts.mockResolvedValue([
       draft(),
@@ -312,7 +333,7 @@ describe('with AI on', () => {
 
   it('asks for the drafts of this user and this project only', async () => {
     await render()
-    expect(listRecentDrafts).toHaveBeenCalledWith(USER, ID, 10)
+    expect(listRecentDrafts).toHaveBeenCalledWith(USER, ID, 30)
     expect(coveredShas).toHaveBeenCalledWith(USER, ID)
     expect(draftsLeftToday).toHaveBeenCalledWith(USER)
   })
@@ -344,6 +365,99 @@ describe('with AI off', () => {
     expect(listRecentDrafts).not.toHaveBeenCalled()
     expect(coveredShas).not.toHaveBeenCalled()
     expect(draftsLeftToday).not.toHaveBeenCalled()
+  })
+})
+
+describe('long lists are paged', () => {
+  const many = (n: number, make: (i: number) => Record<string, unknown>) =>
+    Array.from({ length: n }, (_, i) => make(i))
+  const uid = (n: number) =>
+    `77777777-2222-4333-8444-${String(n).padStart(12, '0')}`
+
+  // The list item that holds a piece of text, and whether it is hidden.
+  const hiddenFor = (html: string, text: string) => {
+    const at = html.indexOf(text)
+    const start = html.lastIndexOf('<li', at)
+    return /^<li[^>]*\shidden/.test(
+      html.slice(start, html.indexOf('>', start) + 1),
+    )
+  }
+
+  it('shows five drafts a page, keeps the rest in the page hidden, and has a pager', async () => {
+    listRecentDrafts.mockResolvedValue(
+      many(12, (i) =>
+        draft({
+          id: uid(i + 1),
+          body: `Draft number ${String(i + 1)}`,
+          createdAt: `2026-10-${String(10 + i)}T09:00:00Z`,
+        }),
+      ),
+    )
+    const { html } = await render()
+    for (const n of [1, 5])
+      expect(hiddenFor(html, `>Draft number ${String(n)}<`)).toBe(false)
+    for (const n of [6, 12])
+      expect(hiddenFor(html, `>Draft number ${String(n)}<`)).toBe(true)
+    // Every draft is still in the page, so an edit on another page is never lost.
+    expect(html.match(/<textarea id="draft-[0-9a-f]{8}-/g)).toHaveLength(12)
+    expect(html).toContain('Page 1 of 3')
+    expect(html).toContain('12 drafts')
+    expect(html).toContain('aria-label="drafts pages"')
+  })
+
+  it('has no pager for a short list', async () => {
+    listRecentDrafts.mockResolvedValue(
+      many(5, (i) => draft({ id: uid(i + 1) })),
+    )
+    const { html } = await render()
+    expect(html).not.toContain('drafts pages')
+    expect(html).not.toMatch(/<li[^>]*\shidden/)
+  })
+
+  it('pages the scheduled posts and the automatic draft jobs, five at a time', async () => {
+    schedulingIsEnabled.mockReturnValue(true)
+    getConnectionStatus.mockResolvedValue({
+      state: 'connected',
+      connectedAt: 'x',
+    })
+    listProjectSchedules.mockResolvedValue(
+      many(8, (i) => ({
+        id: uid(100 + i),
+        projectId: ID,
+        draftId: null,
+        body: `Sent text ${String(i + 1)}`,
+        channelLabel: 'My LinkedIn',
+        scheduledFor: '2026-11-10T14:30:00.000Z',
+        bufferPostId: `bp-${String(i)}`,
+        status: 'scheduled',
+        failureCode: null,
+        createdAt: '2026-11-02T12:00:00Z',
+      })),
+    )
+    autoDraftsOn.mockReturnValue(true)
+    readAutoDraft.mockResolvedValue(true)
+    listAutoJobs.mockResolvedValue(
+      many(7, (i) => ({
+        id: `job-${String(i)}`,
+        commitSha: String(i + 1)
+          .repeat(40)
+          .slice(0, 40),
+        status: 'skipped',
+        reason: 'daily_limit',
+        draftId: null,
+        createdAt: '2026-11-03T10:00:00Z',
+      })),
+    )
+    const { html } = await render()
+    // Read-only lists show only the current page.
+    expect(html).toContain('Sent text 5')
+    expect(html).not.toContain('Sent text 6')
+    expect(html).toContain('8 scheduled posts')
+    expect(html).toContain('<code>1111111</code>')
+    expect(html).toContain('<code>5555555</code>')
+    expect(html).not.toContain('<code>6666666</code>')
+    expect(html).toContain('7 commits')
+    expect(html.match(/Page 1 of 2/g)).toHaveLength(2)
   })
 })
 
@@ -665,6 +779,12 @@ describe('with automatic drafts off', () => {
     expect(html).not.toContain('>Auto</span>')
     expect(readAutoDraft).not.toHaveBeenCalled()
     expect(listAutoJobs).not.toHaveBeenCalled()
+  })
+})
+
+describe('how long Generate draft may take', () => {
+  it('the project page gives its Server Actions 60 seconds, enough for GitHub and one Claude call', () => {
+    expect(projectPageConfig.maxDuration).toBe(60)
   })
 })
 

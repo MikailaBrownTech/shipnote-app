@@ -25,10 +25,17 @@ import {
   StatusCards,
   TipsCard,
 } from '../project-view'
+import { PageSkeleton } from '../../skeleton'
 
 // Static on purpose: the project's name is private data and stays out of the
 // page title.
 export const metadata: Metadata = { title: 'Project' }
+
+// How long the Server Actions on this page may run, in seconds (Next.js takes it
+// from the page). Generate draft reads commits from GitHub, then waits for one
+// Claude call of up to 40 seconds, so the platform default is too short. It is
+// the same limit as the automatic draft worker.
+export const maxDuration = 60
 
 export default function ProjectPage({
   params,
@@ -37,7 +44,7 @@ export default function ProjectPage({
   return (
     <main className={styles.main}>
       {/* Reads the session and the id, so it sits behind Suspense. */}
-      <Suspense fallback={<p aria-live="polite">Loading your project</p>}>
+      <Suspense fallback={<PageSkeleton back tabs rows={4} side />}>
         <Project params={params} searchParams={searchParams} />
       </Suspense>
     </main>
@@ -81,7 +88,7 @@ async function Project({
   return (
     <>
       <Link
-        href="/dashboard#projects-title"
+        href="/dashboard/projects"
         className={`${shell.back} ${pageStyles.back}`}
       >
         <Icon name="arrowLeft" size={16} />

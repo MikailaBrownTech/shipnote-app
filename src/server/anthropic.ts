@@ -90,7 +90,9 @@ export async function complete(input: {
           user: input.user,
         }),
       ),
-      timeoutMs: input.timeoutMs ?? 30_000,
+      // Up to 40 seconds: a slow answer is still an answer. With the GitHub reads
+      // before it (8 seconds each at worst) it fits in the 60-second page limit.
+      timeoutMs: input.timeoutMs ?? 40_000,
     })
   } catch (error) {
     const name = error instanceof Error ? error.name : ''

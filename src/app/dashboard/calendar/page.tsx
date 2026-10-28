@@ -35,10 +35,12 @@ import {
 import { schedulingIsEnabled } from '@/server/scheduling'
 import styles from '../dashboard.module.css'
 import { Icon } from '../icons'
+import { LinkedinPreview } from '../linkedin-preview'
 import { PageIntro } from '../page-intro'
 import projectStyles from '../projects/projects.module.css'
 import { DateText } from '../projects/stage-badge'
 import calendar from './calendar.module.css'
+import { PageSkeleton } from '../skeleton'
 
 export const metadata: Metadata = { title: 'Calendar' }
 
@@ -48,7 +50,7 @@ export default function CalendarPage({
   return (
     <main className={styles.main}>
       {/* Reads the session and the address, so it sits behind Suspense. */}
-      <Suspense fallback={<p aria-live="polite">Loading your calendar</p>}>
+      <Suspense fallback={<PageSkeleton rows={6} side />}>
         <Calendar searchParams={searchParams} />
       </Suspense>
     </main>
@@ -406,7 +408,11 @@ function Preview({
         {post.channelLabel ? <span>To {post.channelLabel}</span> : null}
         <span>{project ?? 'Deleted project'}</span>
       </p>
-      <div className={calendar.linkedin}>{post.body}</div>
+      <LinkedinPreview
+        body={post.body}
+        name={post.channelLabel}
+        when={`${timeOfDay(post.scheduledFor)} UTC`}
+      />
       <p className={calendar.note}>
         {post.body.length.toLocaleString('en')}/3,000
       </p>

@@ -10,6 +10,7 @@ import { PageIntro } from '../../page-intro'
 import projectStyles from '../../projects/projects.module.css'
 import { VoiceForm } from './voice-form'
 import voiceStyles from './voice.module.css'
+import { PageSkeleton } from '../../skeleton'
 
 export const metadata: Metadata = { title: 'Voice' }
 
@@ -17,7 +18,7 @@ export default function VoicePage() {
   return (
     <main className={styles.main}>
       {/* Reads the session, so it sits behind Suspense. */}
-      <Suspense fallback={<p aria-live="polite">Loading your voice</p>}>
+      <Suspense fallback={<PageSkeleton back form={4} />}>
         <Voice />
       </Suspense>
     </main>

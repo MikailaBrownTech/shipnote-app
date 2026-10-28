@@ -20,6 +20,7 @@ describe('dashboard sidebar', () => {
     const html = renderToStaticMarkup(<SidebarView pathname="/dashboard" />)
     for (const label of [
       'Dashboard',
+      'Projects',
       'Posts',
       'New project',
       'Account',
@@ -32,10 +33,14 @@ describe('dashboard sidebar', () => {
     }
   })
 
-  it('marks the dashboard current on the home page and on a project', () => {
+  it('marks the dashboard current on the home page only', () => {
     expect(current('/dashboard')).toEqual(['Dashboard'])
-    expect(current(`/dashboard/projects/${ID}`)).toEqual(['Dashboard'])
-    expect(current(`/dashboard/projects/${ID}/edit`)).toEqual(['Dashboard'])
+  })
+
+  it('marks Projects current on the list and on a project', () => {
+    expect(current('/dashboard/projects')).toEqual(['Projects'])
+    expect(current(`/dashboard/projects/${ID}`)).toEqual(['Projects'])
+    expect(current(`/dashboard/projects/${ID}/edit`)).toEqual(['Projects'])
   })
 
   it('marks Voice on the voice settings page', () => {
@@ -49,7 +54,14 @@ describe('dashboard sidebar', () => {
 
   it('lists the pages in the order of the mockups', () => {
     const html = renderToStaticMarkup(<SidebarView pathname="/dashboard" />)
-    const order = ['Dashboard', 'New project', 'Calendar', 'Posts', 'GitHub']
+    const order = [
+      'Dashboard',
+      'Projects',
+      'New project',
+      'Calendar',
+      'Posts',
+      'GitHub',
+    ]
     const at = order.map((label) => html.indexOf(label + '<'))
     expect(at.every((n) => n > -1)).toBe(true)
     expect([...at].sort((x, y) => x - y)).toEqual(at)

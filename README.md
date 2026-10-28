@@ -420,7 +420,7 @@ With a real key and Supabase project (none of these could be run while this was 
 
 ### Limits for now
 
-PGlite is one connection, so the SQL tests prove the counting under a serialized burst but **not** real parallel locking; that rests on Postgres' documented advisory-lock behaviour. The checker cannot know whether a claim is true. Drafts are English only. No scheduling, no posting, no history beyond the last 10 drafts per project on screen.
+PGlite is one connection, so the SQL tests prove the counting under a serialized burst but **not** real parallel locking; that rests on Postgres' documented advisory-lock behaviour. The checker cannot know whether a claim is true. Drafts are English only. No scheduling, no posting, no history beyond the last 30 drafts per project on screen (shown five a page).
 
 ## Scheduling on LinkedIn through Buffer
 
@@ -757,6 +757,26 @@ There was **no Calendar mockup** (the mockups README lists Calendar as not yet d
 
 `docs/Shipnote_Mockups/Shipnote Gradient Note Logo.png` is cropped to its rounded-square mark with transparent corners (`src/app/icon.png`, `src/app/apple-icon.png` and `public/logo-mark.png`), used for the favicon, the touch icon and the mark beside the name in the sidebar, sign-in, landing and footer. The default Next favicon was removed so the logo shows in the tab. `docs/` is not in git, so the cropped files are what the app uses.
 
+### Projects page (`/dashboard/projects`)
+
+All of a user's projects (at most 5), from the same read as the dashboard. Stage tabs with counts (All, Ideas, In progress, Shipped), a search over name, summary and linked repository, a sort (recently updated, name, stage), and each project's stage, last update and the repository it is linked to or "No repository linked". Eight a page, paged by link (`?page=`). `?stage=`, `?sort=`, `?q=` and `?page=` are read strictly (a stage and sort from fixed lists, a plain page number, a short single-line search) and never echoed back. **Projects** follows **Dashboard** in the sidebar and a project's "Back to projects" leads here; the dashboard links to it with **View all** and uses the same row. At the limit it says so and hides **New project**. It only reads.
+
+### Skeletons instead of "Loading"
+
+Every page that waits for the session or data shows grey shapes in its own layout (`src/app/dashboard/skeleton.tsx`), not a line of text. One "Loading" is announced to screen readers (`role="status"`, `aria-busy`), the shapes are hidden from them, and the shimmer stops for anyone who prefers reduced motion. A test fails if a "Loading…" fallback comes back.
+
+### Paging long lists
+
+Recent drafts (30 loaded, five a page), the commits to tick (eight a page), scheduled posts and automatic draft jobs (five a page) page inside the project page; GitHub Recent activity (five a page) and Projects page by link. **The editable and tickable lists hide the other pages instead of removing them**, so a draft being edited or a commit that is ticked is never lost by turning the page, and the Generate form still sends every ticked commit. The Posts page already paged.
+
+### Generate draft time limit
+
+Generate draft runs as a Server Action on the project page, and Next.js takes a Server Action's time limit from its page, which set none, so it stopped at the platform default. The page now sets `maxDuration = 60` and the Claude call waits up to 40 seconds (it was 30). Worst case, two GitHub reads (8 seconds each) and the Claude call still fit inside 60. **Whether your Vercel plan allows 60 seconds is not verified**: a plan with a lower cap still wins.
+
+### LinkedIn preview
+
+`src/app/dashboard/linkedin-preview.tsx` draws a post as it will look on LinkedIn: the profile line (the Buffer channel's name when known, otherwise "Your LinkedIn profile", and a plain "Preview" in place of a headline), when it goes out, the text cut after about three lines or 210 characters with **…more**, hashtags in blue, and the Like / Comment / Repost / Send row. It is shown on the Posts page and the Calendar (the selected post), under each draft as **Preview on LinkedIn** (live as you type, closed until opened), and in the schedule review. **It is a close picture, not LinkedIn, and says so.** It is plain text only: nothing becomes a link or markup, and the actions are drawn and do nothing, so a preview can never post or send. It invents no name, avatar or headline.
+
 ### The notes flag
 
 Under a project's notes (and on its Drafts tab, beside the Generate form) a small flag says: "Incorrect information? Try updating the notes and summary with the current project progress", with a link to the project's edit page. Posts and drafts are written from the notes and summary, so that is where wrong information is fixed. It is plain text and one link, and changes nothing.
@@ -767,7 +787,7 @@ The "Tone for this post" choice on the Generate form is now a set of cards (the 
 
 ### Not verified
 
-- None of these pages was looked at in a browser; they were rendered on the server in tests. Layout, spacing and the small-screen stacking were not checked by eye against the mockups.
+- None of these pages was looked at in a browser; they were rendered on the server in tests. That includes the skeletons, the pager buttons, the Projects page and the LinkedIn preview (its **…more** button and the draft's live preview were not clicked or typed into). Layout, spacing and the small-screen stacking were not checked by eye against the mockups.
 - The GitHub fields (`private`, `language`, `stargazers_count`, `forks_count`, `open_issues_count`, `pushed_at`) are read from GitHub's documented repository object and tested with made-up answers, not a real one.
 - That the logo crop looks right on every surface (tab, home screen, small sizes).
 
@@ -818,7 +838,7 @@ This project uses a recent Next.js with `cacheComponents` on. Anything reading c
 - **Everything about real Buffer behaviour.** No Buffer App Client existed while this was built, so every Buffer response in the tests is mocked. In particular: that third-party OAuth is open to your account (one third-party write-up said it was not enabled yet; Buffer's own docs say it is); the exact token-exchange parameters and redirect-URI rules; that the `prompt=consent` parameter is accepted; real token and refresh-token lifetimes; that `account { organizations { id } }` and `channels(input: { organizationId })` return what is read (field and type names were taken from Buffer's reference, not run); the service name that Buffer uses for LinkedIn (compared as `linkedin`, ignoring case); the exact `DeletePostInput`/`PostInput` fields (`id` is assumed) and the `DeletePostSuccess` name; the post status values (`scheduled`, `sent`, `error` as documented; anything else is read as "other"); what Buffer does with a post at its due time; the error shapes for plan and channel limits (`LimitReachedError`); and that Buffer returns `state` unchanged.
 - **The Buffer migration and flows, on the real project.** That it applies in the SQL Editor; that PostgREST returns `SN020` to `SN024` in `error.code`; that the status function and the cascade behave as the PGlite tests show; that connect, review, confirm, cancel, refresh, disconnect and account deletion work end to end in a browser. The pages were rendered in tests; the buttons, the date picker and the review form were never clicked.
 - **Everything about real GitHub webhooks and QStash.** No GitHub App webhook and no QStash account existed while this was built, so every request in the tests is built by hand. In particular: that GitHub sends `X-Hub-Signature-256` and `X-GitHub-Delivery` exactly as documented and that a push payload has the fields read (`ref`, `deleted`, `repository.full_name`, `repository.default_branch`, `installation.id`, `commits[].id` and `.message`); that a push to a default branch always names it in `repository.default_branch`; that QStash's `Upstash-Signature` is the JWT described (HS256, claims `iss`, `sub`, `exp`, `nbf`, `body`) and that the `body` claim is base64url of the SHA-256 (padding is accepted either way, because the docs are not explicit); that `sub` is the URL exactly as published; that the publish endpoint takes the destination unencoded in the path and answers 200 or 202 (a deduplicated publish is 202 in the docs); the regional QStash host of your account; that status 489 with `Upstash-NonRetryable-Error: true` stops retries; that `Upstash-Retried` arrives as documented; real retry timing and timeouts; and that no Vercel or Cloudflare rule, or Deployment Protection, blocks GitHub or QStash.
-- **The automatic drafts migration and flows, on the real project.** That it applies in the SQL Editor; that the switch, the Auto tag and the skipped and failed list work in a browser (they were rendered on the server in tests; the button was never clicked); and that a route handler with `maxDuration = 60` is honoured on your Vercel plan (a Claude call can take up to 30 seconds).
+- **The automatic drafts migration and flows, on the real project.** That it applies in the SQL Editor; that the switch, the Auto tag and the skipped and failed list work in a browser (they were rendered on the server in tests; the button was never clicked); and that a route handler with `maxDuration = 60` is honoured on your Vercel plan (a Claude call can take up to 40 seconds). The same goes for the project page, which hosts the Generate draft action: it sets `maxDuration = 60` (Next.js takes a Server Action's limit from its page), and the Claude call waits up to 40 seconds, so Generate no longer stops at the platform's short default. **Whether your Vercel plan allows 60 seconds is not verified**; if it does not, the page's limit is capped by the plan.
 - The secret check is a set of patterns tested against made-up keys, not against real ones, and it is basic by design.
 - That the base64-encoded PEM works with `crypto.createSign` for the key GitHub issues (it should: PKCS#1 and PKCS#8 are both accepted), and that GitHub accepts the JWT (`iss` is the App ID; GitHub also allows the client ID).
 - That the GitHub migration applies cleanly in the real SQL Editor. `ON DELETE SET NULL (installation_id)` needs Postgres 15 or newer, which current Supabase projects use; PGlite (Postgres 17) ran it in the tests.

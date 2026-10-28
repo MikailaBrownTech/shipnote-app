@@ -3,6 +3,7 @@
 import { useActionState } from 'react'
 import { jobReason } from '@/lib/auto-draft-job'
 import { Icon } from '../icons'
+import { Pager, usePaged } from '../pager'
 import { setAutoDraftAction, type AutoDraftState } from './auto-draft-actions'
 import styles from './drafts.module.css'
 
@@ -67,6 +68,7 @@ export function AutoDraftCard({
   const shown = jobs.filter(
     (job) => job.status === 'skipped' || job.status === 'failed',
   )
+  const paged = usePaged(shown.length, 5)
 
   return (
     <section className={`card ${styles.card}`} aria-labelledby="auto-title">
@@ -129,7 +131,7 @@ export function AutoDraftCard({
         <div>
           <h3 className={styles.subhead}>Commits that did not make a draft</h3>
           <ul className={styles.recent}>
-            {shown.map((job) => (
+            {paged.slice(shown).map((job) => (
               <li key={job.id} className={styles.scheduledItem}>
                 <p>
                   <strong>{STATUS_WORDS[job.status]}</strong>{' '}
@@ -142,6 +144,13 @@ export function AutoDraftCard({
               </li>
             ))}
           </ul>
+          <Pager
+            page={paged.page}
+            pages={paged.pages}
+            total={shown.length}
+            noun="commits"
+            onPage={paged.setPage}
+          />
         </div>
       ) : null}
     </section>
