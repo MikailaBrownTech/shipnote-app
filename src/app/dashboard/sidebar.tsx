@@ -15,8 +15,8 @@ type Item = {
 
 const NEW_PROJECT = '/dashboard/projects/new'
 
-// Only places that exist. Generate, Calendar and the like are not listed until
-// they are built.
+// Only places that exist. Analytics and Settings are not listed until they are
+// built. The order follows the mockups.
 const items: Item[] = [
   {
     href: '/dashboard',
@@ -27,22 +27,34 @@ const items: Item[] = [
       (pathname.startsWith('/dashboard/projects') && pathname !== NEW_PROJECT),
   },
   {
+    href: NEW_PROJECT,
+    label: 'New project',
+    icon: 'plus',
+    active: (pathname) => pathname === NEW_PROJECT,
+  },
+  {
+    href: '/dashboard/calendar',
+    label: 'Calendar',
+    icon: 'calendar',
+    active: (pathname) => pathname.startsWith('/dashboard/calendar'),
+  },
+  {
     href: '/dashboard/posts',
     label: 'Posts',
     icon: 'note',
     active: (pathname) => pathname.startsWith('/dashboard/posts'),
   },
   {
+    href: '/dashboard/github',
+    label: 'GitHub',
+    icon: 'github',
+    active: (pathname) => pathname.startsWith('/dashboard/github'),
+  },
+  {
     href: '/dashboard/settings/voice',
     label: 'Voice',
     icon: 'edit',
     active: (pathname) => pathname.startsWith('/dashboard/settings'),
-  },
-  {
-    href: NEW_PROJECT,
-    label: 'New project',
-    icon: 'plus',
-    active: (pathname) => pathname === NEW_PROJECT,
   },
   {
     href: '/dashboard/account',

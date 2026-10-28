@@ -123,7 +123,7 @@ describe('listInstallationRepoInfo', () => {
       updatedAt: '2026-10-27T10:00:00Z',
     })
     // With no push time, the last update is used.
-    expect(second?.updatedAt).toBe('2026-10-20T10:00:00Z')
+    expect(second.updatedAt).toBe('2026-10-20T10:00:00Z')
   })
 
   it('refuses a count that is not a whole number', async () => {

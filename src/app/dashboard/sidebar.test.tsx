@@ -27,7 +27,7 @@ describe('dashboard sidebar', () => {
     ]) {
       expect(html).toContain(label)
     }
-    for (const missing of ['Generate', 'Calendar', 'Analytics', 'Upgrade']) {
+    for (const missing of ['Generate', 'Analytics', 'Upgrade']) {
       expect(html).not.toContain(missing)
     }
   })
@@ -40,6 +40,19 @@ describe('dashboard sidebar', () => {
 
   it('marks Voice on the voice settings page', () => {
     expect(current('/dashboard/settings/voice')).toEqual(['Voice'])
+  })
+
+  it('marks Calendar and GitHub on their own pages', () => {
+    expect(current('/dashboard/calendar')).toEqual(['Calendar'])
+    expect(current('/dashboard/github')).toEqual(['GitHub'])
+  })
+
+  it('lists the pages in the order of the mockups', () => {
+    const html = renderToStaticMarkup(<SidebarView pathname="/dashboard" />)
+    const order = ['Dashboard', 'New project', 'Calendar', 'Posts', 'GitHub']
+    const at = order.map((label) => html.indexOf(label + '<'))
+    expect(at.every((n) => n > -1)).toBe(true)
+    expect([...at].sort((x, y) => x - y)).toEqual(at)
   })
 
   it('marks Posts on the posts page', () => {

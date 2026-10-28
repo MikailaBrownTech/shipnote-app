@@ -722,6 +722,36 @@ With the migration applied and `AI_ENABLED=true`:
 - **Real parallel saves.** Two saves at once are handled by retrying as an update after a unique-key conflict; PGlite is a single connection, so this is tested with mocks only.
 - That `is_active_account()` hides the row for a really soft-deleted account in your project (see "What soft delete does").
 
+## GitHub page, Calendar page and the logo
+
+### GitHub page (`/dashboard/github`)
+
+Built from `docs/Shipnote_Mockups/Shipnote GitHub Integration Dashboard.png`. It shows, for each connected GitHub account: who is connected, since when, **View on GitHub** and **Disconnect GitHub** (the same confirmed disconnect as the dashboard); then a **Repositories** tab (search, sort, language, stars, forks, when each was last pushed to, **View activity**) and a **Commits** tab; **Recent activity** (the commits you tagged `[post]` in the chosen repository, with **Generate post** linking to that project's Drafts tab); and a rail with the chosen repository's details (private or public, stars, forks, open issues, **Open in GitHub**), quick actions and tips. **Sync now** asks for a fresh read.
+
+- **What is read.** The page reads live from GitHub on every view, with the same read-only installation tokens as the rest of the app, minted per call and dropped. Repository details (name, description, private or public, language, stars, forks, open issues, last push) come in the **same answer** the repository list already used, under the Metadata permission the App already has. Nothing is stored or logged. A connection that GitHub says is gone is removed here, as on the project pages.
+- **Commits.** Only commits whose message contains `[post]` are shown (the last 30 days, at most 20), as a short plain-text title, for a repository that belongs to one of your projects. Commits without `[post]` are never shown. A repository that is not linked to a project says how to start one.
+- **Rate limit.** Because every view reads from GitHub, each view counts against `githubOverview` (40 per 10 minutes per user, failing open). Over the limit the page says so and reads nothing.
+- **Not like the mockup, on purpose.** The mockup also has **Pull requests** and **Releases** tabs, a **Commits** count and release rows. Pull requests need the "Pull requests: read" permission, which the App does not ask for, and changing a GitHub App's permissions asks every user to accept the change, so that is your decision, not something to slip into a design task. A repository's commit count needs extra requests per repository, so the third number in the mockup's rail is **Open issues** (already in the answer above). "Last synced 5 minutes ago" is "Read from GitHub at 10:24 AM UTC", because nothing is cached.
+- **Switched off.** With `GITHUB_ENABLED=false` the page says GitHub is switched off and reads nothing.
+
+### Calendar page (`/dashboard/calendar`)
+
+There was **no Calendar mockup** (the mockups README lists Calendar as not yet designed), so this follows the week view in the calendar preview on the landing and sign-in mockups: week by week, arrows, a date range, **This week**, **New post**, seven day columns with a coloured card for each post (title, time, status). It shows the signed-in user's own scheduled posts (`scheduled_posts`) for the week, **in UTC** like every date in the app; a card opens the post in Posts. Canceled schedules are left out. Weeks are chosen with `?week=YYYY-MM-DD` (any day in the week); anything that is not a real date, or is more than two years away, is the current week. It changes nothing.
+
+### Logo
+
+`docs/Shipnote_Mockups/Shipnote Gradient Note Logo.png` is cropped to its rounded-square mark with transparent corners (`src/app/icon.png`, `src/app/apple-icon.png` and `public/logo-mark.png`), used for the favicon, the touch icon and the mark beside the name in the sidebar, sign-in, landing and footer. The default Next favicon was removed so the logo shows in the tab. `docs/` is not in git, so the cropped files are what the app uses.
+
+### Tone picker
+
+The "Tone for this post" choice on the Generate form is now a set of cards (the saved tone and the seven tones, each with a colour dot and a one-line description). It is still a real radio group with the same field name, so what is sent is unchanged.
+
+### Not verified
+
+- None of these pages was looked at in a browser; they were rendered on the server in tests. Layout, spacing and the small-screen stacking were not checked by eye against the mockups.
+- The GitHub fields (`private`, `language`, `stargazers_count`, `forks_count`, `open_issues_count`, `pushed_at`) are read from GitHub's documented repository object and tested with made-up answers, not a real one.
+- That the logo crop looks right on every surface (tab, home screen, small sizes).
+
 ## SQL tests
 
 `supabase/tests/` runs the migrations in [PGlite](https://pglite.dev) (real Postgres compiled to WASM, in-process) from `pnpm test`. It needs no Docker or Postgres install.
