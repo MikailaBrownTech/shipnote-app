@@ -1,8 +1,10 @@
 'use client'
 
+import Link from 'next/link'
 import { useActionState, useState, useTransition } from 'react'
 import type { DraftWarning } from '@/lib/draft-checker'
 import { countWords, WORD_RANGE } from '@/lib/draft-rules'
+import { TONE_IDS, TONES, type ToneId } from '@/lib/voice-tones'
 import { Icon } from '../icons'
 import {
   copyDraftAction,
@@ -268,6 +270,7 @@ export function DraftWorkshop({
   recent,
   scheduling,
   auto,
+  savedTone,
 }: {
   projectId: string
   // A repository is linked and connected.
@@ -281,6 +284,8 @@ export function DraftWorkshop({
   scheduling: SchedulingView | null
   // null while automatic drafts are off.
   auto: AutoView | null
+  // The user's saved tone, or null if it could not be read.
+  savedTone: ToneId | null
 }) {
   const [commitState, checkCommits, checking] = useActionState(
     checkCommitsAction.bind(null, projectId),
@@ -419,6 +424,25 @@ export function DraftWorkshop({
             maxLength={500}
             placeholder="What should this post be about? What did you learn?"
           />
+          <label htmlFor="draft-tone" className={styles.editorLabel}>
+            Tone for this post{' '}
+            <span className={styles.optional}>(optional)</span>
+          </label>
+          <select id="draft-tone" name="tone" defaultValue="">
+            <option value="">
+              Your saved tone
+              {savedTone ? ` (${TONES[savedTone].label})` : ''}
+            </option>
+            {TONE_IDS.map((id) => (
+              <option key={id} value={id}>
+                {TONES[id].label}
+              </option>
+            ))}
+          </select>
+          <p className={styles.help}>
+            Only for this draft. It does not change your saved voice.{' '}
+            <Link href="/dashboard/settings/voice">Change your voice</Link>
+          </p>
           <div className={styles.buttons}>
             <button
               type="submit"

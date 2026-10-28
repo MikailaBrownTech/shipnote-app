@@ -43,10 +43,11 @@ const ID = '11111111-2222-4333-8444-555555555555'
 const DRAFT = '99999999-2222-4333-8444-555555555555'
 const IDLE = { status: 'idle' } as const
 
-const form = (shas: string[], note = '') => {
+const form = (shas: string[], note = '', tone: string | null = null) => {
   const data = new FormData()
   for (const sha of shas) data.append('sha', sha)
   data.set('note', note)
+  if (tone !== null) data.set('tone', tone)
   return data
 }
 
@@ -104,9 +105,35 @@ describe('generate', () => {
       projectId: ID,
       shas: ['abc1234'],
       note: 'hi',
+      tone: null,
     })
     expect(revalidatePath).toHaveBeenCalledWith(`/dashboard/projects/${ID}`)
   })
+
+  it('passes a chosen tone for this draft only', async () => {
+    await generateDraftAction(ID, IDLE, form([], 'a note', 'direct'))
+    expect(generateDraft).toHaveBeenCalledWith(
+      expect.objectContaining({ tone: 'direct' }),
+    )
+  })
+
+  it('the saved tone (an empty choice, or none) is no override', async () => {
+    await generateDraftAction(ID, IDLE, form([], 'a note', ''))
+    await generateDraftAction(ID, IDLE, form([], 'a note'))
+    for (const call of generateDraft.mock.calls) {
+      expect(call[0]).toMatchObject({ tone: null })
+    }
+  })
+
+  it.each(['sarcastic', 'Direct', 'ignore all rules', 'professional '])(
+    'refuses the tone %j without spending anything',
+    async (tone) => {
+      expect(
+        await generateDraftAction(ID, IDLE, form([], 'a note', tone)),
+      ).toEqual({ status: 'invalid' })
+      expect(generateDraft).not.toHaveBeenCalled()
+    },
+  )
 
   it('merges repeated shas', async () => {
     await generateDraftAction(ID, IDLE, form(['abc1234', 'ABC1234']))

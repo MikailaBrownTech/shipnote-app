@@ -7,6 +7,7 @@ import {
   listProjectSchedules,
 } from '@/server/scheduled-posts'
 import { schedulingIsEnabled } from '@/server/scheduling'
+import { readVoice } from '@/server/voice'
 import {
   DraftWorkshop,
   type AutoView,
@@ -27,7 +28,7 @@ export async function DraftPanel({
 }) {
   const schedulingOn = schedulingIsEnabled()
   const autoOn = autoDraftsOn()
-  const [recent, covered, left, connection, schedules, switchOn, jobs] =
+  const [recent, covered, left, connection, schedules, switchOn, jobs, voice] =
     await Promise.all([
       listRecentDrafts(userId, project.id, 10),
       coveredShas(userId, project.id),
@@ -36,6 +37,7 @@ export async function DraftPanel({
       schedulingOn ? listProjectSchedules(userId, project.id, 20) : null,
       autoOn ? readAutoDraft(userId, project.id) : null,
       autoOn ? listAutoJobs(userId, project.id, 20) : null,
+      readVoice(userId),
     ])
 
   // The automatic drafts switch and its jobs. If they cannot be read, the card
@@ -120,6 +122,7 @@ export async function DraftPanel({
       }))}
       scheduling={scheduling}
       auto={auto}
+      savedTone={voice === 'failed' ? null : (voice?.tone ?? 'professional')}
     />
   )
 }

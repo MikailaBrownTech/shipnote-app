@@ -9,6 +9,7 @@ import { checkDraft } from '@/lib/draft-checker'
 import { MAX_DRAFT_CHARS } from '@/lib/draft-output'
 import { INPUT_LIMITS } from '@/lib/draft-input'
 import { countChars, projectId } from '@/lib/project-schema'
+import { TONE_IDS } from '@/lib/voice-tones'
 import {
   aiIsEnabled,
   draftsLeftToday,
@@ -32,6 +33,8 @@ const shaList = z
 
 const generateInput = z.strictObject({
   shas: shaList,
+  // A tone for this draft only. Empty means the saved tone.
+  tone: z.union([z.literal(''), z.enum(TONE_IDS)]),
   note: z
     .string()
     .transform((value) => value.replace(/\r\n?/g, '\n').trim())
@@ -87,9 +90,11 @@ export async function generateDraftAction(
   const user = await start(id)
 
   const note = form.get('note')
+  const tone = form.get('tone')
   const parsed = generateInput.safeParse({
     shas: form.getAll('sha').filter((v): v is string => typeof v === 'string'),
     note: typeof note === 'string' ? note : '',
+    tone: typeof tone === 'string' ? tone : '',
   })
   if (!parsed.success) return { status: 'invalid' }
   // Repeats are the same commit.
@@ -103,6 +108,7 @@ export async function generateDraftAction(
     projectId: id,
     shas,
     note: parsed.data.note,
+    tone: parsed.data.tone === '' ? null : parsed.data.tone,
   })
   if (!result.ok) {
     if (result.reason === 'not_found' || result.reason === 'disabled') {
