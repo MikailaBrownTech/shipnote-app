@@ -12,6 +12,7 @@ import {
   WORD_RANGE,
 } from './draft-rules.ts'
 import type { Stage } from './draft-input.ts'
+import { findAvoidWords, longestCopiedRun } from './voice-check.ts'
 
 export type DraftWarningCode =
   | 'stock_phrase'
@@ -22,6 +23,8 @@ export type DraftWarningCode =
   | 'hashtags'
   | 'emoji'
   | 'dash'
+  | 'avoid_word'
+  | 'copied_sample'
 
 export type DraftWarning = { code: DraftWarningCode; message: string }
 
@@ -87,6 +90,12 @@ export function checkDraft(input: {
   body: string
   stage: Stage
   inputText: string | null
+  // The user's voice, when the draft was written with one: words to avoid and
+  // sample posts. Without it these two checks are skipped.
+  voice?: {
+    avoidWords: readonly string[]
+    samples: readonly string[]
+  } | null
 }): DraftWarning[] {
   const { body, stage } = input
   const warnings: DraftWarning[] = []
@@ -152,6 +161,23 @@ export function checkDraft(input: {
   }
   if (/[–—]/.test(body)) {
     warnings.push({ code: 'dash', message: 'Contains an em dash or en dash.' })
+  }
+
+  if (input.voice) {
+    const avoided = findAvoidWords(body, input.voice.avoidWords)
+    if (avoided.length > 0) {
+      warnings.push({
+        code: 'avoid_word',
+        message: `This uses ${avoided.length === 1 ? 'a word' : 'words'} you asked to avoid: ${quoted(avoided)}.`,
+      })
+    }
+    const run = longestCopiedRun(body, input.voice.samples)
+    if (run > 0) {
+      warnings.push({
+        code: 'copied_sample',
+        message: `This copies ${String(run)} words in a row from one of your sample posts. Say it in new words.`,
+      })
+    }
   }
   return warnings
 }
