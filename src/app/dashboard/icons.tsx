@@ -85,6 +85,7 @@ const paths = {
       <path d="M6 7l1 13h10l1-13M9 7V4h6v3" />
     </>
   ),
+  crown: <path d="M3 8l4.5 4L12 5l4.5 7L21 8l-2 11H5z" />,
   signout: (
     <>
       <path d="M9 21H5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h4" />

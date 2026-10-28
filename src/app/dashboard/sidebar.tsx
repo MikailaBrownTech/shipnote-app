@@ -27,6 +27,12 @@ const items: Item[] = [
       (pathname.startsWith('/dashboard/projects') && pathname !== NEW_PROJECT),
   },
   {
+    href: '/dashboard/posts',
+    label: 'Posts',
+    icon: 'note',
+    active: (pathname) => pathname.startsWith('/dashboard/posts'),
+  },
+  {
     href: NEW_PROJECT,
     label: 'New project',
     icon: 'plus',
@@ -71,7 +77,10 @@ export function SidebarView({ pathname }: { pathname: string }) {
 
       <div className={styles.sidebarFoot}>
         <p className={`on-violet ${styles.earlyAccess}`}>
-          <strong>Early access</strong>
+          <strong>
+            <Icon name="crown" size={18} />
+            Early access
+          </strong>
           Shipnote is invite only while it is being built.
         </p>
         <form action={signOut}>
