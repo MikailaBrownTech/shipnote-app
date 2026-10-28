@@ -19,6 +19,7 @@ const listAutoJobs = vi.fn()
 const getConnectionStatus = vi.fn()
 const listProjectSchedules = vi.fn()
 const readVoice = vi.fn()
+const syncDueSchedules = vi.fn()
 
 vi.mock('server-only', () => ({}))
 vi.mock('next/navigation', () => ({
@@ -37,6 +38,7 @@ vi.mock('@/server/draft-generation', () => ({ aiIsEnabled, draftsLeftToday }))
 vi.mock('@/server/drafts', () => ({ listRecentDrafts, coveredShas }))
 vi.mock('@/server/scheduling', () => ({ schedulingIsEnabled }))
 vi.mock('@/server/voice', () => ({ readVoice }))
+vi.mock('@/server/schedule-sync', () => ({ syncDueSchedules }))
 vi.mock('@/server/auto-drafts', () => ({
   autoDraftsOn,
   readAutoDraft,
@@ -135,6 +137,7 @@ beforeEach(() => {
   schedulingIsEnabled.mockReturnValue(false)
   autoDraftsOn.mockReturnValue(false)
   readVoice.mockResolvedValue(null)
+  syncDueSchedules.mockResolvedValue(0)
   readAutoDraft.mockResolvedValue(false)
   listAutoJobs.mockResolvedValue([])
   getConnectionStatus.mockResolvedValue({ state: 'none', connectedAt: null })
@@ -654,5 +657,19 @@ describe('with automatic drafts off', () => {
     expect(html).not.toContain('>Auto</span>')
     expect(readAutoDraft).not.toHaveBeenCalled()
     expect(listAutoJobs).not.toHaveBeenCalled()
+  })
+})
+
+describe('checking Buffer for posts that are due', () => {
+  it('runs first when scheduling is on, for this user', async () => {
+    schedulingIsEnabled.mockReturnValue(true)
+    await render()
+    expect(syncDueSchedules).toHaveBeenCalledExactlyOnceWith(USER)
+  })
+
+  it('does not run while scheduling is off', async () => {
+    schedulingIsEnabled.mockReturnValue(false)
+    await render()
+    expect(syncDueSchedules).not.toHaveBeenCalled()
   })
 })

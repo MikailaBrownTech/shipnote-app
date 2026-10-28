@@ -11,6 +11,7 @@ const getScheduledPost = vi.fn()
 const listProjects = vi.fn()
 const schedulingIsEnabled = vi.fn()
 const aiIsEnabled = vi.fn()
+const syncDueSchedules = vi.fn()
 
 vi.mock('server-only', () => ({}))
 vi.mock('next/navigation', () => ({
@@ -24,6 +25,7 @@ vi.mock('@/server/scheduled-posts', () => ({
   getScheduledPost,
 }))
 vi.mock('@/server/projects', () => ({ listProjects }))
+vi.mock('@/server/schedule-sync', () => ({ syncDueSchedules }))
 vi.mock('@/server/scheduling', () => ({ schedulingIsEnabled }))
 vi.mock('@/server/draft-generation', () => ({ aiIsEnabled }))
 
@@ -79,6 +81,7 @@ beforeEach(() => {
   requireUser.mockResolvedValue({ id: USER, email: 'a@b.co', signedInAt: 1 })
   schedulingIsEnabled.mockReturnValue(true)
   aiIsEnabled.mockReturnValue(true)
+  syncDueSchedules.mockResolvedValue(0)
   listSchedulesBetween.mockResolvedValue([post()])
   getScheduledPost.mockResolvedValue('not_found')
   listProjects.mockResolvedValue({
@@ -106,6 +109,14 @@ describe('the week view', () => {
     const denied = await render()
     expect(String(denied.errors[0])).toContain('redirect:/sign-in')
     expect(listSchedulesBetween).not.toHaveBeenCalled()
+  })
+
+  it('checks due posts with Buffer first, for this user only', async () => {
+    await render()
+    expect(syncDueSchedules).toHaveBeenCalledExactlyOnceWith(USER)
+    expect(syncDueSchedules.mock.invocationCallOrder[0]).toBeLessThan(
+      listSchedulesBetween.mock.invocationCallOrder[0] ?? 0,
+    )
   })
 
   it('shows the title, the week and seven days, Monday to Sunday', async () => {

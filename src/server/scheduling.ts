@@ -21,6 +21,7 @@ import {
   getScheduledPost,
   listActiveSchedules,
   listProjectSchedules,
+  type ScheduledPost,
 } from './scheduled-posts'
 import {
   createScheduledPost as createRow,
@@ -353,6 +354,40 @@ export type RefreshResult =
   | { ok: true; updated: number }
   | { ok: false; reason: 'needs_reconnect' | 'rate_limited' | 'unavailable' }
 
+// Asks Buffer about one scheduled post and records what it says: published, failed
+// (Buffer reported an error) or canceled (the person removed it in Buffer). True
+// if the post changed. Anything else, still scheduled for example, is left as it
+// is. Throws a BufferError for a Buffer problem (not connected, rate limited).
+export async function refreshOne(input: {
+  userId: string
+  post: ScheduledPost
+  nowMs?: number
+}): Promise<boolean> {
+  const { post, userId } = input
+  if (!post.bufferPostId) return false
+  try {
+    const status = await getPostStatus(userId, post.bufferPostId, input.nowMs)
+    if (status !== 'sent' && status !== 'error') return false
+    return await finishScheduledPost({
+      id: post.id,
+      userId,
+      status: status === 'sent' ? 'published' : 'failed',
+      failureCode: status === 'error' ? 'buffer_error' : null,
+    })
+  } catch (error) {
+    if (error instanceof BufferError && error.kind === 'not_found') {
+      // Removed in Buffer by the person.
+      return await finishScheduledPost({
+        id: post.id,
+        userId,
+        status: 'canceled',
+        failureCode: null,
+      })
+    }
+    throw error
+  }
+}
+
 // Asks Buffer about the project's scheduled posts and records the ones that
 // have been published or have failed. At most 10 posts, one request each.
 export async function refreshStatuses(input: {
@@ -367,34 +402,13 @@ export async function refreshStatuses(input: {
     .slice(0, 10)
   let updated = 0
   for (const post of pending) {
-    if (!post.bufferPostId) continue
     try {
-      const status = await getPostStatus(
-        input.userId,
-        post.bufferPostId,
-        input.nowMs,
-      )
-      if (status === 'sent' || status === 'error') {
-        const done = await finishScheduledPost({
-          id: post.id,
-          userId: input.userId,
-          status: status === 'sent' ? 'published' : 'failed',
-          failureCode: status === 'error' ? 'buffer_error' : null,
-        })
-        if (done) updated += 1
+      if (
+        await refreshOne({ userId: input.userId, post, nowMs: input.nowMs })
+      ) {
+        updated += 1
       }
     } catch (error) {
-      if (error instanceof BufferError && error.kind === 'not_found') {
-        // Removed in Buffer by the person.
-        const done = await finishScheduledPost({
-          id: post.id,
-          userId: input.userId,
-          status: 'canceled',
-          failureCode: null,
-        })
-        if (done) updated += 1
-        continue
-      }
       return { ok: false, reason: failureReason(error) }
     }
   }

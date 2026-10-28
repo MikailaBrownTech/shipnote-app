@@ -8,6 +8,7 @@ const requireUser = vi.fn()
 const listUserPosts = vi.fn()
 const listProjects = vi.fn()
 const aiIsEnabled = vi.fn()
+const syncDueSchedules = vi.fn()
 
 vi.mock('server-only', () => ({}))
 vi.mock('next/navigation', () => ({
@@ -18,6 +19,7 @@ vi.mock('next/navigation', () => ({
 vi.mock('@/lib/auth', () => ({ requireUser }))
 vi.mock('@/server/posts', () => ({ listUserPosts }))
 vi.mock('@/server/projects', () => ({ listProjects }))
+vi.mock('@/server/schedule-sync', () => ({ syncDueSchedules }))
 vi.mock('@/server/draft-generation', () => ({ aiIsEnabled }))
 
 const { default: PostsPage } = await import('./page')
@@ -69,6 +71,7 @@ beforeEach(() => {
   vi.clearAllMocks()
   requireUser.mockResolvedValue({ id: USER, email: 'a@b.co', signedInAt: 1 })
   aiIsEnabled.mockReturnValue(true)
+  syncDueSchedules.mockResolvedValue(0)
   listProjects.mockResolvedValue({
     ok: true,
     value: [{ id: PROJECT, name: 'Proposal Generator' }],
@@ -86,6 +89,21 @@ describe('the Posts page', () => {
     expect(errors).toEqual([])
     expect(listUserPosts).toHaveBeenCalledExactlyOnceWith(USER)
     expect(listProjects).toHaveBeenCalledExactlyOnceWith(USER)
+  })
+
+  it('checks due posts with Buffer first, for this user only', async () => {
+    await render()
+    expect(syncDueSchedules).toHaveBeenCalledExactlyOnceWith(USER)
+    expect(syncDueSchedules.mock.invocationCallOrder[0]).toBeLessThan(
+      listUserPosts.mock.invocationCallOrder[0] ?? 0,
+    )
+  })
+
+  it('still shows the posts if the check does nothing', async () => {
+    syncDueSchedules.mockResolvedValue(0)
+    const { html, errors } = await render()
+    expect(errors).toEqual([])
+    expect(html).toContain('Just shipped a major update')
   })
 
   it('requires a signed-in user first', async () => {
