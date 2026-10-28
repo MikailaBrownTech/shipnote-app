@@ -8,6 +8,7 @@ import { AccountRail } from '../rail'
 import shell from '../shell.module.css'
 import { reauthenticate } from './actions'
 import { DeleteForm } from './delete-form'
+import { PageSkeleton } from '../skeleton'
 
 export const metadata: Metadata = { title: 'Account' }
 
@@ -15,7 +16,7 @@ export default function AccountPage() {
   return (
     <main className={styles.main}>
       {/* Reads the session, so it sits behind Suspense. */}
-      <Suspense fallback={<p aria-live="polite">Loading your account</p>}>
+      <Suspense fallback={<PageSkeleton back rows={2} side />}>
         <Account />
       </Suspense>
     </main>

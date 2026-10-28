@@ -40,6 +40,7 @@ import {
 } from './actions'
 import { DisconnectGithub } from './disconnect-github'
 import github from './github.module.css'
+import { PageSkeleton, SkeletonRows } from '../skeleton'
 
 export const metadata: Metadata = { title: 'GitHub' }
 
@@ -49,7 +50,7 @@ export default function GithubPage({
   return (
     <main className={styles.main}>
       {/* Reads the session and the address, so it sits behind Suspense. */}
-      <Suspense fallback={<p aria-live="polite">Loading GitHub</p>}>
+      <Suspense fallback={<PageSkeleton tabs rows={5} side />}>
         <Github searchParams={searchParams} />
       </Suspense>
     </main>
@@ -311,7 +312,7 @@ async function Github({
                 </p>
               </div>
             </div>
-            <Suspense fallback={<p aria-live="polite">Loading activity</p>}>
+            <Suspense fallback={<SkeletonRows rows={3} />}>
               <Activity userId={user.id} repo={selected} nowMs={nowMs} />
             </Suspense>
           </section>

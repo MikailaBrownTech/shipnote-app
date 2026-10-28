@@ -25,6 +25,7 @@ import {
   StatusCards,
   TipsCard,
 } from '../project-view'
+import { PageSkeleton } from '../../skeleton'
 
 // Static on purpose: the project's name is private data and stays out of the
 // page title.
@@ -43,7 +44,7 @@ export default function ProjectPage({
   return (
     <main className={styles.main}>
       {/* Reads the session and the id, so it sits behind Suspense. */}
-      <Suspense fallback={<p aria-live="polite">Loading your project</p>}>
+      <Suspense fallback={<PageSkeleton back tabs rows={4} side />}>
         <Project params={params} searchParams={searchParams} />
       </Suspense>
     </main>

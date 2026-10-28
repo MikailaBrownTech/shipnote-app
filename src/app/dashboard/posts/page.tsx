@@ -30,6 +30,7 @@ import projectStyles from '../projects/projects.module.css'
 import { DateText } from '../projects/stage-badge'
 import shell from '../shell.module.css'
 import postStyles from './posts.module.css'
+import { PageSkeleton } from '../skeleton'
 
 export const metadata: Metadata = { title: 'Posts' }
 
@@ -39,7 +40,7 @@ export default function PostsPage({
   return (
     <main className={styles.main}>
       {/* Reads the session and the address, so it sits behind Suspense. */}
-      <Suspense fallback={<p aria-live="polite">Loading your posts</p>}>
+      <Suspense fallback={<PageSkeleton tabs rows={6} side />}>
         <Posts searchParams={searchParams} />
       </Suspense>
     </main>

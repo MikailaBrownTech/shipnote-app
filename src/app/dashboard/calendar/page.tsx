@@ -39,6 +39,7 @@ import { PageIntro } from '../page-intro'
 import projectStyles from '../projects/projects.module.css'
 import { DateText } from '../projects/stage-badge'
 import calendar from './calendar.module.css'
+import { PageSkeleton } from '../skeleton'
 
 export const metadata: Metadata = { title: 'Calendar' }
 
@@ -48,7 +49,7 @@ export default function CalendarPage({
   return (
     <main className={styles.main}>
       {/* Reads the session and the address, so it sits behind Suspense. */}
-      <Suspense fallback={<p aria-live="polite">Loading your calendar</p>}>
+      <Suspense fallback={<PageSkeleton rows={6} side />}>
         <Calendar searchParams={searchParams} />
       </Suspense>
     </main>

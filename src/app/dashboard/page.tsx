@@ -17,6 +17,7 @@ import { PageIntro } from './page-intro'
 import { StageBadge, Updated } from './projects/stage-badge'
 import projectStyles from './projects/projects.module.css'
 import shell from './shell.module.css'
+import { PageSkeleton } from './skeleton'
 
 export const metadata: Metadata = { title: 'Dashboard' }
 
@@ -38,7 +39,7 @@ export default function DashboardPage({
   return (
     <main className={styles.main}>
       {/* Reads the session, so it sits behind Suspense. */}
-      <Suspense fallback={<p aria-live="polite">Loading your dashboard</p>}>
+      <Suspense fallback={<PageSkeleton tiles={4} rows={5} side />}>
         <Dashboard searchParams={searchParams} />
       </Suspense>
     </main>

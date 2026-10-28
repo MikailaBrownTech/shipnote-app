@@ -9,6 +9,7 @@ import { updateProjectAction } from '../../actions'
 import { loadOwnProject } from '../../load-project'
 import { ProjectForm } from '../../project-form'
 import projectStyles from '../../projects.module.css'
+import { PageSkeleton } from '../../../skeleton'
 
 export const metadata: Metadata = { title: 'Edit project' }
 
@@ -18,7 +19,7 @@ export default function EditProjectPage({
   return (
     <main className={styles.main}>
       {/* Reads the session and the id, so it sits behind Suspense. */}
-      <Suspense fallback={<p aria-live="polite">Loading your project</p>}>
+      <Suspense fallback={<PageSkeleton back form={4} side />}>
         <EditProject params={params} />
       </Suspense>
     </main>
