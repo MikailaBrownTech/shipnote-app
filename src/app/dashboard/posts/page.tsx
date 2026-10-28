@@ -21,6 +21,7 @@ import {
 } from '@/lib/posts'
 import { aiIsEnabled } from '@/server/draft-generation'
 import { listProjects } from '@/server/projects'
+import { syncDueSchedules } from '@/server/schedule-sync'
 import { listUserPosts } from '@/server/posts'
 import styles from '../dashboard.module.css'
 import { Icon } from '../icons'
@@ -98,6 +99,10 @@ async function Posts({
   const q = cleanSearch(query.q)
   const requestedPage = choosePage(query.page)
   const requestedKey = chooseKey(query.sel)
+
+  // Posts whose time has passed are checked with Buffer first, so a published
+  // or failed post shows as such.
+  await syncDueSchedules(user.id)
 
   const [posts, projects] = await Promise.all([
     listUserPosts(user.id),

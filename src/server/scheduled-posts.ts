@@ -205,3 +205,29 @@ export async function listSchedulesBetween(
   const rows = z.array(postRow).safeParse(data)
   return rows.success ? rows.data.map(toPost) : null
 }
+
+// Schedules that Buffer should have sent by now but that are still marked
+// scheduled, oldest first, for the automatic status check. null if they could not
+// be read.
+export async function listDueSchedules(
+  userId: string,
+  nowIso: string,
+  limit = 5,
+): Promise<ScheduledPost[] | null> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('scheduled_posts')
+    .select(COLUMNS)
+    .eq('user_id', userId)
+    .eq('status', 'scheduled')
+    .not('buffer_post_id', 'is', null)
+    .lte('scheduled_for', nowIso)
+    .order('scheduled_for', { ascending: true })
+    .limit(limit)
+  if (error) {
+    note(error.code)
+    return null
+  }
+  const rows = z.array(postRow).safeParse(data)
+  return rows.success ? rows.data.map(toPost) : null
+}

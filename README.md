@@ -438,6 +438,15 @@ Off unless `SCHEDULING_ENABLED=true`. Every person connects **their own** Buffer
 3. Set these, server only, in Vercel and in `.env`: `SCHEDULING_ENABLED=true`, `BUFFER_CLIENT_ID`, `BUFFER_CLIENT_SECRET`, `BUFFER_TOKEN_ENCRYPTION_KEY`. Optional while rotating the key: `BUFFER_TOKEN_KEY_VERSION`, `BUFFER_TOKEN_ENCRYPTION_KEY_PREVIOUS`. A missing or malformed one stops the server at startup, naming the variable and never its value.
 4. Run the migration (below), then redeploy.
 
+### Statuses update by themselves
+
+Buffer sends a post at its time and does not tell Shipnote, so a post used to stay "Scheduled" until someone pressed **Check Buffer** in that one project. Now, whenever the **Posts** page, the **Calendar** or a project's **Drafts** tab is opened, the posts whose time has passed and that are still marked scheduled are checked with Buffer first (`src/server/schedule-sync.ts`), and recorded as **Published** (Buffer says it was sent), **Failed** (Buffer reports an error) or **Canceled** (the person removed it in Buffer). A post removed in Buffer **before** its time shows as canceled once its time has passed, because only due posts are checked.
+
+- **Light on purpose.** At most 5 posts a visit, one after another (so Buffer's single-use refresh tokens are never used twice at once), within an 8-second budget, and rate limited per user (`scheduleSync`, 12 per 10 minutes). A visit with nothing due uses none of the allowance and makes no Buffer call.
+- **Never in the way.** It does not throw. Not connected, rate limited, unreachable or any other problem stops the check and leaves the rest for the next visit; the page loads either way. Nothing is logged but a fixed kind: no post text, Buffer id, token or Buffer answer.
+- **Only the user's own posts**, read with their own session. Writes use the same narrow service-role function as before. The manual **Check Buffer** button still works and uses the same code.
+- **Not covered.** A post stuck in "Scheduling" (the request was cut off before Buffer answered) is not touched: it may or may not exist at Buffer, so it still needs a look there. A post still waiting in Buffer past its time stays Scheduled until Buffer says otherwise.
+
 ### The kill switch, and cancelling posts directly in Buffer
 
 With `SCHEDULING_ENABLED` off (or unset) nothing works from Shipnote: no connecting, scheduling or cancelling, the Buffer panel and buttons are hidden, and the callback and every action answer with a not-found page. **Posts that are already scheduled are not touched**: they sit in Buffer and will still publish. To stop them, open Buffer, find the post in the channel's queue and delete it there (or turn the feature back on, open the project's Drafts tab and press Cancel schedule).
@@ -493,7 +502,7 @@ With a real Buffer App Client and Supabase project (none of these could be run w
 2. Connect. You land back on the dashboard (or the project you started from) with "Buffer connected." Check in the SQL Editor that `access_token_enc` is ciphertext and your plain token appears nowhere.
 3. Open a draft, Schedule on LinkedIn: your LinkedIn channels are listed. Choose one and a time 15 minutes ahead, read the review, Confirm. Check Buffer shows the post at that time with exactly that text.
 4. Cancel schedule: the post disappears from Buffer. Schedule again, then edit the draft: the scheduled text does not change.
-5. Let one publish. Press Refresh status: it shows Published.
+5. Let one publish, then open Posts or the Calendar (no button needed): it shows Published. Delete a scheduled post in Buffer and open Posts after its time: it shows Canceled.
 6. Try a time in the past, one 31 days away, a second schedule of the same draft, and a sixth schedule in a day. Each is refused with a plain message.
 7. In Buffer, remove Shipnote from connected apps, then try to schedule: you are asked to reconnect.
 8. Disconnect with "Cancel my scheduled posts" ticked: the posts vanish from Buffer and the tokens are gone.
@@ -747,6 +756,10 @@ There was **no Calendar mockup** (the mockups README lists Calendar as not yet d
 ### Logo
 
 `docs/Shipnote_Mockups/Shipnote Gradient Note Logo.png` is cropped to its rounded-square mark with transparent corners (`src/app/icon.png`, `src/app/apple-icon.png` and `public/logo-mark.png`), used for the favicon, the touch icon and the mark beside the name in the sidebar, sign-in, landing and footer. The default Next favicon was removed so the logo shows in the tab. `docs/` is not in git, so the cropped files are what the app uses.
+
+### The notes flag
+
+Under a project's notes (and on its Drafts tab, beside the Generate form) a small flag says: "Incorrect information? Try updating the notes and summary with the current project progress", with a link to the project's edit page. Posts and drafts are written from the notes and summary, so that is where wrong information is fixed. It is plain text and one link, and changes nothing.
 
 ### Tone picker
 

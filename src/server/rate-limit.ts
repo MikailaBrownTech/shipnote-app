@@ -28,6 +28,8 @@ const LIMITS = {
   bufferSchedule: { tokens: 10, window: '15 m' },
   bufferCancel: { tokens: 30, window: '15 m' },
   bufferRefresh: { tokens: 6, window: '10 m' },
+  // The automatic status check when a page that shows posts is opened.
+  scheduleSync: { tokens: 12, window: '10 m' },
 } as const
 
 export type LimitName = keyof typeof LIMITS

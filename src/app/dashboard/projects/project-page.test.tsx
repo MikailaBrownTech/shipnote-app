@@ -26,6 +26,9 @@ vi.mock('./auto-draft-actions', () => ({ setAutoDraftAction: vi.fn() }))
 // Scheduling is off in these tests, as it is by default.
 vi.mock('@/server/scheduling', () => ({ schedulingIsEnabled: () => false }))
 vi.mock('@/server/voice', () => ({ readVoice: () => Promise.resolve(null) }))
+vi.mock('@/server/schedule-sync', () => ({
+  syncDueSchedules: () => Promise.resolve(0),
+}))
 vi.mock('@/server/scheduled-posts', () => ({
   getConnectionStatus: vi.fn(),
   listProjectSchedules: vi.fn(),
@@ -224,6 +227,33 @@ describe('the project page', () => {
       expect(html).toContain('line one\nline two')
       expect(html).not.toContain(OVERVIEW)
       expect(html).not.toContain(GITHUB)
+    })
+
+    it('the Notes tab flags that the notes may be out of date, with a link to update them', async () => {
+      const { html } = await render({ tab: 'notes' })
+      expect(html).toContain(
+        'Incorrect information? Try updating the notes and summary with the current project progress.',
+      )
+      expect(html).toContain(`href="/dashboard/projects/${ID}/edit"`)
+      expect(html).toContain('Update notes and summary')
+      // The flag sits under the notes themselves.
+      expect(html.indexOf('line one')).toBeLessThan(
+        html.indexOf('Incorrect information?'),
+      )
+    })
+
+    it('the flag is also there when there are no notes yet', async () => {
+      getProject.mockResolvedValue({ ok: true, value: project({ notes: '' }) })
+      const { html } = await render({ tab: 'notes' })
+      expect(html).toContain('Incorrect information?')
+    })
+
+    it('the flag is not on the other tabs', async () => {
+      for (const tab of ['overview', 'github']) {
+        expect((await render({ tab })).html).not.toContain(
+          'Incorrect information?',
+        )
+      }
     })
 
     it('Notes says so when there are none', async () => {

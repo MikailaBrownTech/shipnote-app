@@ -26,6 +26,7 @@ import {
 import { STATUS_LABELS } from '@/lib/posts'
 import { aiIsEnabled } from '@/server/draft-generation'
 import { listProjects } from '@/server/projects'
+import { syncDueSchedules } from '@/server/schedule-sync'
 import {
   getScheduledPost,
   listSchedulesBetween,
@@ -77,6 +78,10 @@ async function Calendar({
   const anchor = chooseAnchor(query.date)
   const today = todayStart()
   const { from, to } = rangeFor(view, anchor)
+
+  // Posts whose time has passed are checked with Buffer first, so a published
+  // or failed post shows as such.
+  await syncDueSchedules(user.id)
 
   const [posts, projects] = await Promise.all([
     listSchedulesBetween(user.id, from, to),

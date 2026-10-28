@@ -6,6 +6,7 @@ import {
   getConnectionStatus,
   listProjectSchedules,
 } from '@/server/scheduled-posts'
+import { syncDueSchedules } from '@/server/schedule-sync'
 import { schedulingIsEnabled } from '@/server/scheduling'
 import { readVoice } from '@/server/voice'
 import {
@@ -27,6 +28,8 @@ export async function DraftPanel({
   project: Project
 }) {
   const schedulingOn = schedulingIsEnabled()
+  // Posts whose time has passed are checked with Buffer first.
+  if (schedulingOn) await syncDueSchedules(userId)
   const autoOn = autoDraftsOn()
   const [recent, covered, left, connection, schedules, switchOn, jobs, voice] =
     await Promise.all([

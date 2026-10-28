@@ -1,0 +1,29 @@
+/* A flag: a small amber note with an icon, readable on a phone. */
+
+.flag {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  margin-top: 0.9rem;
+  padding: 0.7rem 0.9rem;
+  border-left: 4px solid var(--amber-gold);
+  border-radius: 0.6rem;
+  color: var(--ink);
+  background: var(--tint-amber);
+  font-size: 0.9375rem;
+  line-height: 1.45;
+}
+
+.icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  margin-top: 0.05rem;
+}
+
+.flag a {
+  font-weight: 700;
+  text-underline-offset: 0.15em;
+}

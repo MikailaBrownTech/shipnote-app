@@ -94,3 +94,30 @@ describe('listSchedulesBetween', () => {
     expect(await listSchedulesBetween(U, 'a', 'b')).toBeNull()
   })
 })
+
+describe('listDueSchedules', () => {
+  it('reads only the user’s own scheduled posts that are due and have a Buffer id', async () => {
+    const { listDueSchedules } = await import('./scheduled-posts')
+    result = { data: [row({ buffer_post_id: 'b1' })], error: null }
+    const due = await listDueSchedules(U, '2026-10-28T12:00:00.000Z', 5)
+    expect(due).toHaveLength(1)
+    const used = (method: string) =>
+      calls.filter((c) => c.method === method).map((c) => c.args)
+    expect(used('eq')).toEqual([
+      ['user_id', U],
+      ['status', 'scheduled'],
+    ])
+    expect(used('not')).toEqual([['buffer_post_id', 'is', null]])
+    expect(used('lte')).toEqual([['scheduled_for', '2026-10-28T12:00:00.000Z']])
+    expect(used('order')).toEqual([['scheduled_for', { ascending: true }]])
+    expect(used('limit')).toEqual([[5]])
+  })
+
+  it('null on an error or an odd row', async () => {
+    const { listDueSchedules } = await import('./scheduled-posts')
+    result = { data: null, error: { code: '42501' } }
+    expect(await listDueSchedules(U, 'a')).toBeNull()
+    result = { data: [row({ status: 'weird' })], error: null }
+    expect(await listDueSchedules(U, 'a')).toBeNull()
+  })
+})

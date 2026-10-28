@@ -68,6 +68,7 @@ const {
   completeConnect,
   disconnectBuffer,
   refreshStatuses,
+  refreshOne,
   scheduleDraft,
   SCHEDULE_DAILY_LIMIT,
 } = await import('./scheduling')
@@ -453,6 +454,66 @@ describe('refreshStatuses', () => {
     expect(finishScheduledPost).toHaveBeenCalledWith(
       expect.objectContaining({ status: 'canceled' }),
     )
+  })
+})
+
+describe('refreshOne', () => {
+  const run = (over: Record<string, unknown> = {}) =>
+    refreshOne({
+      userId: A,
+      post: post({ id: '1', bufferPostId: 'b1', ...over }) as never,
+    })
+
+  it('records a sent post as published, and reports the change', async () => {
+    getPostStatus.mockResolvedValue('sent')
+    expect(await run()).toBe(true)
+    expect(finishScheduledPost).toHaveBeenCalledWith(
+      expect.objectContaining({ id: '1', userId: A, status: 'published' }),
+    )
+  })
+
+  it('records an error at Buffer as failed, with a fixed code', async () => {
+    getPostStatus.mockResolvedValue('error')
+    expect(await run()).toBe(true)
+    expect(finishScheduledPost).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: 'failed',
+        failureCode: 'buffer_error',
+      }),
+    )
+  })
+
+  it('leaves a post that is still scheduled, or in a state Buffer does not list', async () => {
+    for (const status of ['scheduled', 'other']) {
+      getPostStatus.mockResolvedValue(status)
+      expect(await run()).toBe(false)
+    }
+    expect(finishScheduledPost).not.toHaveBeenCalled()
+  })
+
+  it('records a post removed in Buffer as canceled', async () => {
+    getPostStatus.mockRejectedValue(new BufferError('not_found'))
+    expect(await run()).toBe(true)
+    expect(finishScheduledPost).toHaveBeenCalledWith(
+      expect.objectContaining({ status: 'canceled', failureCode: null }),
+    )
+  })
+
+  it('reports no change if the record could not be written', async () => {
+    getPostStatus.mockResolvedValue('sent')
+    finishScheduledPost.mockResolvedValue(false)
+    expect(await run()).toBe(false)
+  })
+
+  it('does not ask Buffer about a post it has no Buffer id for', async () => {
+    expect(await run({ bufferPostId: null })).toBe(false)
+    expect(getPostStatus).not.toHaveBeenCalled()
+  })
+
+  it('lets any other Buffer problem through for the caller to handle', async () => {
+    getPostStatus.mockRejectedValue(new BufferError('needs_reconnect'))
+    await expect(run()).rejects.toMatchObject({ kind: 'needs_reconnect' })
+    expect(finishScheduledPost).not.toHaveBeenCalled()
   })
 })
 

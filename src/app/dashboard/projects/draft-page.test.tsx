@@ -19,6 +19,7 @@ const listAutoJobs = vi.fn()
 const getConnectionStatus = vi.fn()
 const listProjectSchedules = vi.fn()
 const readVoice = vi.fn()
+const syncDueSchedules = vi.fn()
 
 vi.mock('server-only', () => ({}))
 vi.mock('next/navigation', () => ({
@@ -37,6 +38,7 @@ vi.mock('@/server/draft-generation', () => ({ aiIsEnabled, draftsLeftToday }))
 vi.mock('@/server/drafts', () => ({ listRecentDrafts, coveredShas }))
 vi.mock('@/server/scheduling', () => ({ schedulingIsEnabled }))
 vi.mock('@/server/voice', () => ({ readVoice }))
+vi.mock('@/server/schedule-sync', () => ({ syncDueSchedules }))
 vi.mock('@/server/auto-drafts', () => ({
   autoDraftsOn,
   readAutoDraft,
@@ -135,6 +137,7 @@ beforeEach(() => {
   schedulingIsEnabled.mockReturnValue(false)
   autoDraftsOn.mockReturnValue(false)
   readVoice.mockResolvedValue(null)
+  syncDueSchedules.mockResolvedValue(0)
   readAutoDraft.mockResolvedValue(false)
   listAutoJobs.mockResolvedValue([])
   getConnectionStatus.mockResolvedValue({ state: 'none', connectedAt: null })
@@ -217,6 +220,14 @@ describe('with AI on', () => {
     expect(html).toContain('Tone for this post')
     expect(html).toContain('Uses the tone you saved on the Voice page.')
     expect(html).not.toContain('Currently ')
+  })
+
+  it('flags that drafts come from the notes and summary, with a link to update them', async () => {
+    const { html } = await render()
+    expect(html).toContain('A draft got something wrong?')
+    expect(html).toContain('Drafts are written from your notes and summary')
+    expect(html).toContain('with the current project progress.')
+    expect(html).toContain(`href="/dashboard/projects/${ID}/edit"`)
   })
 
   it('offers to check commits when a repository is linked', async () => {
@@ -654,5 +665,19 @@ describe('with automatic drafts off', () => {
     expect(html).not.toContain('>Auto</span>')
     expect(readAutoDraft).not.toHaveBeenCalled()
     expect(listAutoJobs).not.toHaveBeenCalled()
+  })
+})
+
+describe('checking Buffer for posts that are due', () => {
+  it('runs first when scheduling is on, for this user', async () => {
+    schedulingIsEnabled.mockReturnValue(true)
+    await render()
+    expect(syncDueSchedules).toHaveBeenCalledExactlyOnceWith(USER)
+  })
+
+  it('does not run while scheduling is off', async () => {
+    schedulingIsEnabled.mockReturnValue(false)
+    await render()
+    expect(syncDueSchedules).not.toHaveBeenCalled()
   })
 })

@@ -122,6 +122,12 @@ const paths = {
     </>
   ),
   chevronLeft: <path d="m15 6-6 6 6 6" />,
+  flag: (
+    <>
+      <path d="M5 21V4" />
+      <path d="M5 4h11l-2 4 2 4H5" />
+    </>
+  ),
   signout: (
     <>
       <path d="M9 21H5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h4" />

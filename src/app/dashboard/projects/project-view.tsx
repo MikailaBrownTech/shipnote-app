@@ -5,6 +5,7 @@ import type { ProjectTab } from '@/lib/project-tabs'
 import type { Project } from '@/server/projects'
 import { Icon, type IconName } from '../icons'
 import { DeleteProject } from './delete-project'
+import { NotesFlag } from './notes-flag'
 import styles from './project-page.module.css'
 import { DateText, StageBadge, Updated } from './stage-badge'
 
@@ -223,6 +224,7 @@ export function NotesCard({ project }: { project: Project }) {
           No notes yet. Add some when you edit.
         </p>
       )}
+      <NotesFlag projectId={project.id} />
     </section>
   )
 }
