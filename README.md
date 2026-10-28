@@ -797,6 +797,27 @@ The "Tone for this post" choice on the Generate form is now a set of cards (the 
 
 **The Supabase roles there are stubs.** `supabase/tests/supabase-stub.sql` creates `anon`, `authenticated`, `service_role` and `supabase_auth_admin`, a minimal `auth.users` and `auth.uid()`, and mimics Supabase's default grants. It proves the SQL does what it says, such as case-insensitive matching and `anon` being unable to read `invites`. It does not prove the hosted project is set up the same way.
 
+### The cross-user access test
+
+`supabase/tests/cross-user.test.ts` is one test for **every table and function in the public schema, found from the database itself**, so a table or function added later cannot skip it. If it fails because something is new, that is the point: add it to the lists at the top of the file and decide, on purpose, who may touch it.
+
+**What it checks, for every table**
+
+- Row-level security is on, and **forced** for all but `invites` and `sign_in_events` (both have every grant revoked and no policy, so no signed-in role reaches them either way; forcing it would also bind the owner that the sign-up hook and invite trigger run as, so it is left as shipped and listed with that reason).
+- Every table has a `user_id`, or is one of the two only the server reaches (`invites`, `webhook_deliveries`), which a signed-in user cannot read or write at all.
+- `anon` has no privilege of any kind, **including a grant on a single column** (the check looks at column grants, which a table-level check misses).
+- No signed-in user can update `user_id`, so no row can be moved to another owner.
+
+**What it does, with two users who each have a row in every table.** In turn, each one, as the signed-in role, tries to read, change, delete and add rows for the other, and the other's rows must come out **exactly as they were** (compared row by row as JSON). It also checks their own rows are really there, so "I saw nothing of theirs" means something; that an insert in their own name works; and that an upsert over the other's row, or moving their own row to the other, is refused. Then the attacker's account is soft deleted: it must see and change nothing and add nothing, while the other user's access is untouched; and finally deleting a user removes their rows from every table and nobody else's.
+
+**For every function:** each has a fixed `search_path`; every function that runs with its owner's rights is closed to `anon` and to signed-in users except the four reviewed ones (`buffer_connection_status`, `is_active_account`, `mark_draft_copied`, `voice_list_valid`), which are exercised as the caller; and `anon` can call nothing but trigger functions (which PostgreSQL will not run directly).
+
+**It was proved to fail.** Each of these was added to a copy of the database and caught: a new table with no seed, a policy that forgets soft-deleted accounts, a grant that lets a user update `user_id`, a grant to `anon` on one column, a security-definer function with no fixed `search_path`, a service function opened to signed-in users, row-level security switched off, and a policy that lets anyone read every row.
+
+**What it found.** The `sign_in_events` read policy did not check for a soft-deleted account, unlike every other table (it was made before that rule). `supabase/migrations/20261103000100_sign_in_events_hide_deleted.sql` fixes it. It is additive and small: a new policy that also requires `is_active_account()`, created before the old one is dropped, so reading is never left without a policy. Until it is run, a soft-deleted account holding a still-valid access token could read its own sign-in events (its own data only, and only until the token expires).
+
+**Not covered.** It runs on the in-memory stand-in (PGlite), not your Supabase project, so it proves the migrations, not the hosted configuration (roles, JWT, PostgREST); PGlite is one connection, so nothing here proves behaviour under real parallel use; and the app's own pages and actions are covered by their own mock-based tests, not by this one.
+
 ## Layout
 
 - `src/proxy.ts`: refreshes the session on each request and redirects `/dashboard` to `/sign-in` without one. Skips static files, `/api/webhooks` and `/api/queue`.
