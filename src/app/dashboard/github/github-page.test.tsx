@@ -60,7 +60,7 @@ const repos = [
     stars: 8,
     forks: 3,
     updatedAt: '2026-10-26T10:24:00Z',
-    projectId: null,
+    projectId: '22222222-2222-4333-8444-555555555555',
   }),
   repo({
     fullName: 'octo/epitrack',
@@ -69,7 +69,7 @@ const repos = [
     language: 'Python',
     stars: 9,
     updatedAt: '2026-10-24T10:24:00Z',
-    projectId: null,
+    projectId: '33333333-2222-4333-8444-555555555555',
   }),
 ]
 
@@ -83,6 +83,7 @@ const overview = (over: Record<string, unknown> = {}) => ({
     },
   ],
   repos,
+  unlinked: 0,
   readAt: READ_AT,
   ...over,
 })
@@ -303,10 +304,32 @@ describe('the connected page', () => {
     expect(styles).toEqual(['background:#9a95b0'])
   })
 
-  it('says when the connection can see no repositories', async () => {
+  it('says when no repository is connected to a project, and how to connect one', async () => {
     loadGithubOverview.mockResolvedValue(overview({ repos: [] }))
     const { html } = await render()
-    expect(html).toContain('can see no repositories yet')
+    expect(html).toContain('No repository is connected to a project yet.')
+    expect(html).toContain('href="/dashboard/projects/new"')
+    expect(checkPostCommits).not.toHaveBeenCalled()
+  })
+
+  it('says how many other repositories are not shown, without naming them', async () => {
+    loadGithubOverview.mockResolvedValue(overview({ unlinked: 3 }))
+    const many = await render()
+    expect(many.html).toContain(
+      '3 other repositories the Shipnote app can see are not linked to a project, so they are not shown.',
+    )
+    loadGithubOverview.mockResolvedValue(overview({ unlinked: 1 }))
+    const one = await render()
+    expect(one.html).toContain(
+      '1 other repository the Shipnote app can see is not linked to a project, so it is not shown.',
+    )
+    loadGithubOverview.mockResolvedValue(overview({ unlinked: 0 }))
+    expect((await render()).html).not.toContain('not shown')
+  })
+
+  it('a repository in the address that is not connected is ignored', async () => {
+    const { html } = await render({ repo: 'octo/not-connected' })
+    expect(html).toContain('<h2 id="details-title">proposal-generator</h2>')
   })
 })
 
@@ -350,15 +373,6 @@ describe('recent activity', () => {
     expect(html).toContain('unknown')
   })
 
-  it('an unlinked repository says how to link it, and reads no commits', async () => {
-    const { html } = await render({ repo: 'octo/epitrack' })
-    expect(checkPostCommits).not.toHaveBeenCalled()
-    expect(html).toContain('Link this repository to a project')
-    expect(html).toContain(
-      'href="/dashboard/projects/new?repo=42%7Cocto%2Fepitrack"',
-    )
-  })
-
   it('says when there are no tagged commits', async () => {
     checkPostCommits.mockResolvedValue({
       status: 'ok',
@@ -391,10 +405,5 @@ describe('the rail', () => {
     expect(html).toContain('Tips for great posts')
     expect(html).toContain('Tag meaningful commits with [post]')
     expect(html).not.toMatch(/Publish now|Post now/)
-  })
-
-  it('offers to start a project from an unlinked repository', async () => {
-    const { html } = await render({ repo: 'octo/epitrack' })
-    expect(html).toContain('Start a project from this repo')
   })
 })

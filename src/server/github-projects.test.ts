@@ -266,6 +266,30 @@ describe('unlinkRepo', () => {
 describe('checkPostCommits', () => {
   const sha = (n: number) => n.toString(16).padStart(7, '0') + 'a'.repeat(33)
 
+  it('returns nothing for commits that only mention the tag further down, and no untagged title', async () => {
+    listRecentCommits.mockResolvedValue([
+      { sha: sha(1), message: 'Add the voice settings', date: null },
+      {
+        sha: sha(2),
+        message:
+          'Squash merge (#15)\n\n* Document automatic drafts from [post] commits',
+        date: null,
+      },
+      {
+        sha: sha(3),
+        message:
+          'Document the tag\n\nA commit with [post] in the subject is used.',
+        date: null,
+      },
+      { sha: sha(4), message: 'Real one [post]', date: null },
+    ])
+    const result = await checkPostCommits(USER, PROJECT, NOW)
+    expect(result).toMatchObject({ status: 'ok' })
+    if (result.status === 'ok') {
+      expect(result.commits.map((c) => c.title)).toEqual(['Real one [post]'])
+    }
+  })
+
   it('mints a token for the one repository and returns only [post] commits', async () => {
     listRecentCommits.mockResolvedValue([
       {

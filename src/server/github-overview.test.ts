@@ -113,24 +113,34 @@ describe('loadGithubOverview', () => {
     expect(listInstallationRepoInfo).toHaveBeenCalledExactlyOnceWith(TOKEN)
   })
 
-  it('marks the repositories that belong to a project, ignoring case', async () => {
+  it('lists only the repositories that belong to a project, ignoring case', async () => {
     const overview = await loadGithubOverview(USER)
     if (overview.status !== 'ok') throw new Error('expected ok')
     expect(
       overview.repos.map((r) => [r.fullName, r.projectId, r.installationId]),
-    ).toEqual([
-      ['octo/hello', PROJECT, 42],
-      ['octo/other', null, 42],
-    ])
+    ).toEqual([['octo/hello', PROJECT, 42]])
   })
 
-  it('still lists repositories if the projects cannot be read', async () => {
-    listProjects.mockResolvedValue({ ok: false })
+  it('counts the repositories it does not list, and never names them', async () => {
     const overview = await loadGithubOverview(USER)
-    expect(overview.status).toBe('ok')
-    if (overview.status === 'ok') {
-      expect(overview.repos.every((r) => r.projectId === null)).toBe(true)
-    }
+    if (overview.status !== 'ok') throw new Error('expected ok')
+    expect(overview.unlinked).toBe(1)
+    expect(JSON.stringify(overview)).not.toContain('octo/other')
+  })
+
+  it('no connected repository at all is an empty list, not an error', async () => {
+    listProjects.mockResolvedValue({ ok: true, value: [] })
+    const overview = await loadGithubOverview(USER)
+    expect(overview).toMatchObject({ status: 'ok', repos: [], unlinked: 2 })
+  })
+
+  it('is a failure if the projects cannot be read, rather than guessing', async () => {
+    listProjects.mockResolvedValue({ ok: false })
+    expect(await loadGithubOverview(USER)).toEqual({
+      status: 'error',
+      kind: 'failed',
+    })
+    expect(createInstallationToken).not.toHaveBeenCalled()
   })
 
   it('says none when there is no connection, without calling GitHub', async () => {

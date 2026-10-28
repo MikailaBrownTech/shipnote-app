@@ -41,13 +41,16 @@ describe('selectPostCommits', () => {
     ])
   })
 
-  it('finds the tag anywhere in the message, not just the first line', () => {
+  it('finds the tag in the first line only, not further down the message', () => {
     const picked = selectPostCommits(
-      [commit('Add export\n\nMore detail here [post]')],
+      [
+        commit('Add export [post]\n\nMore detail here', 1),
+        commit('Add export\n\nMore detail here [post]', 2),
+        commit('Squash merge (#15)\n\n* Document [post] commits\n* Fix', 3),
+      ],
       'octo/hello',
     )
-    expect(picked).toHaveLength(1)
-    expect(picked[0].title).toBe('Add export')
+    expect(picked.map((p) => p.title)).toEqual(['Add export [post]'])
   })
 
   it('returns a short sha, the date and a link built from the repo name and sha', () => {
@@ -187,11 +190,24 @@ describe('repository names', () => {
 })
 
 describe('hasPostTag', () => {
-  it('sees [post] in any case, anywhere in the message', async () => {
+  it('sees [post] in any case in the first line', async () => {
     const { hasPostTag } = await import('./github-commits')
     expect(hasPostTag('Add export [post]')).toBe(true)
     expect(hasPostTag('[POST] first line')).toBe(true)
-    expect(hasPostTag('title\n\nbody with [Post] inside')).toBe(true)
+    expect(hasPostTag('Add [Post] export\n\nbody')).toBe(true)
+    expect(hasPostTag('Add export [post]\r\nbody')).toBe(true)
+  })
+
+  it('does not see it further down the message', async () => {
+    const { hasPostTag } = await import('./github-commits')
+    expect(hasPostTag('title\n\nbody with [Post] inside')).toBe(false)
+    expect(hasPostTag('title\r\n\r\nbody [post]')).toBe(false)
+    expect(hasPostTag('\n[post] after a blank first line')).toBe(false)
+    expect(
+      hasPostTag(
+        'Squash merge (#15)\n\n* Document automatic drafts from [post] commits',
+      ),
+    ).toBe(false)
   })
 
   it('does not see anything else', async () => {

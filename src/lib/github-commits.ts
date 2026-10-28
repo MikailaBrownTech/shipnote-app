@@ -18,9 +18,14 @@ type Raw = { sha: string; message: string; date: string | null }
 
 const POST_TAG = /\[post\]/i
 
-// Whether a commit message carries the [post] tag (any case).
+// Whether a commit is marked with [post] (any case). The tag counts only in the
+// first line of the message, the subject: that is where a person puts it on
+// purpose. The same words further down (a squash merge lists the messages of
+// the commits it joins, and a commit that explains this feature mentions the
+// tag) do not mark a commit. Every place that decides what is tagged, the page
+// lists, the webhook and the automatic worker, goes through this function.
 export function hasPostTag(message: string): boolean {
-  return POST_TAG.test(message)
+  return POST_TAG.test(message.split(/\r?\n/, 1)[0] ?? '')
 }
 const SHA = /^[0-9a-f]{7,64}$/i
 
@@ -41,7 +46,7 @@ export function commitTitle(message: string): string {
   return first ? clip(first, MAX_TITLE_CHARS) : '(no message)'
 }
 
-// Keeps the commits whose message contains [post] (any case), newest first as
+// Keeps the commits marked [post] in their first line (any case), newest first as
 // GitHub returned them, at most MAX_COMMITS. Does not return a diff, a file
 // list or the rest of the message.
 export function selectPostCommits(
@@ -50,7 +55,7 @@ export function selectPostCommits(
 ): CommitSummary[] {
   const found: CommitSummary[] = []
   for (const commit of commits) {
-    if (!POST_TAG.test(commit.message)) continue
+    if (!hasPostTag(commit.message)) continue
     if (!SHA.test(commit.sha)) continue
     found.push({
       sha: commit.sha.slice(0, 7).toLowerCase(),
@@ -78,7 +83,7 @@ export type PostCommit = { sha: string; message: string }
 export function postCommitsWithMessages(commits: readonly Raw[]): PostCommit[] {
   const found: PostCommit[] = []
   for (const commit of commits) {
-    if (!POST_TAG.test(commit.message)) continue
+    if (!hasPostTag(commit.message)) continue
     if (!SHA.test(commit.sha)) continue
     found.push({ sha: commit.sha.toLowerCase(), message: commit.message })
     if (found.length === MAX_COMMITS) break

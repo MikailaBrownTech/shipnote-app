@@ -23,10 +23,12 @@ export type GithubAccount = {
   connectedAt: string | null
 }
 
+// Only repositories that are connected: each one is linked to one of the user's
+// projects. Others the GitHub App can see are counted, never listed.
 export type OverviewRepo = RepoItem & {
   installationId: number
-  // The user's project this repository is linked to, if any.
-  projectId: string | null
+  // The user's project this repository is linked to.
+  projectId: string
 }
 
 export type GithubOverview =
@@ -35,6 +37,8 @@ export type GithubOverview =
       status: 'ok'
       accounts: GithubAccount[]
       repos: OverviewRepo[]
+      // How many more repositories the App can see that no project is linked to.
+      unlinked: number
       // When GitHub was read, in milliseconds.
       readAt: number
     }
@@ -71,19 +75,20 @@ export async function loadGithubOverview(
   if (!rows.success) return { status: 'error', kind: 'failed' }
   if (rows.data.length === 0) return { status: 'none' }
 
-  // Which repositories already belong to one of the user's projects.
+  // A repository is connected when one of the user's projects is linked to it.
+  // Without the projects there is no way to know, so nothing is guessed.
   const projects = await listProjects(userId)
+  if (!projects.ok) return { status: 'error', kind: 'failed' }
   const linked = new Map<string, string>()
-  if (projects.ok) {
-    for (const project of projects.value) {
-      if (project.repoFullName) {
-        linked.set(project.repoFullName.toLowerCase(), project.id)
-      }
+  for (const project of projects.value) {
+    if (project.repoFullName) {
+      linked.set(project.repoFullName.toLowerCase(), project.id)
     }
   }
 
   const accounts: GithubAccount[] = []
   const repos: OverviewRepo[] = []
+  let unlinked = 0
   for (const row of rows.data.slice(0, MAX_INSTALLATIONS)) {
     try {
       const token = await createInstallationToken(row.installation_id)
@@ -94,11 +99,12 @@ export async function loadGithubOverview(
         connectedAt: row.created_at,
       })
       for (const info of infos) {
-        repos.push({
-          ...info,
-          installationId: row.installation_id,
-          projectId: linked.get(info.fullName.toLowerCase()) ?? null,
-        })
+        const projectId = linked.get(info.fullName.toLowerCase())
+        if (projectId === undefined) {
+          unlinked += 1
+          continue
+        }
+        repos.push({ ...info, installationId: row.installation_id, projectId })
       }
     } catch (failure) {
       // The App was uninstalled or suspended on GitHub: forget the connection
@@ -111,6 +117,6 @@ export async function loadGithubOverview(
     }
   }
   return accounts.length > 0
-    ? { status: 'ok', accounts, repos, readAt: Date.now() }
+    ? { status: 'ok', accounts, repos, unlinked, readAt: Date.now() }
     : { status: 'none' }
 }
