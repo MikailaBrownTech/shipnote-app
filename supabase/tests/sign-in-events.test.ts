@@ -103,6 +103,22 @@ describe('sign_in_events privileges', () => {
     expect(rows.rows.map((row) => row.user_id)).toEqual([USER_A])
   })
 
+  it('hides a soft-deleted account’s events from it, and keeps them for the purge', async () => {
+    await db.exec(
+      `update auth.users set deleted_at = now() where id = '${USER_A}'`,
+    )
+    const rows = await asUser(USER_A, () =>
+      db.query('select user_id from public.sign_in_events'),
+    )
+    expect(rows.rows).toHaveLength(0)
+    // Hidden, not gone: the data is still there for the purge job.
+    const kept = await db.query(
+      'select 1 from public.sign_in_events where user_id = $1',
+      [USER_A],
+    )
+    expect(kept.rows.length).toBeGreaterThan(0)
+  })
+
   it('does not let a user insert, update or delete', async () => {
     await expect(
       asUser(USER_A, () =>
