@@ -75,8 +75,10 @@ export async function POST(request: NextRequest) {
 
   // Signed by GitHub from here on. Anything but a push is acknowledged and
   // ignored (a ping when the webhook is set up, for one).
-  if (request.headers.get('x-github-event') !== 'push') {
-    return reply(200, { ok: true })
+  const event = request.headers.get('x-github-event')
+  if (event !== 'push') {
+    console.warn('auto drafts: event ignored', event === 'ping' ? 'ping' : 'other')
+    return reply(200, { ok: true, ignored: 'not_push' })
   }
   const deliveryId = request.headers.get('x-github-delivery')
   if (!deliveryId || !DELIVERY.test(deliveryId)) return reply(400)
@@ -95,6 +97,12 @@ export async function POST(request: NextRequest) {
     return reply(429)
   }
 
-  const outcome = await handlePush(payload, deliveryId)
-  return reply(outcomeStatus[outcome], { ok: outcome !== 'unavailable' })
+  const { outcome, reason } = await handlePush(payload, deliveryId)
+  // A fixed code only, so a 200 that did nothing says why in Recent deliveries
+  // and in the logs.
+  if (reason) console.warn('auto drafts: push ignored', reason)
+  return reply(outcomeStatus[outcome], {
+    ok: outcome !== 'unavailable',
+    ...(reason ? { ignored: reason } : {}),
+  })
 }
