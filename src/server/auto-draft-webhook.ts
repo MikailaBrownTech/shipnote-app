@@ -77,10 +77,7 @@ function isDefaultBranch(payload: PushPayload): boolean {
 // Why a push was ignored: a fixed code, safe to log and to show in GitHub's
 // Recent deliveries. Never anything from the payload.
 export type IgnoreReason =
-  | 'deleted'
-  | 'not_default_branch'
-  | 'no_post_commit'
-  | 'no_target'
+  'deleted' | 'not_default_branch' | 'no_post_commit' | 'no_target'
 
 export type PushResult = { outcome: PushOutcome; reason?: IgnoreReason }
 
@@ -130,6 +127,7 @@ export async function handlePush(
       await publishAutoDraftJob(job)
     } catch (error) {
       if (!(error instanceof QstashError)) throw error
+      console.warn('auto drafts: queue publish failed', error.kind)
       await finishAutoDraftJob({
         jobId: created.id,
         userId: target.userId,

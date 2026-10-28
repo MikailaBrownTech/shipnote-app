@@ -489,7 +489,14 @@ export async function recordWebhookDelivery(
     p_installation_id: installationId,
   })
   const state: unknown = response.data
-  if (response.error) return null
+  if (response.error) {
+    console.warn(
+      'auto drafts: database call failed',
+      'record_webhook_delivery',
+      response.error.code,
+    )
+    return null
+  }
   return state === 'new' || state === 'duplicate' || state === 'retry'
     ? state
     : null
@@ -517,7 +524,14 @@ export async function resolveAutoDraftTarget(
     p_installation_id: installationId,
     p_repo_full_name: repoFullName,
   })
-  if (response.error) return 'failed'
+  if (response.error) {
+    console.warn(
+      'auto drafts: database call failed',
+      'resolve_auto_draft_target',
+      response.error.code,
+    )
+    return 'failed'
+  }
   const rows: unknown = response.data
   if (!Array.isArray(rows) || rows.length === 0) return null
   const row = rows[0] as { user_id?: unknown; project_id?: unknown }
@@ -542,7 +556,14 @@ export async function createAutoDraftJob(input: {
     p_commit_sha: input.commitSha,
     p_delivery_id: input.deliveryId,
   })
-  if (response.error) return { ok: false }
+  if (response.error) {
+    console.warn(
+      'auto drafts: database call failed',
+      'create_auto_draft_job',
+      response.error.code,
+    )
+    return { ok: false }
+  }
   const id: unknown = response.data
   return { ok: true, id: typeof id === 'string' ? id : null }
 }
