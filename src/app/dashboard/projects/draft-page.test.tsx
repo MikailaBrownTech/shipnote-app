@@ -222,6 +222,14 @@ describe('with AI on', () => {
     expect(html).not.toContain('Currently ')
   })
 
+  it('flags that drafts come from the notes and summary, with a link to update them', async () => {
+    const { html } = await render()
+    expect(html).toContain('A draft got something wrong?')
+    expect(html).toContain('Drafts are written from your notes and summary')
+    expect(html).toContain('with the current project progress.')
+    expect(html).toContain(`href="/dashboard/projects/${ID}/edit"`)
+  })
+
   it('offers to check commits when a repository is linked', async () => {
     const { html } = await render()
     expect(html).toContain('Check for [post] commits')

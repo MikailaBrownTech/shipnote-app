@@ -17,6 +17,7 @@ import {
 import { checkCommitsAction, type CommitState } from './github-actions'
 import { AutoDraftCard, type AutoJobView } from './auto-draft-controls'
 import styles from './drafts.module.css'
+import { NotesFlag } from './notes-flag'
 import {
   ScheduledPostsList,
   ScheduleSection,
@@ -479,6 +480,7 @@ export function DraftWorkshop({
             Pressing Generate again writes a new draft and uses another of
             today’s drafts.
           </p>
+          <NotesFlag projectId={projectId} where="drafts" />
         </form>
 
         <div aria-live="polite">
