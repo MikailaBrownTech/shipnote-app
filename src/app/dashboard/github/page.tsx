@@ -252,9 +252,12 @@ async function Github({
 
               {repos.length === 0 ? (
                 <p className={github.fine}>
-                  The connection can see no repositories yet. Choose
-                  repositories for the Shipnote app on GitHub, then press Sync
-                  now.
+                  No repository is connected to a project yet. Link one on a
+                  project&rsquo;s GitHub tab, or{' '}
+                  <Link href="/dashboard/projects/new">
+                    start a project from a repository
+                  </Link>
+                  .
                 </p>
               ) : shown.length === 0 ? (
                 <p className={github.fine}>
@@ -279,6 +282,13 @@ async function Github({
                   ))}
                 </ul>
               )}
+              {overview.unlinked > 0 ? (
+                <p className={github.fine}>
+                  {overview.unlinked === 1
+                    ? '1 other repository the Shipnote app can see is not linked to a project, so it is not shown.'
+                    : `${String(overview.unlinked)} other repositories the Shipnote app can see are not linked to a project, so they are not shown.`}
+                </p>
+              ) : null}
             </section>
           ) : null}
 
@@ -473,18 +483,6 @@ function QuickActions({
   repo: OverviewRepo | null
   activityHref: string
 }) {
-  const generate = repo
-    ? repo.projectId
-      ? {
-          href: `/dashboard/projects/${repo.projectId}?tab=drafts`,
-          note: aiIsEnabled() ? 'Open this project’s Drafts tab' : null,
-        }
-      : {
-          href: `/dashboard/projects/new?repo=${encodeURIComponent(`${String(repo.installationId)}|${repo.fullName}`)}`,
-          note: 'Start a project from this repository',
-        }
-    : null
-
   const actions: {
     href: string
     icon: IconName
@@ -498,13 +496,11 @@ function QuickActions({
       tone: github.toneAzure,
     },
   ]
-  if (generate?.note) {
+  if (repo && aiIsEnabled()) {
     actions.push({
-      href: generate.href,
+      href: `/dashboard/projects/${repo.projectId}?tab=drafts`,
       icon: 'bolt',
-      title: repo?.projectId
-        ? 'Generate post from activity'
-        : 'Start a project from this repo',
+      title: 'Generate post from activity',
       tone: github.toneViolet,
     })
   }
@@ -576,20 +572,6 @@ async function Activity({
       <p className={github.fine}>Choose a repository to see its activity.</p>
     )
   }
-  if (!repo.projectId) {
-    return (
-      <p className={github.fine}>
-        Link this repository to a project to see the commits you tag{' '}
-        <code>[post]</code>.{' '}
-        <Link
-          href={`/dashboard/projects/new?repo=${encodeURIComponent(`${String(repo.installationId)}|${repo.fullName}`)}`}
-        >
-          Start a project from it
-        </Link>
-      </p>
-    )
-  }
-
   const check = await checkPostCommits(userId, repo.projectId, nowMs)
   if (check.status !== 'ok') {
     const words: Record<Exclude<typeof check.status, 'ok'>, string> = {
@@ -630,7 +612,7 @@ async function Activity({
           <code>{commit.sha}</code>
           {canDraft ? (
             <Link
-              href={`/dashboard/projects/${repo.projectId ?? ''}?tab=drafts`}
+              href={`/dashboard/projects/${repo.projectId}?tab=drafts`}
               className={github.generate}
             >
               <Icon name="bolt" size={14} />
