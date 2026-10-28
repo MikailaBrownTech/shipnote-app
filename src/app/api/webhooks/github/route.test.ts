@@ -401,9 +401,20 @@ describe('what is ignored', () => {
     resolveAutoDraftTarget.mockResolvedValue(null)
     const response = await call(push())
     expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({ ok: true, ignored: 'no_target' })
     expect(recordWebhookDelivery).not.toHaveBeenCalled()
     expect(createAutoDraftJob).not.toHaveBeenCalled()
     expect(publishAutoDraftJob).not.toHaveBeenCalled()
+  })
+
+  it('says why in the answer, with a fixed code only', async () => {
+    const other = await call(push({ ref: 'refs/heads/feature' }))
+    expect(await other.json()).toEqual({
+      ok: true,
+      ignored: 'not_default_branch',
+    })
+    const ping = await call(push(), { 'x-github-event': 'ping' })
+    expect(await ping.json()).toEqual({ ok: true, ignored: 'not_push' })
   })
 
   it('a push to another branch, or one that deletes a branch', async () => {

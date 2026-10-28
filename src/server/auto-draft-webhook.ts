@@ -74,15 +74,29 @@ function isDefaultBranch(payload: PushPayload): boolean {
   return !!branch && payload.ref === `refs/heads/${branch}`
 }
 
+// Why a push was ignored: a fixed code, safe to log and to show in GitHub's
+// Recent deliveries. Never anything from the payload.
+export type IgnoreReason =
+  | 'deleted'
+  | 'not_default_branch'
+  | 'no_post_commit'
+  | 'no_target'
+
+export type PushResult = { outcome: PushOutcome; reason?: IgnoreReason }
+
 export async function handlePush(
   payload: PushPayload,
   deliveryId: string,
-): Promise<PushOutcome> {
-  if (payload.deleted === true) return 'ignored'
-  if (!isDefaultBranch(payload)) return 'ignored'
+): Promise<PushResult> {
+  const ignored = (reason: IgnoreReason): PushResult => ({
+    outcome: 'ignored',
+    reason,
+  })
+  if (payload.deleted === true) return ignored('deleted')
+  if (!isDefaultBranch(payload)) return ignored('not_default_branch')
 
   const shas = selectCommits(payload)
-  if (shas.length === 0) return 'ignored'
+  if (shas.length === 0) return ignored('no_post_commit')
 
   // The user and project come from our database, through the installation id
   // GitHub signed, not from anything the payload says about owners.
@@ -90,12 +104,12 @@ export async function handlePush(
     payload.installation.id,
     payload.repository.full_name,
   )
-  if (target === 'failed') return 'unavailable'
-  if (target === null) return 'ignored'
+  if (target === 'failed') return { outcome: 'unavailable' }
+  if (target === null) return ignored('no_target')
 
   const state = await recordWebhookDelivery(deliveryId, payload.installation.id)
-  if (state === null) return 'unavailable'
-  if (state === 'duplicate') return 'duplicate'
+  if (state === null) return { outcome: 'unavailable' }
+  if (state === 'duplicate') return { outcome: 'duplicate' }
 
   let allQueued = true
   for (const commitSha of shas) {
@@ -128,9 +142,9 @@ export async function handlePush(
   }
   // Only a delivery that was fully handled is marked processed, so a redelivery
   // of one that was not will be worked again (creating jobs is idempotent).
-  if (!allQueued) return 'unavailable'
+  if (!allQueued) return { outcome: 'unavailable' }
   await finishWebhookDelivery(deliveryId)
-  return 'queued'
+  return { outcome: 'queued' }
 }
 
 // Reads a request body up to a limit, never more. 'too_large' as soon as the
