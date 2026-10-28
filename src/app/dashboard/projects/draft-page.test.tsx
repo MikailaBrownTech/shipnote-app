@@ -18,6 +18,7 @@ const readAutoDraft = vi.fn()
 const listAutoJobs = vi.fn()
 const getConnectionStatus = vi.fn()
 const listProjectSchedules = vi.fn()
+const readVoice = vi.fn()
 
 vi.mock('server-only', () => ({}))
 vi.mock('next/navigation', () => ({
@@ -35,6 +36,7 @@ vi.mock('@/server/projects', () => ({ getProject }))
 vi.mock('@/server/draft-generation', () => ({ aiIsEnabled, draftsLeftToday }))
 vi.mock('@/server/drafts', () => ({ listRecentDrafts, coveredShas }))
 vi.mock('@/server/scheduling', () => ({ schedulingIsEnabled }))
+vi.mock('@/server/voice', () => ({ readVoice }))
 vi.mock('@/server/auto-drafts', () => ({
   autoDraftsOn,
   readAutoDraft,
@@ -132,6 +134,7 @@ beforeEach(() => {
   coveredShas.mockResolvedValue([])
   schedulingIsEnabled.mockReturnValue(false)
   autoDraftsOn.mockReturnValue(false)
+  readVoice.mockResolvedValue(null)
   readAutoDraft.mockResolvedValue(false)
   listAutoJobs.mockResolvedValue([])
   getConnectionStatus.mockResolvedValue({ state: 'none', connectedAt: null })
@@ -166,6 +169,35 @@ describe('with AI on', () => {
     )
     expect(html).toContain('Shipnote never posts')
     expect(html).not.toMatch(/Schedule|Post now|Publish/i)
+  })
+
+  it('offers a tone for this post only, defaulting to the saved tone', async () => {
+    const plain = await render()
+    expect(plain.html).toContain('Tone for this post')
+    expect(plain.html).toContain('Your saved tone (Professional)')
+    expect(plain.html.match(/<option value="[a-z]+">/g)).toHaveLength(7)
+    expect(plain.html).toContain(
+      'Only for this draft. It does not change your saved voice.',
+    )
+    expect(plain.html).toContain('href="/dashboard/settings/voice"')
+    expect(readVoice).toHaveBeenCalledWith(USER)
+
+    readVoice.mockResolvedValue({
+      tone: 'casual',
+      notes: '',
+      samples: [],
+      avoidWords: [],
+      signoff: '',
+    })
+    const saved = await render()
+    expect(saved.html).toContain('Your saved tone (Casual)')
+  })
+
+  it('still offers the dropdown if the saved tone cannot be read', async () => {
+    readVoice.mockResolvedValue('failed')
+    const { html } = await render()
+    expect(html).toContain('Tone for this post')
+    expect(html).not.toContain('Your saved tone (')
   })
 
   it('offers to check commits when a repository is linked', async () => {

@@ -38,6 +38,7 @@ const PERMANENT: readonly AutoFailure[] = [
   'commit_not_found',
   'github_gone',
   'secret',
+  'voice_secret',
   'invalid_output',
   'no_content',
 ]

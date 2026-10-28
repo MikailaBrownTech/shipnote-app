@@ -1,6 +1,7 @@
 import 'server-only'
 import { createClient } from '@supabase/supabase-js'
 import { env } from '@/lib/env'
+import { normalizeVoice, type VoiceProfile } from '@/lib/voice'
 import { getAdminEnv } from './env'
 
 // The only place the service role key is used. It bypasses row-level
@@ -659,4 +660,27 @@ export async function readProjectForAutoDraft(
     repoFullName: row.repo_full_name,
     installationId: installation,
   }
+}
+
+// The voice profile of the one user a job belongs to, for the automatic draft
+// worker, which has no session. null if they have none (or the account is
+// deleted), 'failed' if it could not be read. Never logs a value.
+export async function readVoiceProfileForWorker(
+  userId: string,
+): Promise<VoiceProfile | null | 'failed'> {
+  const response = await admin().rpc('read_voice_profile', {
+    p_user_id: userId,
+  })
+  if (response.error) return 'failed'
+  const rows: unknown = response.data
+  if (!Array.isArray(rows) || rows.length === 0) return null
+  const found = rows[0] as Record<string, unknown>
+  if (typeof found.tone !== 'string') return 'failed'
+  return normalizeVoice({
+    tone: found.tone,
+    notes: found.voice_notes,
+    samples: found.sample_posts,
+    avoidWords: found.avoid_words,
+    signoff: found.signoff,
+  })
 }

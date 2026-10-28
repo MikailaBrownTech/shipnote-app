@@ -33,6 +33,12 @@ const items: Item[] = [
     active: (pathname) => pathname.startsWith('/dashboard/posts'),
   },
   {
+    href: '/dashboard/settings/voice',
+    label: 'Voice',
+    icon: 'edit',
+    active: (pathname) => pathname.startsWith('/dashboard/settings'),
+  },
+  {
     href: NEW_PROJECT,
     label: 'New project',
     icon: 'plus',

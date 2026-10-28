@@ -163,6 +163,7 @@ describe('permanent failures are not retried', () => {
     'commit_not_found',
     'github_gone',
     'secret',
+    'voice_secret',
     'invalid_output',
     'no_content',
   ])('%s fails the job for good', async (reason) => {

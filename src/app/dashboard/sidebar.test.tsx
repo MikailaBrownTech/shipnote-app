@@ -38,6 +38,10 @@ describe('dashboard sidebar', () => {
     expect(current(`/dashboard/projects/${ID}/edit`)).toEqual(['Dashboard'])
   })
 
+  it('marks Voice on the voice settings page', () => {
+    expect(current('/dashboard/settings/voice')).toEqual(['Voice'])
+  })
+
   it('marks Posts on the posts page', () => {
     expect(current('/dashboard/posts')).toEqual(['Posts'])
   })
