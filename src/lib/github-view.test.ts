@@ -203,3 +203,13 @@ describe('languageColor', () => {
     }
   })
 })
+
+describe('githubHref activity pages', () => {
+  it('names the page only after the first', () => {
+    expect(githubHref({ ap: 1 })).toBe('/dashboard/github')
+    expect(githubHref({ ap: 0 })).toBe('/dashboard/github')
+    expect(githubHref({ ap: 3, repo: 'octo/x' })).toBe(
+      '/dashboard/github?repo=octo%2Fx&ap=3',
+    )
+  })
+})

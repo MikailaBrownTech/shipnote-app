@@ -18,6 +18,7 @@ import {
   timeAgo,
 } from '@/lib/github-view'
 import { repoUrl } from '@/lib/github-repo'
+import { choosePage, paginate } from '@/lib/posts'
 import { aiIsEnabled } from '@/server/draft-generation'
 import { githubIsEnabled } from '@/server/github-app'
 import {
@@ -30,6 +31,7 @@ import { rateLimit } from '@/server/rate-limit'
 import styles from '../dashboard.module.css'
 import { Icon, type IconName } from '../icons'
 import { PageIntro } from '../page-intro'
+import { PagerLinks } from '../pager-links'
 import projectStyles from '../projects/projects.module.css'
 import { DateText } from '../projects/stage-badge'
 import shell from '../shell.module.css'
@@ -43,6 +45,9 @@ import github from './github.module.css'
 import { PageSkeleton, SkeletonRows } from '../skeleton'
 
 export const metadata: Metadata = { title: 'GitHub' }
+
+// Commits shown a page at a time in Recent activity.
+const ACTIVITY_PAGE = 5
 
 export default function GithubPage({
   searchParams,
@@ -313,7 +318,13 @@ async function Github({
               </div>
             </div>
             <Suspense fallback={<SkeletonRows rows={3} />}>
-              <Activity userId={user.id} repo={selected} nowMs={nowMs} />
+              <Activity
+                userId={user.id}
+                repo={selected}
+                nowMs={nowMs}
+                page={choosePage(query.ap)}
+                hrefFor={(ap) => view({ ap })}
+              />
             </Suspense>
           </section>
         </div>
@@ -563,10 +574,15 @@ async function Activity({
   userId,
   repo,
   nowMs,
+  page,
+  hrefFor,
 }: {
   userId: string
   repo: OverviewRepo | null
   nowMs: number
+  // Which page of the commits to show, and the address of another page.
+  page: number
+  hrefFor: (page: number) => string
 }) {
   if (!repo) {
     return (
@@ -597,31 +613,41 @@ async function Activity({
   }
 
   const canDraft = aiIsEnabled()
+  const paged = paginate(check.commits, page, ACTIVITY_PAGE)
   return (
-    <ul className={github.activity}>
-      {check.commits.map((commit) => (
-        <li key={commit.sha}>
-          <span className={`${github.repoIcon} ${github.toneViolet}`}>
-            <Icon name="commit" size={18} />
-          </span>
-          <div className={github.activityBody}>
-            <strong>{commit.title}</strong>
-            <span>
-              {repo.name} · {timeAgo(commit.date, nowMs)}
+    <>
+      <ul className={github.activity}>
+        {paged.items.map((commit) => (
+          <li key={commit.sha}>
+            <span className={`${github.repoIcon} ${github.toneViolet}`}>
+              <Icon name="commit" size={18} />
             </span>
-          </div>
-          <code>{commit.sha}</code>
-          {canDraft ? (
-            <Link
-              href={`/dashboard/projects/${repo.projectId}?tab=drafts`}
-              className={github.generate}
-            >
-              <Icon name="bolt" size={14} />
-              Generate post
-            </Link>
-          ) : null}
-        </li>
-      ))}
-    </ul>
+            <div className={github.activityBody}>
+              <strong>{commit.title}</strong>
+              <span>
+                {repo.name} · {timeAgo(commit.date, nowMs)}
+              </span>
+            </div>
+            <code>{commit.sha}</code>
+            {canDraft ? (
+              <Link
+                href={`/dashboard/projects/${repo.projectId}?tab=drafts`}
+                className={github.generate}
+              >
+                <Icon name="bolt" size={14} />
+                Generate post
+              </Link>
+            ) : null}
+          </li>
+        ))}
+      </ul>
+      <PagerLinks
+        page={paged.page}
+        pages={paged.pages}
+        total={paged.total}
+        noun="commits"
+        hrefFor={hrefFor}
+      />
+    </>
   )
 }

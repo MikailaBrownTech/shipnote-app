@@ -2,6 +2,7 @@
 
 import { useActionState, useState, useTransition } from 'react'
 import { Icon } from '../icons'
+import { Pager, usePaged } from '../pager'
 import { LinkedinPreview } from '../linkedin-preview'
 import {
   cancelScheduleAction,
@@ -410,6 +411,7 @@ export function ScheduledPostsList({
 }) {
   const [message, setMessage] = useState<string | null>(null)
   const [pending, start] = useTransition()
+  const paged = usePaged(posts.length, 5)
 
   function refresh() {
     setMessage(null)
@@ -448,7 +450,7 @@ export function ScheduledPostsList({
         <p className={styles.help}>Nothing scheduled for this project yet.</p>
       ) : (
         <ul className={styles.recent}>
-          {posts.map((post) => (
+          {paged.slice(posts).map((post) => (
             <li key={post.id} className={styles.scheduledItem}>
               <p>
                 <strong>{STATUS_LABELS[post.status]}</strong> for{' '}
@@ -469,6 +471,13 @@ export function ScheduledPostsList({
           ))}
         </ul>
       )}
+      <Pager
+        page={paged.page}
+        pages={paged.pages}
+        total={posts.length}
+        noun="scheduled posts"
+        onPage={paged.setPage}
+      />
       <div className={styles.buttons}>
         <button
           type="button"

@@ -396,6 +396,65 @@ describe('recent activity', () => {
   })
 })
 
+describe('recent activity is paged', () => {
+  const commits = Array.from({ length: 12 }, (_, i) => ({
+    sha: String(i + 1).padStart(7, '0'),
+    title: `Commit title ${String(i + 1)} [post]`,
+    date: '2026-10-27T08:24:00Z',
+    url: 'https://github.com/x',
+  }))
+
+  beforeEach(() => {
+    checkPostCommits.mockResolvedValue({
+      status: 'ok',
+      repo: 'octo/x',
+      commits,
+    })
+  })
+
+  it('shows five commits a page, with links for the others', async () => {
+    const { html } = await render()
+    expect(html).toContain('Commit title 5 [post]')
+    expect(html).not.toContain('Commit title 6 [post]')
+    expect(html).toContain('Page 1 of 3')
+    expect(html).toContain('12 commits')
+    expect(html).toContain(
+      'href="/dashboard/github?repo=octo%2Fproposal-generator&amp;ap=2"',
+    )
+  })
+
+  it('shows the page named in the address, and the last page when it is too far', async () => {
+    const second = await render({ ap: '2' })
+    expect(second.html).toContain('Commit title 6 [post]')
+    expect(second.html).toContain('Commit title 10 [post]')
+    expect(second.html).not.toContain('Commit title 5 [post]')
+    expect(second.html).toContain('Page 2 of 3')
+    const last = await render({ ap: '99' })
+    expect(last.html).toContain('Page 3 of 3')
+    expect(last.html).toContain('Commit title 11 [post]')
+    expect(last.html).toContain('Commit title 12 [post]')
+    expect(last.html).not.toContain('Commit title 10 [post]')
+  })
+
+  it('an odd page number is the first page', async () => {
+    for (const bad of ['0', '-1', 'x', '1.5', '<script>alert(1)</script>']) {
+      const { html } = await render({ ap: bad })
+      expect(html).toContain('Page 1 of 3')
+      expect(html).not.toContain('alert(1)')
+    }
+  })
+
+  it('has no pager for five commits or fewer', async () => {
+    checkPostCommits.mockResolvedValue({
+      status: 'ok',
+      repo: 'octo/x',
+      commits: commits.slice(0, 5),
+    })
+    const { html } = await render()
+    expect(html).not.toContain('commits pages')
+  })
+})
+
 describe('the rail', () => {
   it('has quick actions and tips, and never a way to post', async () => {
     const { html } = await render()

@@ -6,6 +6,7 @@ import type { DraftWarning } from '@/lib/draft-checker'
 import { countWords, WORD_RANGE } from '@/lib/draft-rules'
 import { TONE_IDS, TONES, type ToneId } from '@/lib/voice-tones'
 import { Icon } from '../icons'
+import { Pager, usePaged } from '../pager'
 import { LinkedinPreview } from '../linkedin-preview'
 import {
   copyDraftAction,
@@ -337,6 +338,10 @@ export function DraftWorkshop({
       !(state.status === 'ok' && state.draft.id === draft.id),
   )
 
+  // Five drafts and eight commits a page.
+  const draftPages = usePaged(shown.length, 5)
+  const commitPages = usePaged(commits.length, 8)
+
   return (
     <div className={styles.workshop}>
       <section className={`card ${styles.card}`} aria-labelledby="gen-title">
@@ -373,37 +378,52 @@ export function DraftWorkshop({
                 No commits with [post] in the last 30 days.
               </p>
             ) : (
-              <fieldset className={styles.commits}>
-                <legend>
-                  Commits to use (up to {MAX_COMMITS}). Ticked:{' '}
-                  {selected.length}.
-                </legend>
-                {commits.map((commit) => {
-                  const used = isCovered(commit.sha)
-                  const on = selected.includes(commit.sha)
-                  return (
-                    <label key={commit.sha} className={styles.commit}>
-                      <input
-                        type="checkbox"
-                        form="draft-form"
-                        name="sha"
-                        value={commit.sha}
-                        checked={on}
-                        disabled={!on && selected.length >= MAX_COMMITS}
-                        onChange={() => {
-                          toggle(commit.sha)
-                        }}
-                      />
-                      <span className={styles.sha}>{commit.sha}</span>
-                      {/* A commit title is untrusted text: plain text only. */}
-                      <span className={styles.commitTitle}>{commit.title}</span>
-                      {used ? (
-                        <span className={styles.tag}>Used in a draft</span>
-                      ) : null}
-                    </label>
-                  )
-                })}
-              </fieldset>
+              <>
+                <fieldset className={styles.commits}>
+                  <legend>
+                    Commits to use (up to {MAX_COMMITS}). Ticked:{' '}
+                    {selected.length}.
+                  </legend>
+                  {commits.map((commit, index) => {
+                    const used = isCovered(commit.sha)
+                    const on = selected.includes(commit.sha)
+                    return (
+                      <label
+                        key={commit.sha}
+                        className={styles.commit}
+                        hidden={!commitPages.visible(index)}
+                      >
+                        <input
+                          type="checkbox"
+                          form="draft-form"
+                          name="sha"
+                          value={commit.sha}
+                          checked={on}
+                          disabled={!on && selected.length >= MAX_COMMITS}
+                          onChange={() => {
+                            toggle(commit.sha)
+                          }}
+                        />
+                        <span className={styles.sha}>{commit.sha}</span>
+                        {/* A commit title is untrusted text: plain text only. */}
+                        <span className={styles.commitTitle}>
+                          {commit.title}
+                        </span>
+                        {used ? (
+                          <span className={styles.tag}>Used in a draft</span>
+                        ) : null}
+                      </label>
+                    )
+                  })}
+                </fieldset>
+                <Pager
+                  page={commitPages.page}
+                  pages={commitPages.pages}
+                  total={commits.length}
+                  noun="commits"
+                  onPage={commitPages.setPage}
+                />
+              </>
             )
           ) : commitState.status === 'limited' ? (
             <p role="alert" className={`on-pink ${styles.notice}`}>
@@ -543,8 +563,8 @@ export function DraftWorkshop({
           <p className={styles.help}>No other drafts yet.</p>
         ) : (
           <ul className={styles.recent}>
-            {shown.map((draft) => (
-              <li key={draft.id}>
+            {shown.map((draft, index) => (
+              <li key={draft.id} hidden={!draftPages.visible(index)}>
                 <details>
                   <summary>
                     {formatDate(draft.createdAt)}
@@ -569,6 +589,13 @@ export function DraftWorkshop({
             ))}
           </ul>
         )}
+        <Pager
+          page={draftPages.page}
+          pages={draftPages.pages}
+          total={shown.length}
+          noun="drafts"
+          onPage={draftPages.setPage}
+        />
       </section>
 
       {auto ? (
