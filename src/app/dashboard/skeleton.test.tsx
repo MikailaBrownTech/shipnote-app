@@ -80,6 +80,6 @@ describe('no page still says it is loading in words', () => {
           readFileSync(file, 'utf8'),
         ),
       )
-    expect(used.length).toBe(10)
+    expect(used.length).toBe(11)
   })
 })

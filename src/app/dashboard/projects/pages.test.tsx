@@ -163,6 +163,16 @@ describe('dashboard', () => {
     expect(html).toContain('2 of 5')
   })
 
+  it('links to the whole list of projects, only when there are some', async () => {
+    listProjects.mockResolvedValue({ ok: true, value: [project()] })
+    const some = await render(<DashboardPage {...dashboardProps} />)
+    expect(some.html).toContain('href="/dashboard/projects"')
+    expect(some.html).toContain('View all')
+    listProjects.mockResolvedValue({ ok: true, value: [] })
+    const none = await render(<DashboardPage {...dashboardProps} />)
+    expect(none.html).not.toContain('View all')
+  })
+
   it('at the cap, shows the limit and no New project button', async () => {
     listProjects.mockResolvedValue({
       ok: true,

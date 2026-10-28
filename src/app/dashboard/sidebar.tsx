@@ -22,9 +22,14 @@ const items: Item[] = [
     href: '/dashboard',
     label: 'Dashboard',
     icon: 'home',
+    active: (pathname) => pathname === '/dashboard',
+  },
+  {
+    href: '/dashboard/projects',
+    label: 'Projects',
+    icon: 'folder',
     active: (pathname) =>
-      pathname === '/dashboard' ||
-      (pathname.startsWith('/dashboard/projects') && pathname !== NEW_PROJECT),
+      pathname.startsWith('/dashboard/projects') && pathname !== NEW_PROJECT,
   },
   {
     href: NEW_PROJECT,

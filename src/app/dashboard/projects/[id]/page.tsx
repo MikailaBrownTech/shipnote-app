@@ -88,7 +88,7 @@ async function Project({
   return (
     <>
       <Link
-        href="/dashboard#projects-title"
+        href="/dashboard/projects"
         className={`${shell.back} ${pageStyles.back}`}
       >
         <Icon name="arrowLeft" size={16} />
