@@ -791,6 +791,38 @@ The "Tone for this post" choice on the Generate form is now a set of cards (the 
 - The GitHub fields (`private`, `language`, `stargazers_count`, `forks_count`, `open_issues_count`, `pushed_at`) are read from GitHub's documented repository object and tested with made-up answers, not a real one.
 - That the logo crop looks right on every surface (tab, home screen, small sizes).
 
+## Sessions, sign-out and tampered cookies: tests
+
+**Tampered cookies, with the real Supabase client** (`src/lib/supabase/tampered-cookie.test.ts`). Only the network is stubbed: the project's signing key is served from a stand-in key set and tokens are signed with real ES256 keys, so the signature check is the library's own. Every case is run through **both** the proxy and `getCurrentUser()`, and each refusal first proves a genuine token is accepted in the same setup (so a refusal is never just a broken test):
+
+- a token signed by someone else with the right key id; a payload edited to become another user, to live longer, or to be `service_role`, each with the old signature; a signature cut short, empty or missing;
+- `alg: none` (with and without a key id); an HS256 token (the algorithm-confusion attack, which the library sends to the server and the server refuses); a key id the project does not publish; an expired token whose refresh is refused;
+- a genuine token with no session id, and one whose session was revoked (both refused by `getCurrentUser()`, which is stricter than the proxy);
+- a broken cookie of every kind: none, empty, not encoded, not JSON, the wrong shape, an array, a token that is not a token, 20,000 characters, markup.
+- Every page under `/dashboard` is refused without a session; public pages still work with no cookie or a broken one; the redirect goes to the configured site, never to the `Host` the request named; a token whose signing key cannot be fetched while Supabase is unreachable is refused, while a genuine one still verifies from the cached key; nothing logs a token or a cookie.
+
+**What this found, and what was fixed.** For some bad cookies the library **throws** instead of returning an error: `alg: none` ("Invalid alg claim") and a token that is not three decodable parts (a JSON error). Neither the proxy nor `getCurrentUser()` caught it, so one forged or damaged cookie made **every page** fail for that browser, public pages included, because the proxy runs on all of them. Both now catch it and treat the cookie as "not signed in". (It was never a way in: the request failed. It was a way to break the site for a browser until its cookie was cleared.) Both tests fail without the fix.
+
+**Sign-out** (`src/app/auth/actions.test.ts`). **Sign out** (this browser, local scope) clears the cookies and goes home, never signs out other devices, needs no signed-in user, and **now clears the cookies even if Supabase throws or cannot be reached** (it used to skip the clearing, leaving the browser signed in); that test fails without the change. **Sign out everywhere** was already tested: global scope, revoke before clearing, failure when sessions remain or cannot be counted, requires a user.
+
+**The proxy** (`src/proxy.test.ts`): it hands every request to `updateSession`; it runs on pages and the OAuth callbacks; it skips `/api/webhooks` and `/api/queue` (which authenticate themselves and must not touch cookies) and static files, as a whole segment only (`/api/webhooksx` is still guarded). **Known, and fine:** a `/dashboard` address ending in a static extension such as `.png` skips the proxy, because every page and action calls `requireUser()` itself; the proxy is an early redirect and a refresh, not the only gate.
+
+**Not covered.**
+
+- Your real project's keys, algorithm and settings: the tests use their own keys.
+- **A token that is expired while Supabase is unreachable:** the library retries the refresh for a long time (tens of seconds) on its own, which cannot be tested in a sensible time. That is the library's behaviour, not ours, and it only affects availability.
+- The library keeps signing keys in a cache shared by every client for ten minutes, so a key that was rotated is not seen until it expires. That is how it is documented to work.
+
+### Manual tests on the live site
+
+1. **Tampered cookie.** Sign in. In the browser's developer tools (Application, Cookies) find `sb-<project>-auth-token` (it may be split into `.0`, `.1`). Change one character in the middle of the value and reload `/dashboard`: you land on **sign-in**, not an error page. Open `/`: it loads normally.
+2. **Broken cookie.** Set the same cookie's value to `abc`, then to nothing. `/dashboard` goes to sign-in each time; `/` and `/sign-in` still load (no error page).
+3. **Replay after sign-out.** Sign in and copy the cookie value (all parts). Click **Sign out**. Put the old value back and reload `/dashboard`: you are sent to sign-in (the session no longer exists).
+4. **Sign out is local.** Sign in in two browsers. Click **Sign out** in the first: it goes home and `/dashboard` there needs a sign-in; the second is still signed in.
+5. **Sign out everywhere.** Sign in in two browsers, then use **Sign out everywhere** (Account) in the first. In the second, the next page you open sends you to sign-in (it checks the session on every page, so it does not wait for the token to expire).
+6. **Account deleted.** In a second browser, stay signed in as the user, delete the account in the first. The second is sent to sign-in on its next page.
+7. **Wrong host.** `curl -i -H "Host: evil.example" https://<your-domain>/dashboard` (a request with no cookie): the `Location` header is `https://<your-domain>/sign-in`, never `evil.example`.
+
 ## SQL tests
 
 `supabase/tests/` runs the migrations in [PGlite](https://pglite.dev) (real Postgres compiled to WASM, in-process) from `pnpm test`. It needs no Docker or Postgres install.

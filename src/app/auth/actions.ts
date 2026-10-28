@@ -8,9 +8,15 @@ import { remainingSessions } from '@/server/session-check'
 
 export type SignOutState = { error: string | null }
 
+// Signs out this browser. The cookies are cleared whatever happens at Supabase:
+// a sign-out that failed halfway must never leave this browser signed in.
 export async function signOut() {
-  const supabase = await createClient()
-  await supabase.auth.signOut({ scope: 'local' })
+  try {
+    const supabase = await createClient()
+    await supabase.auth.signOut({ scope: 'local' })
+  } catch {
+    // Nothing to do: the cookies are cleared next.
+  }
   await clearAuthCookies()
   redirect('/')
 }
