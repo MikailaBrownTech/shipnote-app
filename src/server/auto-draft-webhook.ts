@@ -127,7 +127,12 @@ export async function handlePush(
       await publishAutoDraftJob(job)
     } catch (error) {
       if (!(error instanceof QstashError)) throw error
-      console.warn('auto drafts: queue publish failed', error.kind)
+      console.warn(
+        'auto drafts: queue publish failed',
+        error.kind,
+        error.status,
+        error.detail,
+      )
       await finishAutoDraftJob({
         jobId: created.id,
         userId: target.userId,
