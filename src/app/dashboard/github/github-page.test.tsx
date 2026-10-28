@@ -1,0 +1,400 @@
+import type { ReactElement } from 'react'
+import { renderToReadableStream } from 'react-dom/server'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+// The GitHub page, rendered on the server: what is on it in each state.
+
+const requireUser = vi.fn()
+const githubIsEnabled = vi.fn()
+const aiIsEnabled = vi.fn()
+const rateLimit = vi.fn()
+const loadGithubOverview = vi.fn()
+const checkPostCommits = vi.fn()
+
+vi.mock('server-only', () => ({}))
+vi.mock('next/navigation', () => ({
+  redirect: (path: string) => {
+    throw new Error(`redirect:${path}`)
+  },
+}))
+vi.mock('@/lib/auth', () => ({ requireUser }))
+vi.mock('@/server/github-app', () => ({ githubIsEnabled }))
+vi.mock('@/server/draft-generation', () => ({ aiIsEnabled }))
+vi.mock('@/server/rate-limit', () => ({ rateLimit }))
+vi.mock('@/server/github-overview', () => ({ loadGithubOverview }))
+vi.mock('@/server/github-projects', () => ({ checkPostCommits }))
+vi.mock('./actions', () => ({
+  connectGithubAction: vi.fn(),
+  disconnectGithubFromDashboardAction: vi.fn(),
+  syncGithubAction: vi.fn(),
+}))
+
+const { default: GithubPage } = await import('./page')
+
+const USER = '6f1c3a9e-1b2d-4c3e-8f4a-5b6c7d8e9f01'
+const PROJECT = '11111111-2222-4333-8444-555555555555'
+const READ_AT = Date.parse('2026-10-27T10:24:00Z')
+
+const repo = (over: Record<string, unknown> = {}) => ({
+  fullName: 'octo/proposal-generator',
+  name: 'proposal-generator',
+  description: 'Internal tool for ClearPath IT compliance services',
+  isPrivate: true,
+  language: 'TypeScript',
+  stars: 12,
+  forks: 4,
+  openIssues: 2,
+  updatedAt: '2026-10-27T08:24:00Z',
+  installationId: 42,
+  projectId: PROJECT,
+  ...over,
+})
+
+const repos = [
+  repo(),
+  repo({
+    fullName: 'octo/maintenance-tracker',
+    name: 'maintenance-tracker',
+    description: 'Track and manage system maintenance tasks',
+    isPrivate: false,
+    stars: 8,
+    forks: 3,
+    updatedAt: '2026-10-26T10:24:00Z',
+    projectId: null,
+  }),
+  repo({
+    fullName: 'octo/epitrack',
+    name: 'epitrack',
+    description: 'Epidemic tracking and reporting dashboard',
+    language: 'Python',
+    stars: 9,
+    updatedAt: '2026-10-24T10:24:00Z',
+    projectId: null,
+  }),
+]
+
+const overview = (over: Record<string, unknown> = {}) => ({
+  status: 'ok',
+  accounts: [
+    {
+      installationId: 42,
+      login: 'MikailaBrownTech',
+      connectedAt: '2026-10-20T10:00:00Z',
+    },
+  ],
+  repos,
+  readAt: READ_AT,
+  ...over,
+})
+
+async function render(search: Record<string, string> = {}) {
+  const element: ReactElement = (
+    <GithubPage
+      params={Promise.resolve({})}
+      searchParams={Promise.resolve(search)}
+    />
+  )
+  const errors: unknown[] = []
+  const stream = await renderToReadableStream(element, {
+    onError: (error) => {
+      errors.push(error)
+    },
+  })
+  await stream.allReady
+  const html = (await new Response(stream).text()).replaceAll('<!-- -->', '')
+  return { html, errors }
+}
+
+beforeEach(() => {
+  vi.clearAllMocks()
+  requireUser.mockResolvedValue({ id: USER, email: 'a@b.co', signedInAt: 1 })
+  githubIsEnabled.mockReturnValue(true)
+  aiIsEnabled.mockReturnValue(true)
+  rateLimit.mockResolvedValue(true)
+  loadGithubOverview.mockResolvedValue(overview())
+  checkPostCommits.mockResolvedValue({
+    status: 'ok',
+    repo: 'octo/proposal-generator',
+    commits: [
+      {
+        sha: '2a3f9c1',
+        title: 'Added real-time notifications [post]',
+        date: '2026-10-27T08:24:00Z',
+        url: 'https://github.com/octo/proposal-generator/commit/2a3f9c1',
+      },
+    ],
+  })
+})
+
+describe('the states', () => {
+  it('needs a signed-in user and reads only their own connection', async () => {
+    const { errors } = await render()
+    expect(errors).toEqual([])
+    expect(loadGithubOverview).toHaveBeenCalledExactlyOnceWith(USER)
+    expect(rateLimit).toHaveBeenCalledWith('githubOverview', USER)
+    requireUser.mockRejectedValue(new Error('redirect:/sign-in'))
+    loadGithubOverview.mockClear()
+    const denied = await render()
+    expect(String(denied.errors[0])).toContain('redirect:/sign-in')
+    expect(loadGithubOverview).not.toHaveBeenCalled()
+  })
+
+  it('says GitHub is off, and reads nothing', async () => {
+    githubIsEnabled.mockReturnValue(false)
+    const { html } = await render()
+    expect(html).toContain('GitHub is switched off right now.')
+    expect(loadGithubOverview).not.toHaveBeenCalled()
+    expect(rateLimit).not.toHaveBeenCalled()
+  })
+
+  it('is rate limited, and reads nothing from GitHub', async () => {
+    rateLimit.mockResolvedValue(false)
+    const { html } = await render()
+    expect(html).toContain('Too many refreshes.')
+    expect(loadGithubOverview).not.toHaveBeenCalled()
+  })
+
+  it('offers to connect when there is no connection', async () => {
+    loadGithubOverview.mockResolvedValue({ status: 'none' })
+    const { html } = await render()
+    expect(html).toContain('Connect GitHub')
+    expect(html).toContain('Shipnote never posts for you.')
+    expect(html).not.toContain('Sync now')
+  })
+
+  it.each([
+    ['rate_limited', 'GitHub is limiting requests right now.'],
+    ['unavailable', 'We could not reach GitHub.'],
+    ['failed', 'We could not reach GitHub.'],
+  ])('a %s failure is a plain message', async (kind, words) => {
+    loadGithubOverview.mockResolvedValue({ status: 'error', kind })
+    const { html } = await render()
+    expect(html).toContain(words)
+    expect(html).not.toContain('Your repositories')
+  })
+})
+
+describe('the connected page', () => {
+  it('shows the title, Sync now and when GitHub was read, in UTC', async () => {
+    const { html } = await render()
+    expect(html).toContain('<h1>GitHub</h1>')
+    expect(html).toContain('Connect and explore your development activity.')
+    expect(html).toContain('Sync now')
+    expect(html).toContain('Read from GitHub at 10:24 AM UTC')
+  })
+
+  it('shows the connection, with View on GitHub and Disconnect', async () => {
+    const { html } = await render()
+    expect(html).toContain('Connected as <strong>MikailaBrownTech</strong>')
+    expect(html).toContain('>Connected<')
+    expect(html).toContain('Since <time dateTime="2026-10-20T10:00:00Z">')
+    expect(html).toContain('href="https://github.com/MikailaBrownTech"')
+    expect(html).toContain('Disconnect GitHub')
+  })
+
+  it('shows the tabs that can be built from what Shipnote may read', async () => {
+    const { html } = await render()
+    expect(html).toContain('>Repositories<')
+    expect(html).toContain('>Commits<')
+    expect(html).not.toContain('Pull requests')
+    expect(html).not.toContain('Releases')
+  })
+
+  it('lists each repository with language, stars, forks and when it changed', async () => {
+    const { html } = await render()
+    expect(html).toContain('Your repositories')
+    expect(html).toMatch(/Your repositories <span[^>]*>3<\/span>/)
+    for (const name of [
+      'proposal-generator',
+      'maintenance-tracker',
+      'epitrack',
+    ]) {
+      expect(html).toContain(`>${name}</a>`)
+    }
+    expect(html).toContain('TypeScript')
+    expect(html).toContain('Python')
+    expect(html).toContain('Updated 2 hours ago')
+    expect(html).toContain('Updated 1 day ago')
+    expect(html).toContain('Updated 3 days ago')
+    expect(html.match(/View activity/g)).toHaveLength(3)
+  })
+
+  it('has a search and a sort', async () => {
+    const { html } = await render()
+    expect(html).toContain('role="search"')
+    expect(html).toContain('Search repositories…')
+    for (const label of ['Recently updated', 'Name', 'Most stars']) {
+      expect(html).toContain(`>${label}</option>`)
+    }
+  })
+
+  it('details the first repository, and the one picked in the address', async () => {
+    const first = await render()
+    const side =
+      first.html.split('aria-label="Repository details and actions"')[1] ?? ''
+    expect(side).toContain('<h2 id="details-title">proposal-generator</h2>')
+    expect(side).toContain('Private')
+    expect(side).toContain('Open in GitHub')
+    expect(side).toContain('href="https://github.com/octo/proposal-generator"')
+    const picked = await render({ repo: 'octo/maintenance-tracker' })
+    const pickedSide =
+      picked.html.split('aria-label="Repository details and actions"')[1] ?? ''
+    expect(pickedSide).toContain(
+      '<h2 id="details-title">maintenance-tracker</h2>',
+    )
+    expect(pickedSide).toContain('Public')
+  })
+
+  it('ignores a repository in the address that is not one of the user’s', async () => {
+    for (const bad of ['other/repo', '../x', '"><script>alert(1)</script>']) {
+      const { html } = await render({ repo: bad })
+      expect(html).toContain('<h2 id="details-title">proposal-generator</h2>')
+      expect(html).not.toContain('<script>alert')
+    }
+  })
+
+  it('filters by search and sorts', async () => {
+    const found = await render({ q: 'epidemic' })
+    expect(found.html).toContain('>epitrack</a>')
+    expect(found.html).not.toContain('>maintenance-tracker</a>')
+    const none = await render({ q: 'zzz' })
+    expect(none.html).toContain('No repositories match your search.')
+    const byName = await render({ sort: 'name' })
+    const order = [
+      ...byName.html.matchAll(/<h3><a[^>]*>([^<]+)<\/a><\/h3>/g),
+    ].map((m) => m[1])
+    expect(order).toEqual([
+      'epitrack',
+      'maintenance-tracker',
+      'proposal-generator',
+    ])
+  })
+
+  it('on the Commits tab shows the activity and not the repository list', async () => {
+    const { html } = await render({ tab: 'commits' })
+    expect(html).not.toContain('Your repositories')
+    expect(html).toContain('Recent activity')
+    expect(html).toContain('Added real-time notifications [post]')
+  })
+
+  it('an odd tab or sort falls back to the defaults', async () => {
+    const { html } = await render({ tab: 'releases', sort: 'drop table' })
+    expect(html).toContain('Your repositories')
+  })
+
+  it('shows repository text as text, never as markup', async () => {
+    loadGithubOverview.mockResolvedValue(
+      overview({
+        repos: [
+          repo({
+            name: '<img src=x onerror=alert(1)>',
+            fullName: 'octo/safe',
+            description: '<script>alert(1)</script>',
+            language: 'red;background:url(x)',
+          }),
+        ],
+      }),
+    )
+    const { html } = await render()
+    expect(html).not.toContain('<script>alert')
+    expect(html).not.toContain('<img src=x')
+    // A language name is only text; the colour comes from a fixed list.
+    const styles = [...html.matchAll(/style="([^"]*)"/g)].map((m) => m[1])
+    expect(styles).toEqual(['background:#9a95b0'])
+  })
+
+  it('says when the connection can see no repositories', async () => {
+    loadGithubOverview.mockResolvedValue(overview({ repos: [] }))
+    const { html } = await render()
+    expect(html).toContain('can see no repositories yet')
+  })
+})
+
+describe('recent activity', () => {
+  it('shows the [post] commits of a linked repository, for this user and project', async () => {
+    const { html } = await render()
+    expect(checkPostCommits).toHaveBeenCalledExactlyOnceWith(
+      USER,
+      PROJECT,
+      READ_AT,
+    )
+    expect(html).toContain('Added real-time notifications [post]')
+    expect(html).toContain('<code>2a3f9c1</code>')
+    expect(html).toContain('proposal-generator · 2 hours ago')
+    expect(html).toContain(`href="/dashboard/projects/${PROJECT}?tab=drafts"`)
+    expect(html).toContain('Generate post')
+  })
+
+  it('offers no Generate post while drafting is off', async () => {
+    aiIsEnabled.mockReturnValue(false)
+    const { html } = await render()
+    expect(html).toContain('Added real-time notifications [post]')
+    expect(html).not.toContain('Generate post')
+  })
+
+  it('shows a commit title as text', async () => {
+    checkPostCommits.mockResolvedValue({
+      status: 'ok',
+      repo: 'octo/proposal-generator',
+      commits: [
+        {
+          sha: 'abc1234',
+          title: '<script>alert(1)</script> [post]',
+          date: null,
+          url: 'https://github.com/x',
+        },
+      ],
+    })
+    const { html } = await render()
+    expect(html).not.toContain('<script>alert')
+    expect(html).toContain('unknown')
+  })
+
+  it('an unlinked repository says how to link it, and reads no commits', async () => {
+    const { html } = await render({ repo: 'octo/epitrack' })
+    expect(checkPostCommits).not.toHaveBeenCalled()
+    expect(html).toContain('Link this repository to a project')
+    expect(html).toContain(
+      'href="/dashboard/projects/new?repo=42%7Cocto%2Fepitrack"',
+    )
+  })
+
+  it('says when there are no tagged commits', async () => {
+    checkPostCommits.mockResolvedValue({
+      status: 'ok',
+      repo: 'x/y',
+      commits: [],
+    })
+    const { html } = await render()
+    expect(html).toContain('No commits tagged')
+  })
+
+  it.each([
+    ['reconnect', 'GitHub needs to be reconnected for this project.'],
+    ['repo_gone', 'GitHub no longer lets Shipnote see this repository.'],
+    ['rate_limited', 'GitHub is limiting requests right now.'],
+    ['unavailable', 'We could not reach GitHub.'],
+    ['failed', 'Something went wrong. Try again.'],
+  ])('a %s answer is a plain message', async (status, words) => {
+    checkPostCommits.mockResolvedValue({ status })
+    const { html } = await render()
+    expect(html).toContain(words)
+  })
+})
+
+describe('the rail', () => {
+  it('has quick actions and tips, and never a way to post', async () => {
+    const { html } = await render()
+    expect(html).toContain('Quick actions')
+    expect(html).toContain('View recent commits')
+    expect(html).toContain('Generate post from activity')
+    expect(html).toContain('Tips for great posts')
+    expect(html).toContain('Tag meaningful commits with [post]')
+    expect(html).not.toMatch(/Publish now|Post now/)
+  })
+
+  it('offers to start a project from an unlinked repository', async () => {
+    const { html } = await render({ repo: 'octo/epitrack' })
+    expect(html).toContain('Start a project from this repo')
+  })
+})

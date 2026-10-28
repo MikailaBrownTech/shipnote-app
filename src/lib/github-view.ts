@@ -51,20 +51,20 @@ export function cleanSearch(value: unknown): string {
 
 // A repository chosen in the address, only if it is one of the user's own
 // repositories (compared without regard to case). Anything else is nothing.
-export function chooseRepo(
+export function chooseRepo<T extends RepoItem>(
   value: unknown,
-  repos: readonly RepoItem[],
-): RepoItem | null {
+  repos: readonly T[],
+): T | null {
   if (typeof value !== 'string' || !isRepoFullName(value)) return null
   const wanted = value.toLowerCase()
   return repos.find((repo) => repo.fullName.toLowerCase() === wanted) ?? null
 }
 
 // Repositories whose name or description contains the search text.
-export function filterRepos(
-  repos: readonly RepoItem[],
+export function filterRepos<T extends RepoItem>(
+  repos: readonly T[],
   search: string,
-): RepoItem[] {
+): T[] {
   const needle = search.toLowerCase()
   if (needle === '') return [...repos]
   return repos.filter(
@@ -80,11 +80,11 @@ const time = (iso: string | null) => {
 }
 
 // A new list, never the one it was given. Ties keep the name order.
-export function sortRepos(
-  repos: readonly RepoItem[],
+export function sortRepos<T extends RepoItem>(
+  repos: readonly T[],
   sort: RepoSort,
-): RepoItem[] {
-  const byName = (a: RepoItem, b: RepoItem) =>
+): T[] {
+  const byName = (a: T, b: T) =>
     a.name.localeCompare(b.name, 'en', { sensitivity: 'base' })
   return [...repos].sort((a, b) => {
     if (sort === 'name') return byName(a, b)
@@ -131,4 +131,30 @@ export function githubHref(view: {
   if (view.repo) params.set('repo', view.repo)
   const query = params.toString()
   return query ? `/dashboard/github?${query}` : '/dashboard/github'
+}
+
+// The colour dot beside a language, from a fixed list (never from GitHub), and a
+// neutral grey for any other language.
+const LANGUAGE_COLORS: Readonly<Record<string, string>> = {
+  typescript: '#3178c6',
+  javascript: '#f1e05a',
+  python: '#3572a5',
+  go: '#00add8',
+  rust: '#dea584',
+  java: '#b07219',
+  'c#': '#178600',
+  'c++': '#f34b7d',
+  c: '#555555',
+  ruby: '#701516',
+  php: '#4f5d95',
+  swift: '#f05138',
+  kotlin: '#a97bff',
+  html: '#e34c26',
+  css: '#663399',
+  shell: '#89e051',
+}
+
+export function languageColor(language: string | null): string {
+  if (language === null) return '#9a95b0'
+  return LANGUAGE_COLORS[language.toLowerCase()] ?? '#9a95b0'
 }

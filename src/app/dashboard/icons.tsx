@@ -86,6 +86,42 @@ const paths = {
     </>
   ),
   crown: <path d="M3 8l4.5 4L12 5l4.5 7L21 8l-2 11H5z" />,
+  star: (
+    <path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z" />
+  ),
+  fork: (
+    <>
+      <circle cx="6" cy="5" r="2" />
+      <circle cx="18" cy="5" r="2" />
+      <circle cx="12" cy="19" r="2" />
+      <path d="M6 7v2a3 3 0 0 0 3 3h6a3 3 0 0 0 3-3V7M12 12v5" />
+    </>
+  ),
+  refresh: (
+    <>
+      <path d="M20 11a8 8 0 0 0-14.5-4M4 4v4h4" />
+      <path d="M4 13a8 8 0 0 0 14.5 4M20 20v-4h-4" />
+    </>
+  ),
+  commit: (
+    <>
+      <circle cx="12" cy="12" r="3" />
+      <path d="M3 12h6M15 12h6" />
+    </>
+  ),
+  calendar: (
+    <>
+      <rect x="3.5" y="5" width="17" height="15" rx="2" />
+      <path d="M8 3v4M16 3v4M3.5 10h17" />
+    </>
+  ),
+  tag: (
+    <>
+      <path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L2 12V2h10l8.6 8.6a2 2 0 0 1 0 2.8z" />
+      <circle cx="7" cy="7" r="1.5" />
+    </>
+  ),
+  chevronLeft: <path d="m15 6-6 6 6 6" />,
   signout: (
     <>
       <path d="M9 21H5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h4" />

@@ -31,7 +31,13 @@ export type OverviewRepo = RepoItem & {
 
 export type GithubOverview =
   | { status: 'none' } // no usable connection: connect GitHub first
-  | { status: 'ok'; accounts: GithubAccount[]; repos: OverviewRepo[] }
+  | {
+      status: 'ok'
+      accounts: GithubAccount[]
+      repos: OverviewRepo[]
+      // When GitHub was read, in milliseconds.
+      readAt: number
+    }
   | { status: 'error'; kind: 'rate_limited' | 'unavailable' | 'failed' }
 
 // At most this many installations are looked at, so a page cannot fan out.
@@ -105,6 +111,6 @@ export async function loadGithubOverview(
     }
   }
   return accounts.length > 0
-    ? { status: 'ok', accounts, repos }
+    ? { status: 'ok', accounts, repos, readAt: Date.now() }
     : { status: 'none' }
 }

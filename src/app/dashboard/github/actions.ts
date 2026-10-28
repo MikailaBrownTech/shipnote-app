@@ -64,3 +64,12 @@ export async function disconnectGithubFromDashboardAction(
   revalidatePath('/dashboard')
   redirect(withFlash('/dashboard', ok ? 'disconnected' : 'failed'))
 }
+
+// "Sync now" on the GitHub page. The page reads from GitHub every time it is
+// shown, so this only asks for a fresh render. It needs a session and the
+// feature on, and the page itself is rate limited.
+export async function syncGithubAction(): Promise<void> {
+  await requireUser()
+  if (!githubIsEnabled()) notFound()
+  revalidatePath('/dashboard/github')
+}

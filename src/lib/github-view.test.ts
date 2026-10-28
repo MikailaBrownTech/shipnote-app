@@ -188,3 +188,18 @@ describe('githubHref', () => {
     ).toBe('/dashboard/github?tab=commits&q=a+b&sort=name&repo=octo%2Fepitrack')
   })
 })
+
+describe('languageColor', () => {
+  it('has a fixed colour for known languages, ignoring case, and grey for the rest', async () => {
+    const { languageColor } = await import('./github-view')
+    expect(languageColor('TypeScript')).toBe('#3178c6')
+    expect(languageColor('python')).toBe('#3572a5')
+    expect(languageColor('Brainfuck')).toBe('#9a95b0')
+    expect(languageColor(null)).toBe('#9a95b0')
+    // Never anything that could be markup or a style.
+    expect(languageColor('red;background:url(x)')).toBe('#9a95b0')
+    for (const name of ['TypeScript', 'Go', 'Rust', 'nope', null]) {
+      expect(languageColor(name)).toMatch(/^#[0-9a-f]{6}$/)
+    }
+  })
+})
