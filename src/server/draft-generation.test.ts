@@ -29,11 +29,14 @@ const completeGeneration = vi.fn()
 const recordUnusableGeneration = vi.fn()
 const releaseGeneration = vi.fn()
 const generationsUsedToday = vi.fn()
+const readVoice = vi.fn()
+const readVoiceProfileForWorker = vi.fn()
 
 vi.mock('server-only', () => ({}))
 vi.mock('./env', () => ({ getAiEnv, aiEnabled: () => true }))
 vi.mock('./anthropic', () => ({ complete, AnthropicError }))
 vi.mock('./projects', () => ({ getProject }))
+vi.mock('./voice', () => ({ readVoice }))
 vi.mock('./github', () => ({
   createInstallationToken,
   listRecentCommits,
@@ -47,6 +50,7 @@ vi.mock('./supabase-admin', () => ({
   releaseGeneration,
   generationsUsedToday,
   readProjectForAutoDraft,
+  readVoiceProfileForWorker,
 }))
 
 const { DAILY_LIMIT, draftsLeftToday, generateAutoDraft, generateDraft } =
@@ -121,6 +125,8 @@ beforeEach(() => {
   recordUnusableGeneration.mockResolvedValue(true)
   releaseGeneration.mockResolvedValue(true)
   generationsUsedToday.mockResolvedValue(3)
+  readVoice.mockResolvedValue(null)
+  readVoiceProfileForWorker.mockResolvedValue(null)
 })
 
 describe('a successful draft', () => {

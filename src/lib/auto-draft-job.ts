@@ -43,6 +43,8 @@ export const JOB_REASONS: Record<string, string> = {
   github_retry: 'GitHub did not answer in time.',
   secret:
     'The commit message looked like it held a secret, so nothing was sent.',
+  voice_secret:
+    'Your voice settings looked like they held a secret, so nothing was sent.',
   invalid_output: 'The draft did not pass the checks and was thrown away.',
   provider: 'The drafting service could not be reached.',
   no_content: 'There was nothing to write from.',

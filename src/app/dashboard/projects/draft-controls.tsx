@@ -67,6 +67,8 @@ const REFUSALS: Record<
     'One of those commits is not in the last 30 days of [post] commits. Check for commits again.',
   secret:
     'That text looks like it contains a secret, so nothing was sent. Remove it and try again.',
+  voice_secret:
+    'Your voice settings look like they contain a secret, so nothing was sent. Open Voice, remove it and try again.',
   daily_limit: "You have used today's 10 drafts. Try again tomorrow (UTC).",
   monthly_cap:
     'Drafting is paused for this month. You can still write and edit posts yourself.',

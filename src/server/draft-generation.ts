@@ -2,14 +2,13 @@ import 'server-only'
 import { randomBytes } from 'node:crypto'
 import { costMicrousd, estimateMicrousd, modelConfig } from '@/lib/ai-models'
 import { checkDraft, type DraftWarning } from '@/lib/draft-checker'
-import {
-  buildDraftInput,
-  hasContent,
-  inputChars,
-  inputText,
-} from '@/lib/draft-input'
+import { buildDraftInput, hasContent, inputText } from '@/lib/draft-input'
 import { validateDraftOutput, type OutputRejection } from '@/lib/draft-output'
-import { buildUserMessage, SYSTEM_PROMPT } from '@/lib/draft-prompt'
+import {
+  buildUserMessage,
+  requestChars,
+  systemPromptFor,
+} from '@/lib/draft-prompt'
 import {
   hasPostTag,
   postCommitsWithMessages,
@@ -17,6 +16,14 @@ import {
 } from '@/lib/github-commits'
 import type { Stage } from '@/lib/project-schema'
 import { findSecrets } from '@/lib/secret-scan'
+import {
+  DEFAULT_VOICE,
+  findVoiceSecrets,
+  isDefaultVoice,
+  normalizeVoice,
+  type VoiceProfile,
+} from '@/lib/voice'
+import type { ToneId } from '@/lib/voice-tones'
 import { AnthropicError, complete } from './anthropic'
 import { aiEnabled, getAiEnv } from './env'
 import {
@@ -26,10 +33,12 @@ import {
   listRecentCommits,
 } from './github'
 import { getProject } from './projects'
+import { readVoice } from './voice'
 import {
   completeGeneration,
   generationsUsedToday,
   readProjectForAutoDraft,
+  readVoiceProfileForWorker,
   recordUnusableGeneration,
   releaseGeneration,
   reserveGeneration,
@@ -54,6 +63,7 @@ export type GenerateFailure =
   | 'github' // the linked repository could not be read
   | 'commit_not_found' // a chosen commit is not one of the repository's [post] commits
   | 'secret' // the material looks like it contains a secret
+  | 'voice_secret' // the voice settings look like they contain a secret
   | 'daily_limit'
   | 'monthly_cap'
   | 'provider' // Claude could not be reached: not counted
@@ -87,6 +97,8 @@ export async function generateDraft(input: {
   // Commit shas (7 to 40 hex characters) chosen on the page.
   shas: readonly string[]
   note: string
+  // A tone for this draft only. It never changes the saved voice.
+  tone?: ToneId | null
   nowMs?: number
 }): Promise<GenerateResult> {
   const settings = getAiEnv()
@@ -102,6 +114,14 @@ export async function generateDraft(input: {
     }
   }
   const project = found.value
+
+  // The user's own saved voice, read with their session. If it cannot be read
+  // the draft is not written: it must not quietly come out in another voice.
+  const saved = await readVoice(input.userId)
+  if (saved === 'failed') return { ok: false, reason: 'failed' }
+  const voice = input.tone
+    ? { ...(saved ?? DEFAULT_VOICE), tone: input.tone }
+    : saved
 
   // The commits are fetched from GitHub again, by sha, for this project's
   // repository. A sha from the form is only a request to look one up.
@@ -146,6 +166,7 @@ export async function generateDraft(input: {
     project,
     commits,
     note: input.note,
+    voice,
     settings,
     model,
   })
@@ -168,6 +189,8 @@ async function produceDraft(input: {
   project: DraftProject
   commits: { sha: string; message: string }[]
   note: string
+  // The voice to write in, or null for the default.
+  voice: VoiceProfile | null
   settings: NonNullable<ReturnType<typeof getAiEnv>>
   model: NonNullable<ReturnType<typeof modelConfig>>
 }): Promise<GenerateResult> {
@@ -194,15 +217,26 @@ async function produceDraft(input: {
     }
   }
 
+  // The voice is the user's own text and is checked like everything else that
+  // is sent: nothing that looks like a secret goes out. A default voice adds
+  // nothing and is left out.
+  const voice =
+    input.voice && !isDefaultVoice(normalizeVoice(input.voice))
+      ? normalizeVoice(input.voice)
+      : null
+  if (voice && findVoiceSecrets(voice).length > 0) {
+    return { ok: false, reason: 'voice_secret' }
+  }
+
   const nonce = randomBytes(8).toString('hex')
-  const user = buildUserMessage(data, nonce)
+  const system = systemPromptFor(voice)
+  const user = buildUserMessage(data, nonce, voice)
 
   const slot = await reserveGeneration({
     userId: input.userId,
-    estimatedMicrousd: estimateMicrousd(
-      model,
-      inputChars(data, SYSTEM_PROMPT.length),
-    ),
+    // The exact size of what is sent, so a voice cannot push a request past
+    // what was reserved.
+    estimatedMicrousd: estimateMicrousd(model, requestChars(system, user)),
     dailyLimit: DAILY_LIMIT,
     monthlyCapMicrousd: settings.monthlyCapMicrousd,
   })
@@ -213,7 +247,7 @@ async function produceDraft(input: {
     completion = await complete({
       apiKey: settings.apiKey,
       model,
-      system: SYSTEM_PROMPT,
+      system,
       user,
     })
   } catch (error) {
@@ -272,6 +306,9 @@ async function produceDraft(input: {
         body: checked.body,
         stage: project.stage,
         inputText: inputText(data),
+        voice: voice
+          ? { avoidWords: voice.avoidWords, samples: voice.samples }
+          : null,
       }),
     },
     left: left ?? 0,
@@ -289,6 +326,7 @@ export type AutoFailure =
   | 'no_tag' // the commit no longer says [post]
   | 'merge_commit'
   | 'secret'
+  | 'voice_secret'
   | 'no_content'
   | 'daily_limit'
   | 'monthly_cap'
@@ -346,6 +384,11 @@ export async function generateAutoDraft(input: {
   if (!hasPostTag(commit.message)) return { ok: false, reason: 'no_tag' }
   if (commit.parentCount > 1) return { ok: false, reason: 'merge_commit' }
 
+  // The owner's voice, loaded here from the database for the job's user. The
+  // queue message carries identifiers only and never any of it.
+  const voice = await readVoiceProfileForWorker(input.userId)
+  if (voice === 'failed') return { ok: false, reason: 'failed' }
+
   const result = await produceDraft({
     userId: input.userId,
     project: {
@@ -357,6 +400,7 @@ export async function generateAutoDraft(input: {
     },
     commits: [{ sha: commit.sha, message: commit.message }],
     note: '',
+    voice,
     settings,
     model,
   })
@@ -367,6 +411,7 @@ export async function generateAutoDraft(input: {
     case 'provider':
     case 'invalid_output':
     case 'secret':
+    case 'voice_secret':
     case 'no_content':
     case 'disabled':
       return { ok: false, reason: result.reason }
