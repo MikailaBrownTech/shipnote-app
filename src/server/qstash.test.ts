@@ -70,7 +70,7 @@ describe('publishAutoDraftJob', () => {
     expect(headers.Authorization).toBe(`Bearer ${TOKEN}`)
     expect(headers['Upstash-Retries']).toBe('3')
     expect(headers['Upstash-Deduplication-Id']).toBe(
-      `${job.projectId}:${job.commitSha}`,
+      `${job.projectId}_${job.commitSha}`,
     )
     expect(headers['Content-Type']).toBe('application/json')
   })
