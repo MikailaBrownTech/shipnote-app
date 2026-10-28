@@ -1,3 +1,4 @@
+import { autoDraftsOn, listAutoJobs, readAutoDraft } from '@/server/auto-drafts'
 import { draftsLeftToday } from '@/server/draft-generation'
 import { coveredShas, listRecentDrafts } from '@/server/drafts'
 import type { Project } from '@/server/projects'
@@ -6,7 +7,11 @@ import {
   listProjectSchedules,
 } from '@/server/scheduled-posts'
 import { schedulingIsEnabled } from '@/server/scheduling'
-import { DraftWorkshop, type SchedulingView } from './draft-controls'
+import {
+  DraftWorkshop,
+  type AutoView,
+  type SchedulingView,
+} from './draft-controls'
 import styles from './projects.module.css'
 
 // The Drafts tab: loads the person's own recent drafts, which commits are
@@ -21,13 +26,39 @@ export async function DraftPanel({
   project: Project
 }) {
   const schedulingOn = schedulingIsEnabled()
-  const [recent, covered, left, connection, schedules] = await Promise.all([
-    listRecentDrafts(userId, project.id, 10),
-    coveredShas(userId, project.id),
-    draftsLeftToday(userId),
-    schedulingOn ? getConnectionStatus() : null,
-    schedulingOn ? listProjectSchedules(userId, project.id, 20) : null,
-  ])
+  const autoOn = autoDraftsOn()
+  const [recent, covered, left, connection, schedules, switchOn, jobs] =
+    await Promise.all([
+      listRecentDrafts(userId, project.id, 10),
+      coveredShas(userId, project.id),
+      draftsLeftToday(userId),
+      schedulingOn ? getConnectionStatus() : null,
+      schedulingOn ? listProjectSchedules(userId, project.id, 20) : null,
+      autoOn ? readAutoDraft(userId, project.id) : null,
+      autoOn ? listAutoJobs(userId, project.id, 20) : null,
+    ])
+
+  // The automatic drafts switch and its jobs. If they cannot be read, the card
+  // is simply not shown.
+  let auto: AutoView | null = null
+  const autoDraftIds = new Set<string>()
+  if (autoOn && switchOn !== null && jobs !== null) {
+    for (const job of jobs) {
+      if (job.status === 'done' && job.draftId) autoDraftIds.add(job.draftId)
+    }
+    auto = {
+      enabled: switchOn,
+      canEnable:
+        project.repoFullName !== null && project.installationId !== null,
+      jobs: jobs.map((job) => ({
+        id: job.id,
+        commitSha: job.commitSha,
+        status: job.status,
+        reason: job.reason,
+        createdAt: job.createdAt,
+      })),
+    }
+  }
 
   if (recent === null) {
     return (
@@ -85,8 +116,10 @@ export async function DraftPanel({
         body: draft.body,
         status: draft.status,
         createdAt: draft.createdAt,
+        auto: autoDraftIds.has(draft.id),
       }))}
       scheduling={scheduling}
+      auto={auto}
     />
   )
 }
