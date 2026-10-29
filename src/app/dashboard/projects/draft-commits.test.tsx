@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from 'vitest'
 // The commit list only appears after "Check for [post] commits" has run, and
 // the server render cannot press a button. So the hook that holds the result of
 // that check is told what the check found; the component is the real one.
-const found = vi.hoisted(() => ({
+const found = vi.hoisted((): { state: unknown; check: () => undefined } => ({
   state: { status: 'idle' },
   // What the component gets from `checkCommitsAction.bind(...)`.
   check: () => undefined,
