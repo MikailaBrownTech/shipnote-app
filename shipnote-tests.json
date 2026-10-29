@@ -1,0 +1,946 @@
+{
+ "name": "shipnote (tests)",
+ "modules": [
+  {
+   "id": "auth",
+   "name": "Auth and sessions",
+   "path": "src/lib/auth.ts, src/proxy.ts, src/lib/supabase/, src/app/auth/",
+   "area": "Accounts",
+   "loc": 0,
+   "cx": 0,
+   "churn": 0,
+   "need": [
+    "unit",
+    "integration",
+    "e2e"
+   ]
+  },
+  {
+   "id": "data",
+   "name": "Scoped data access",
+   "path": "src/server/projects.ts, src/server/drafts.ts, src/server/scheduled-posts.ts, src/server/voice.ts, src/server/supabase-admin.ts",
+   "area": "Accounts",
+   "loc": 0,
+   "cx": 0,
+   "churn": 0,
+   "need": [
+    "unit",
+    "integration"
+   ]
+  },
+  {
+   "id": "projects",
+   "name": "Projects",
+   "path": "src/server/projects.ts, src/lib/project-schema.ts, src/app/dashboard/projects/actions.ts",
+   "area": "Accounts",
+   "loc": 0,
+   "cx": 0,
+   "churn": 0,
+   "need": [
+    "unit",
+    "integration"
+   ]
+  },
+  {
+   "id": "sources",
+   "name": "Sources and secret scanner",
+   "path": "src/lib/secret-scan.ts",
+   "area": "Ingest",
+   "loc": 0,
+   "cx": 0,
+   "churn": 0,
+   "need": [
+    "unit",
+    "property",
+    "integration"
+   ]
+  },
+  {
+   "id": "webhook",
+   "name": "GitHub webhook",
+   "path": "src/app/api/webhooks/github/, src/server/auto-draft-webhook.ts, src/server/webhook-verify.ts",
+   "area": "Ingest",
+   "loc": 0,
+   "cx": 0,
+   "churn": 0,
+   "need": [
+    "unit",
+    "contract",
+    "integration"
+   ]
+  },
+  {
+   "id": "queue",
+   "name": "Queue and callback",
+   "path": "src/app/api/queue/draft/, src/server/auto-draft-worker.ts, src/server/qstash.ts",
+   "area": "Ingest",
+   "loc": 0,
+   "cx": 0,
+   "churn": 0,
+   "need": [
+    "unit",
+    "contract",
+    "integration"
+   ]
+  },
+  {
+   "id": "tracking",
+   "name": "Change tracking",
+   "path": "src/lib/github-commits.ts, src/server/drafts.ts",
+   "area": "AI",
+   "loc": 0,
+   "cx": 0,
+   "churn": 0,
+   "need": [
+    "unit",
+    "property",
+    "integration"
+   ]
+  },
+  {
+   "id": "draft",
+   "name": "Extraction and drafting",
+   "path": "src/server/draft-generation.ts, src/lib/draft-prompt.ts, src/lib/draft-input.ts, src/lib/draft-output.ts, src/server/anthropic.ts",
+   "area": "AI",
+   "loc": 0,
+   "cx": 0,
+   "churn": 0,
+   "need": [
+    "unit",
+    "contract",
+    "integration",
+    "e2e"
+   ]
+  },
+  {
+   "id": "checker",
+   "name": "Authenticity checker",
+   "path": "src/lib/draft-checker.ts, src/lib/draft-rules.ts, src/lib/voice-check.ts",
+   "area": "AI",
+   "loc": 0,
+   "cx": 0,
+   "churn": 0,
+   "need": [
+    "unit",
+    "property"
+   ]
+  },
+  {
+   "id": "guards",
+   "name": "Caps and rate limits",
+   "path": "src/server/rate-limit.ts, src/server/rate-limit-core.ts, src/lib/ai-models.ts",
+   "area": "Platform",
+   "loc": 0,
+   "cx": 0,
+   "churn": 0,
+   "need": [
+    "unit",
+    "property",
+    "integration"
+   ]
+  },
+  {
+   "id": "github",
+   "name": "GitHub connection",
+   "path": "src/server/github.ts, src/server/github-app.ts, src/server/github-connect.ts, src/server/github-projects.ts, src/server/outbound.ts",
+   "area": "Ingest",
+   "loc": 0,
+   "cx": 0,
+   "churn": 0,
+   "need": [
+    "unit",
+    "integration"
+   ]
+  },
+  {
+   "id": "schedule",
+   "name": "Buffer scheduling and token vault",
+   "path": "src/server/buffer.ts, src/server/scheduling.ts, src/server/token-vault.ts",
+   "area": "Platform",
+   "loc": 0,
+   "cx": 0,
+   "churn": 0,
+   "need": [
+    "unit",
+    "integration"
+   ]
+  }
+ ],
+ "tests": [
+  {
+   "id": "t1",
+   "mod": "auth",
+   "layer": "unit",
+   "name": "rejects a tampered session token",
+   "ms": 213,
+   "status": "pass",
+   "catches": [
+    "b2"
+   ]
+  },
+  {
+   "id": "t2",
+   "mod": "auth",
+   "layer": "unit",
+   "name": "uses verified claims, never the raw cookie",
+   "ms": 16,
+   "status": "pass",
+   "catches": [
+    "b2"
+   ]
+  },
+  {
+   "id": "t3",
+   "mod": "auth",
+   "layer": "integration",
+   "name": "unauthenticated request to a project route is refused",
+   "ms": 16,
+   "status": "pass",
+   "catches": []
+  },
+  {
+   "id": "t4",
+   "mod": "auth",
+   "layer": "e2e",
+   "name": "sign in, create a project, sign out",
+   "ms": 0,
+   "status": "skip",
+   "catches": []
+  },
+  {
+   "id": "t5",
+   "mod": "data",
+   "layer": "unit",
+   "name": "project and draft queries are scoped by the session user id, never one taken from the input",
+   "ms": 38,
+   "status": "pass",
+   "catches": [
+    "b1"
+   ]
+  },
+  {
+   "id": "t6",
+   "mod": "data",
+   "layer": "integration",
+   "name": "user A requesting user B's record gets 404",
+   "ms": 154,
+   "status": "pass",
+   "catches": [
+    "b1"
+   ]
+  },
+  {
+   "id": "t7",
+   "mod": "data",
+   "layer": "integration",
+   "name": "row-level policies apply to the role the app uses",
+   "ms": 391,
+   "status": "pass",
+   "catches": [
+    "b1"
+   ]
+  },
+  {
+   "id": "t8",
+   "mod": "projects",
+   "layer": "unit",
+   "name": "validates project name and status",
+   "ms": 171,
+   "status": "pass",
+   "catches": []
+  },
+  {
+   "id": "t9",
+   "mod": "projects",
+   "layer": "integration",
+   "name": "list returns only the caller's projects",
+   "ms": 102,
+   "status": "pass",
+   "catches": [
+    "b1"
+   ]
+  },
+  {
+   "id": "t10",
+   "mod": "projects",
+   "layer": "integration",
+   "name": "deleting a project removes its drafts and jobs, and deleting a user removes their projects",
+   "ms": 93,
+   "status": "pass",
+   "catches": []
+  },
+  {
+   "id": "t11",
+   "mod": "sources",
+   "layer": "unit",
+   "name": "flags Anthropic, OpenAI and Google API key formats in text",
+   "ms": 1,
+   "status": "pass",
+   "catches": [
+    "b7"
+   ]
+  },
+  {
+   "id": "t12",
+   "mod": "sources",
+   "layer": "unit",
+   "name": "blocks a token inside a commit message (never masks)",
+   "ms": 3,
+   "status": "pass",
+   "catches": [
+    "b7"
+   ]
+  },
+  {
+   "id": "t13",
+   "mod": "sources",
+   "layer": "property",
+   "name": "random text never leaks a planted secret",
+   "ms": 84,
+   "status": "pass",
+   "catches": [
+    "b7"
+   ]
+  },
+  {
+   "id": "t14",
+   "mod": "sources",
+   "layer": "integration",
+   "name": "rejects a body over the size cap with 413",
+   "ms": 112,
+   "status": "pass",
+   "catches": [
+    "b15"
+   ]
+  },
+  {
+   "id": "t16",
+   "mod": "webhook",
+   "layer": "unit",
+   "name": "rejects a missing or malformed signature header",
+   "ms": 55,
+   "status": "pass",
+   "catches": [
+    "b3"
+   ]
+  },
+  {
+   "id": "t17",
+   "mod": "webhook",
+   "layer": "contract",
+   "name": "a push without a usable delivery id or body is a 400; a valid push creates a job for its [post] commits by full sha",
+   "ms": 30,
+   "status": "pass",
+   "catches": []
+  },
+  {
+   "id": "t18",
+   "mod": "webhook",
+   "layer": "integration",
+   "name": "unsigned event is rejected and creates no job",
+   "ms": 51,
+   "status": "pass",
+   "catches": [
+    "b3"
+   ]
+  },
+  {
+   "id": "t19",
+   "mod": "webhook",
+   "layer": "integration",
+   "name": "a push for an installation or repo not linked to the sender's project creates no job",
+   "ms": 49,
+   "status": "pass",
+   "catches": [
+    "b14"
+   ]
+  },
+  {
+   "id": "t20",
+   "mod": "webhook",
+   "layer": "integration",
+   "name": "same delivery id twice creates one job",
+   "ms": 118,
+   "status": "pass",
+   "catches": [
+    "b4"
+   ]
+  },
+  {
+   "id": "t21",
+   "mod": "webhook",
+   "layer": "integration",
+   "name": "only [post] commits create a job",
+   "ms": 7,
+   "status": "pass",
+   "catches": []
+  },
+  {
+   "id": "t22",
+   "mod": "queue",
+   "layer": "unit",
+   "name": "tampered body fails signature verification",
+   "ms": 6,
+   "status": "pass",
+   "catches": [
+    "b5"
+   ]
+  },
+  {
+   "id": "t23",
+   "mod": "queue",
+   "layer": "contract",
+   "name": "accepts both current and next signing keys",
+   "ms": 16,
+   "status": "pass",
+   "catches": [
+    "b5"
+   ]
+  },
+  {
+   "id": "t24",
+   "mod": "queue",
+   "layer": "integration",
+   "name": "unsigned callback returns 401 and does no work",
+   "ms": 34,
+   "status": "pass",
+   "catches": [
+    "b5"
+   ]
+  },
+  {
+   "id": "t25",
+   "mod": "queue",
+   "layer": "integration",
+   "name": "same job delivered twice makes one draft",
+   "ms": 123,
+   "status": "pass",
+   "catches": [
+    "b6"
+   ]
+  },
+  {
+   "id": "t26",
+   "mod": "queue",
+   "layer": "integration",
+   "name": "invalid input returns 489 and is not retried",
+   "ms": 25,
+   "status": "pass",
+   "catches": [
+    "b6"
+   ]
+  },
+  {
+   "id": "t27",
+   "mod": "tracking",
+   "layer": "unit",
+   "name": "commits are marked covered only when the user copies the draft",
+   "ms": 51,
+   "status": "pass",
+   "catches": [
+    "b13"
+   ]
+  },
+  {
+   "id": "t28",
+   "mod": "tracking",
+   "layer": "unit",
+   "name": "covered commits are unchecked by default and need an explicit extra click",
+   "ms": 144,
+   "status": "pass",
+   "catches": [
+    "b8"
+   ]
+  },
+  {
+   "id": "t30",
+   "mod": "tracking",
+   "layer": "integration",
+   "name": "in-progress project gets status-aware wording, never 'shipped'",
+   "ms": 6,
+   "status": "pass",
+   "catches": [
+    "b9"
+   ]
+  },
+  {
+   "id": "t31",
+   "mod": "draft",
+   "layer": "unit",
+   "name": "trims input to the configured caps",
+   "ms": 21,
+   "status": "pass",
+   "catches": []
+  },
+  {
+   "id": "t32",
+   "mod": "draft",
+   "layer": "contract",
+   "name": "model output matches the extraction schema",
+   "ms": 13,
+   "status": "pass",
+   "catches": [
+    "b12"
+   ]
+  },
+  {
+   "id": "t33",
+   "mod": "draft",
+   "layer": "integration",
+   "name": "invalid model output is rejected and not stored",
+   "ms": 10,
+   "status": "pass",
+   "catches": [
+    "b12"
+   ]
+  },
+  {
+   "id": "t34",
+   "mod": "draft",
+   "layer": "integration",
+   "name": "instructions hidden in commit text do not change the draft",
+   "ms": 7,
+   "status": "pass",
+   "catches": [
+    "b10"
+   ]
+  },
+  {
+   "id": "t35",
+   "mod": "draft",
+   "layer": "integration",
+   "name": "a foreign project or user id in the job payload is refused",
+   "ms": 74,
+   "status": "pass",
+   "catches": [
+    "b1"
+   ]
+  },
+  {
+   "id": "t36",
+   "mod": "draft",
+   "layer": "e2e",
+   "name": "[post] commit produces an editable draft the user can copy",
+   "ms": 0,
+   "status": "skip",
+   "catches": [
+    "b13"
+   ]
+  },
+  {
+   "id": "t37",
+   "mod": "checker",
+   "layer": "unit",
+   "name": "flags stock AI phrases",
+   "ms": 9,
+   "status": "pass",
+   "catches": []
+  },
+  {
+   "id": "t38",
+   "mod": "checker",
+   "layer": "unit",
+   "name": "flags a claim that work is shipped when status is in progress",
+   "ms": 5,
+   "status": "pass",
+   "catches": [
+    "b9"
+   ]
+  },
+  {
+   "id": "t39",
+   "mod": "checker",
+   "layer": "property",
+   "name": "flags any number or name absent from the input facts",
+   "ms": 385,
+   "status": "pass",
+   "catches": [
+    "b16"
+   ]
+  },
+  {
+   "id": "t40",
+   "mod": "guards",
+   "layer": "unit",
+   "name": "daily cap blocks the 11th generation in a UTC day",
+   "ms": 4,
+   "status": "pass",
+   "catches": [
+    "b11"
+   ]
+  },
+  {
+   "id": "t41",
+   "mod": "guards",
+   "layer": "integration",
+   "name": "monthly spend cap holds in Postgres even when Redis fails open",
+   "ms": 224,
+   "status": "pass",
+   "catches": [
+    "b11"
+   ]
+  },
+  {
+   "id": "t42",
+   "mod": "guards",
+   "layer": "property",
+   "name": "simultaneous requests never exceed the daily cap, and outstanding reservations count against the monthly cap",
+   "ms": 148,
+   "status": "pass",
+   "catches": [
+    "b11"
+   ]
+  },
+  {
+   "id": "t43",
+   "mod": "guards",
+   "layer": "integration",
+   "name": "over the limit, user actions return a limited result and the webhook returns 429 per installation",
+   "ms": 5,
+   "status": "pass",
+   "catches": []
+  },
+  {
+   "id": "t44",
+   "mod": "github",
+   "layer": "integration",
+   "name": "a forged installation_id is rejected and nothing is stored",
+   "ms": 5,
+   "status": "pass",
+   "catches": [
+    "b17"
+   ]
+  },
+  {
+   "id": "t45",
+   "mod": "github",
+   "layer": "integration",
+   "name": "a project cannot point at another user's installation",
+   "ms": 37,
+   "status": "pass",
+   "catches": [
+    "b17",
+    "b1"
+   ]
+  },
+  {
+   "id": "t46",
+   "mod": "github",
+   "layer": "unit",
+   "name": "the outbound module refuses any host not on the allowlist",
+   "ms": 3,
+   "status": "pass",
+   "catches": []
+  },
+  {
+   "id": "t47",
+   "mod": "schedule",
+   "layer": "unit",
+   "name": "token vault round trip works",
+   "ms": 9,
+   "status": "pass",
+   "catches": []
+  },
+  {
+   "id": "t48",
+   "mod": "schedule",
+   "layer": "unit",
+   "name": "tampered ciphertext or another user's ciphertext fails to decrypt",
+   "ms": 10,
+   "status": "pass",
+   "catches": [
+    "b18"
+   ]
+  },
+  {
+   "id": "t49",
+   "mod": "schedule",
+   "layer": "integration",
+   "name": "a changed draft text refuses to schedule (hash mismatch)",
+   "ms": 11,
+   "status": "pass",
+   "catches": [
+    "b19"
+   ]
+  },
+  {
+   "id": "t50",
+   "mod": "schedule",
+   "layer": "integration",
+   "name": "a second active schedule for the same draft is refused",
+   "ms": 40,
+   "status": "pass",
+   "catches": []
+  },
+  {
+   "id": "t51",
+   "mod": "schedule",
+   "layer": "integration",
+   "name": "user A's Buffer token is never used for user B",
+   "ms": 30,
+   "status": "pass",
+   "catches": [
+    "b18"
+   ]
+  }
+ ],
+ "bugs": [
+  {
+   "id": "b1",
+   "name": "A user reads another user's project",
+   "mod": "data",
+   "ripple": [
+    "projects",
+    "draft"
+   ],
+   "kind": "logic",
+   "sev": 3,
+   "desc": "A query without the owner id returns another user's rows."
+  },
+  {
+   "id": "b2",
+   "name": "Server trusts an unverified session cookie",
+   "mod": "auth",
+   "ripple": [],
+   "kind": "logic",
+   "sev": 3,
+   "desc": "Server code reads the session without verifying the signed token."
+  },
+  {
+   "id": "b3",
+   "name": "Webhook accepts a forged or unsigned event",
+   "mod": "webhook",
+   "ripple": [
+    "queue"
+   ],
+   "kind": "contract",
+   "sev": 3,
+   "desc": "A fake push creates a job and spends AI budget."
+  },
+  {
+   "id": "b4",
+   "name": "One delivery creates two jobs",
+   "mod": "webhook",
+   "ripple": [
+    "draft"
+   ],
+   "kind": "concurrency",
+   "sev": 2,
+   "desc": "A GitHub retry is processed twice."
+  },
+  {
+   "id": "b5",
+   "name": "Queue callback accepts an unsigned call",
+   "mod": "queue",
+   "ripple": [
+    "draft",
+    "guards"
+   ],
+   "kind": "contract",
+   "sev": 3,
+   "desc": "Anyone who finds the URL can trigger paid draft work."
+  },
+  {
+   "id": "b6",
+   "name": "Retry or duplicate delivery makes two drafts",
+   "mod": "queue",
+   "ripple": [
+    "guards"
+   ],
+   "kind": "concurrency",
+   "sev": 2,
+   "desc": "The worker is not idempotent, so a retry repeats the LLM call."
+  },
+  {
+   "id": "b7",
+   "name": "A secret in a doc or commit is stored and sent to the model",
+   "mod": "sources",
+   "ripple": [
+    "draft"
+   ],
+   "kind": "invariant",
+   "sev": 3,
+   "desc": "The scanner misses a key format or runs after storage."
+  },
+  {
+   "id": "b8",
+   "name": "A covered fact is reused the next week",
+   "mod": "tracking",
+   "ripple": [
+    "draft"
+   ],
+   "kind": "logic",
+   "sev": 2,
+   "desc": "The cursor or covered flag is not applied when selecting facts."
+  },
+  {
+   "id": "b9",
+   "name": "In-progress work is described as shipped",
+   "mod": "tracking",
+   "ripple": [
+    "checker"
+   ],
+   "kind": "logic",
+   "sev": 2,
+   "desc": "Status is not passed to the prompt or the checker."
+  },
+  {
+   "id": "b10",
+   "name": "Hidden instructions in commit text change the draft",
+   "mod": "draft",
+   "ripple": [],
+   "kind": "logic",
+   "sev": 3,
+   "desc": "Repository text is treated as instructions instead of data."
+  },
+  {
+   "id": "b11",
+   "name": "Spend cap bypassed when Redis is slow",
+   "mod": "guards",
+   "ripple": [
+    "draft"
+   ],
+   "kind": "concurrency",
+   "sev": 3,
+   "desc": "The Redis limiter fails open, so the cap must be enforced in Postgres."
+  },
+  {
+   "id": "b12",
+   "name": "Model output that breaks the schema is saved",
+   "mod": "draft",
+   "ripple": [],
+   "kind": "contract",
+   "sev": 2,
+   "desc": "Output is stored before validation."
+  },
+  {
+   "id": "b13",
+   "name": "A draft is marked covered or posted without the user",
+   "mod": "tracking",
+   "ripple": [
+    "draft"
+   ],
+   "kind": "logic",
+   "sev": 2,
+   "desc": "Covered is set at generation time instead of on copy."
+  },
+  {
+   "id": "b14",
+   "name": "A push for another user's installation or repo creates a job",
+   "mod": "webhook",
+   "ripple": [],
+   "kind": "invariant",
+   "sev": 3,
+   "desc": "The worker or webhook trusts ids from the payload instead of resolving user and project from the verified installation."
+  },
+  {
+   "id": "b16",
+   "name": "Draft invents a number, name or claim",
+   "mod": "checker",
+   "ripple": [
+    "draft"
+   ],
+   "kind": "logic",
+   "sev": 2,
+   "desc": "The model adds details that are not in the extracted facts."
+  },
+  {
+   "id": "b15",
+   "name": "Oversize body accepted",
+   "mod": "sources",
+   "ripple": [],
+   "kind": "boundary",
+   "sev": 1,
+   "desc": "The size cap is checked after parsing, or not at all."
+  },
+  {
+   "id": "b17",
+   "name": "A forged installation id links someone else's GitHub account",
+   "mod": "github",
+   "ripple": [
+    "projects",
+    "draft"
+   ],
+   "kind": "invariant",
+   "sev": 3,
+   "desc": "installation_id from the URL is trusted without the user-authorization check."
+  },
+  {
+   "id": "b18",
+   "name": "A user's Buffer token is read or used by another user",
+   "mod": "schedule",
+   "ripple": [],
+   "kind": "invariant",
+   "sev": 3,
+   "desc": "Tokens are readable through a user role, or ciphertext is not bound to the user."
+  },
+  {
+   "id": "b19",
+   "name": "Text different from what the user reviewed is scheduled",
+   "mod": "schedule",
+   "ripple": [],
+   "kind": "logic",
+   "sev": 2,
+   "desc": "The server schedules the live draft instead of the reviewed snapshot."
+  }
+ ],
+ "cov": {
+  "auth": {
+   "unit": 53.01,
+   "integration": 16.86,
+   "e2e": 0
+  },
+  "data": {
+   "unit": 16.37,
+   "integration": 2.87
+  },
+  "projects": {
+   "unit": 25.17,
+   "integration": 17
+  },
+  "sources": {
+   "unit": 76.92,
+   "property": 76.92,
+   "integration": 10.71
+  },
+  "webhook": {
+   "unit": 31.2,
+   "contract": 63.12,
+   "integration": 63.12
+  },
+  "queue": {
+   "unit": 20.98,
+   "contract": 32.09,
+   "integration": 50.61
+  },
+  "tracking": {
+   "unit": 27.95,
+   "property": 0,
+   "integration": 15.05
+  },
+  "draft": {
+   "unit": 9.34,
+   "contract": 17.03,
+   "integration": 56.04,
+   "e2e": 0
+  },
+  "checker": {
+   "unit": 65.42,
+   "property": 65.42
+  },
+  "guards": {
+   "unit": 33.33,
+   "property": 0,
+   "integration": 25
+  },
+  "github": {
+   "unit": 3.93,
+   "integration": 16.14
+  },
+  "schedule": {
+   "unit": 17.83,
+   "integration": 25.47
+  }
+ },
+ "mut": {}
+}
