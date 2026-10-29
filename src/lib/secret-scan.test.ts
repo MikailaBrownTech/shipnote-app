@@ -196,3 +196,39 @@ describe('describeSecrets', () => {
     ).toContain('in the summary')
   })
 })
+
+describe('findSecrets: a planted secret is never missed', () => {
+  // A seeded generator, so a failure can be reproduced.
+  let seed = 20260429
+  const next = (n: number) => {
+    seed = (seed * 1664525 + 1013904223) % 4294967296
+    return seed % n
+  }
+  const word = () =>
+    Array.from({ length: 1 + next(10) }, () =>
+      'abcdefghijklmnopqrstuvwxyz0123456789'.charAt(next(36)),
+    ).join('')
+  const line = () => Array.from({ length: next(12) }, () => word()).join(' ')
+  // Separators stay on one line, so the expected line number is exact.
+  const before = [' ', '\t', '"', "'", '(', '`', ': ', '= ']
+  const after = [' ', '"', "'", ')', '`', ',', '.', '']
+
+  it('is found, with its kind and its line, in random text around it', () => {
+    for (let i = 0; i < 400; i += 1) {
+      const [kind, secret] = positives[next(positives.length)]
+      const above = Array.from({ length: next(6) }, () => line())
+      const below = Array.from({ length: next(6) }, () => line())
+      const sep = before[next(before.length)]
+      const text = [
+        ...above,
+        cat(line(), sep, secret, after[next(after.length)], ' ', line()),
+        ...below,
+      ].join(['\n', '\r\n'][next(2)])
+      const found = findSecrets(text)
+      expect(
+        found.some((f) => f.kind === kind && f.line === above.length + 1),
+        `run ${String(i)}: ${kind}`,
+      ).toBe(true)
+    }
+  })
+})
