@@ -7,8 +7,8 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    // Skip static files, and the webhook and queue endpoints that later
+    // Skip static files, the health check, and the webhook and queue endpoints that later
     // sprints add, which authenticate themselves and must not touch cookies.
-    '/((?!_next/static|_next/image|favicon\.ico|api/webhooks(?:/|$)|api/queue(?:/|$)|.*\.(?:svg|png|jpg|jpeg|gif|webp|avif|ico|woff2?|css|js|map|txt|xml)$).*)',
+    '/((?!_next/static|_next/image|favicon\.ico|api/webhooks(?:/|$)|api/queue(?:/|$)|api/health(?:/|$)|.*\.(?:svg|png|jpg|jpeg|gif|webp|avif|ico|woff2?|css|js|map|txt|xml)$).*)',
   ],
 }

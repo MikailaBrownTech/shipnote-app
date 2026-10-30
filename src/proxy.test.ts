@@ -53,6 +53,7 @@ describe('the matcher', () => {
     '/api/webhooks',
     '/api/queue/draft',
     '/api/queue',
+    '/api/health',
   ])(
     'skips %s, which authenticates itself and must not touch cookies',
     (path) => {
@@ -80,6 +81,7 @@ describe('the matcher', () => {
     for (const path of [
       '/api/webhooksx',
       '/api/queues',
+      '/api/healthz',
       '/dashboard/api/webhooks',
     ]) {
       expect(runsOn(path), path).toBe(true)
